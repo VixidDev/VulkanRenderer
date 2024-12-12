@@ -1,0 +1,7 @@
+.vscode
+_build_/
+lib/
+assets/
+bin/
+Makefile
+a12output.txt
