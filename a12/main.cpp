@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <cstring>
 
+#include <algorithm>
+
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 
@@ -53,6 +55,10 @@ namespace
 		constexpr const char* kDebugFragShaderPath = "assets/a12/shaders/debug.frag.spv";
 		constexpr const char* kPPVertShaderPath = "assets/a12/shaders/postProcess.vert.spv";
 		constexpr const char* kPPFragShaderPath = "assets/a12/shaders/postProcess.frag.spv";
+		constexpr const char* kOverVisWriteVertShaderPath = "assets/a12/shaders/overVisWrite.vert.spv";
+		constexpr const char* kOverVisWriteFragShaderPath = "assets/a12/shaders/overVisWrite.frag.spv";
+		constexpr const char* kOverVisReadVertShaderPath = "assets/a12/shaders/overVisRead.vert.spv";
+		constexpr const char* kOverVisReadFragShaderPath = "assets/a12/shaders/overVisRead.frag.spv";
 
 		constexpr float kCameraNear  = 0.1f;
 		constexpr float kCameraFar   = 100.f;
@@ -65,7 +71,7 @@ namespace
 
 		constexpr float kCameraMouseSensitivity = 0.01f;
 
-		constexpr VkFormat kDepthFormat = VK_FORMAT_D32_SFLOAT;
+		constexpr VkFormat kDepthFormat = VK_FORMAT_D32_SFLOAT_S8_UINT;
 	}
 
 	using Clock_ = std::chrono::steady_clock;
@@ -96,8 +102,9 @@ namespace
 		float mouseX = 0.0f, mouseY = 0.0f;
 		float previousX = 0.0f, previousY = 0.0f;
 
-		int debugVisualisation = 1;
+		int debugVisualisation = 5;
 		bool mosaicEffect = false;
+		uint32_t reference = 0x01;
 
 		bool wasMousing = false;
 
@@ -118,12 +125,14 @@ namespace
 		VkRenderPass regularRenderPass;
 		VkRenderPass offscreenRenderPass;
 		VkRenderPass postProcessRenderPass;
+		VkRenderPass overVisualisationsRenderPass;
 	};
 
 	struct Framebuffers {
 		VkFramebuffer offscreenFramebuffer;
 		VkFramebuffer regularSwapchainFramebuffer;
 		VkFramebuffer fullscreenSwapchainFramebuffer;
+		VkFramebuffer overVisualisationFramebuffer;
 	};
 
 	struct Pipelines {
@@ -133,6 +142,8 @@ namespace
 		VkPipeline debugPipeline;
 		VkPipeline offscreenPipeline;
 		VkPipeline postProcessPipeline;
+		VkPipeline overVisWritePipeline;
+		VkPipeline overVisReadPipeline;
 	};
 
 	struct UBOs {
@@ -144,6 +155,8 @@ namespace
 	struct PipelineLayouts {
 		VkPipelineLayout regularPipelineLayout;
 		VkPipelineLayout postProcessPipelineLayout;
+		VkPipelineLayout overVisWritePipelineLayout;
+		VkPipelineLayout overVisReadPipelineLayout;
 	};
 
 	struct DescriptorSets {
@@ -152,6 +165,7 @@ namespace
 		VkDescriptorSet lightDescriptor;
 		VkDescriptorSet debugDescriptor;
 		VkDescriptorSet postProcessDescriptor;
+		VkDescriptorSet overVisualisationDescriptor;
 	};
 
 	// Uniform data
@@ -188,11 +202,13 @@ namespace
 	lut::RenderPass create_render_pass(const lut::VulkanWindow&);
 	lut::RenderPass create_offscreen_render_pass(const lut::VulkanWindow&);
 	lut::RenderPass create_post_process_render_pass(const lut::VulkanWindow&);
+	lut::RenderPass create_over_visualisations_render_pass(const lut::VulkanWindow&);
 
 	lut::DescriptorSetLayout create_scene_descriptor_layout(const lut::VulkanWindow&);
 	lut::DescriptorSetLayout create_material_descriptor_layout(const lut::VulkanWindow&);
 	lut::DescriptorSetLayout create_fragment_ubo_descriptor_layout(const lut::VulkanWindow&);
 	lut::DescriptorSetLayout create_post_process_descriptor_layout(const lut::VulkanWindow&);
+	lut::DescriptorSetLayout create_over_visualisations_descriptor_layout(const lut::VulkanWindow&);
 
 	lut::PipelineLayout create_pipeline_layout(const lut::VulkanWindow&, std::vector<VkDescriptorSetLayout>&);
 
@@ -200,13 +216,17 @@ namespace
 	lut::Pipeline create_debug_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout);
 	lut::Pipeline create_alpha_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout);
 	lut::Pipeline create_post_process_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout);
+	std::tuple<lut::Pipeline, lut::Pipeline> create_over_visualisations_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout, VkPipelineLayout);
 
 	std::tuple<lut::Image, lut::ImageView> create_depth_buffer(const lut::VulkanWindow&, const lut::Allocator&);
 	std::tuple<lut::Image, lut::ImageView> create_colour_buffer(const lut::VulkanWindow&, const lut::Allocator&);
+	std::tuple<lut::Image, lut::ImageView, lut::Image, lut::ImageView> create_split_depth_stencil_buffers(const lut::VulkanWindow&, const lut::Allocator&);
+	std::tuple<lut::Image, lut::ImageView> create_just_stencil_buffer(const lut::VulkanWindow&, const lut::Allocator&);
 
 	lut::Framebuffer create_offscreen_framebuffer(const lut::VulkanWindow&, VkRenderPass, VkImageView, VkImageView);
 	void create_regular_swapchain_framebuffers(const lut::VulkanWindow&, VkRenderPass, std::vector<lut::Framebuffer>&, VkImageView);
 	void create_fullscreen_swapchain_framebuffers(const lut::VulkanWindow&, VkRenderPass, std::vector<lut::Framebuffer>&);
+	void create_over_visualisation_framebuffers(const lut::VulkanWindow&, VkRenderPass, std::vector<lut::Framebuffer>&, VkImageView, VkImageView);
 
 	lut::ImageView load_mesh_texture(const lut::VulkanWindow&, VkCommandPool, const lut::Allocator&, BakedTextureInfo);
 
@@ -252,17 +272,20 @@ int main() try
 	lut::RenderPass renderPass = create_render_pass(window);
 	lut::RenderPass offscreenRenderPass = create_offscreen_render_pass(window);
 	lut::RenderPass postProcessRenderPass = create_post_process_render_pass(window);
+	lut::RenderPass overVisualisationsRenderPass = create_over_visualisations_render_pass(window);
 
 	RenderPasses renderPasses{};
 	renderPasses.regularRenderPass = renderPass.handle;
 	renderPasses.offscreenRenderPass = offscreenRenderPass.handle;
 	renderPasses.postProcessRenderPass = postProcessRenderPass.handle;
+	renderPasses.overVisualisationsRenderPass = overVisualisationsRenderPass.handle;
 
 	// Create descriptor set layouts
 	lut::DescriptorSetLayout sceneLayout = create_scene_descriptor_layout(window);
 	lut::DescriptorSetLayout materialLayout = create_material_descriptor_layout(window);
 	lut::DescriptorSetLayout uboLayout = create_fragment_ubo_descriptor_layout(window);
 	lut::DescriptorSetLayout postProcessDescriptorLayout = create_post_process_descriptor_layout(window);
+	lut::DescriptorSetLayout overVisualisationDescriptorLayout = create_over_visualisations_descriptor_layout(window);
 
 	std::vector<VkDescriptorSetLayout> sceneDescriptorSetLayouts;
 	sceneDescriptorSetLayouts.emplace_back(sceneLayout.handle);
@@ -272,14 +295,24 @@ int main() try
 	std::vector<VkDescriptorSetLayout> postProcessDescriptorSetLayouts;
 	postProcessDescriptorSetLayouts.emplace_back(postProcessDescriptorLayout.handle);
 
+	std::vector<VkDescriptorSetLayout> overVisWriteDescriptorSetLayouts;
+	overVisWriteDescriptorSetLayouts.emplace_back(sceneLayout.handle);
+
+	std::vector<VkDescriptorSetLayout> overVisReadDescriptorSetLayouts;
+	overVisReadDescriptorSetLayouts.emplace_back(overVisualisationDescriptorLayout.handle);
+
 	// Create pipeline layouts
 	lut::PipelineLayout pipeLayout = create_pipeline_layout(window, sceneDescriptorSetLayouts);
 	lut::PipelineLayout debugPipeLayout = create_pipeline_layout(window, sceneDescriptorSetLayouts);
 	lut::PipelineLayout postProcessLayout = create_pipeline_layout(window, postProcessDescriptorSetLayouts);
+	lut::PipelineLayout overVisWriteLayout = create_pipeline_layout(window, overVisWriteDescriptorSetLayouts);
+	lut::PipelineLayout overVisReadLayout = create_pipeline_layout(window, overVisReadDescriptorSetLayouts);
 
 	PipelineLayouts pipelineLayouts{};
 	pipelineLayouts.regularPipelineLayout = pipeLayout.handle;
 	pipelineLayouts.postProcessPipelineLayout = postProcessLayout.handle;
+	pipelineLayouts.overVisWritePipelineLayout = overVisWriteLayout.handle;
+	pipelineLayouts.overVisReadPipelineLayout = overVisReadLayout.handle;
 
 	// Create pipelines
 	lut::Pipeline pipeline = create_pipeline(window, renderPass.handle, pipeLayout.handle);
@@ -288,6 +321,7 @@ int main() try
 	lut::Pipeline debugPipeline = create_debug_pipeline(window, renderPass.handle, debugPipeLayout.handle);
 	lut::Pipeline offscreePipeline = create_pipeline(window, offscreenRenderPass.handle, pipeLayout.handle);
 	lut::Pipeline postProcessPipeline = create_post_process_pipeline(window, postProcessRenderPass.handle, postProcessLayout.handle);
+	auto [overVisWritePipe, overVisReadPipe] = create_over_visualisations_pipeline(window, overVisualisationsRenderPass.handle, overVisWriteLayout.handle, overVisReadLayout.handle);
 
 	Pipelines pipelines{};
 	pipelines.regularPipeline = pipeline.handle;
@@ -296,19 +330,27 @@ int main() try
 	pipelines.debugPipeline = debugPipeline.handle;
 	pipelines.offscreenPipeline = offscreePipeline.handle;
 	pipelines.postProcessPipeline = postProcessPipeline.handle;
+	pipelines.overVisWritePipeline = overVisWritePipe.handle;
+	pipelines.overVisReadPipeline = overVisReadPipe.handle;
 
 	// Create depth buffer
 	auto [depthBuffer, depthBufferView] = create_depth_buffer(window, allocator);
 	// Create colour image buffer for post processing
 	auto [colourBuffer, colourBufferView] = create_colour_buffer(window, allocator);
+	// Create just stencil buffer for overdraw/-shading visualisation
+	auto [stencilBuffer, stencilBufferView] = create_just_stencil_buffer(window, allocator);
 
 	// Create offscreen framebuffer 
 	lut::Framebuffer offscreenFramebuffer = create_offscreen_framebuffer(window, offscreenRenderPass.handle, colourBufferView.handle, depthBufferView.handle);
 	// Create swapchain framebuffers
 	std::vector<lut::Framebuffer> regularFramebuffers;
 	create_regular_swapchain_framebuffers(window, renderPass.handle, regularFramebuffers, depthBufferView.handle);
+	// Create framebuffers for doing post processing
 	std::vector<lut::Framebuffer> fullscreenFramebuffers;
 	create_fullscreen_swapchain_framebuffers(window, postProcessRenderPass.handle, fullscreenFramebuffers);
+	// Create framebuffers for over visualisation debug
+	std::vector<lut::Framebuffer> overVisulisationFramebuffers;
+	create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, stencilBufferView.handle);
 
 	Framebuffers aFramebuffers{};
 	aFramebuffers.offscreenFramebuffer = offscreenFramebuffer.handle;
@@ -328,6 +370,8 @@ int main() try
 		imageAvailable.emplace_back(lut::create_semaphore(window));
 		renderFinished.emplace_back(lut::create_semaphore(window));
 	}
+
+#pragma region UniformBuffers
 
 	// Create Uniform Buffer
 	lut::Buffer sceneUBO = lut::create_buffer(
@@ -361,8 +405,12 @@ int main() try
 	ubos.lightUBO = lightUBO.buffer;
 	ubos.debugUBO = debugUBO.buffer;
 
+#pragma endregion
+
 	// Create descriptor pool
 	lut::DescriptorPool dpool = lut::create_descriptor_pool(window);
+
+#pragma region DescriptorSets
 
 	// Initialise scene descriptor set
 	VkDescriptorSet sceneDescriptors = lut::alloc_desc_set(window, dpool.handle, sceneLayout.handle);
@@ -447,6 +495,40 @@ int main() try
 		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
 	}
 
+	// Create over visualisation descriptor
+	VkDescriptorSet overVisualisationDescriptor = lut::alloc_desc_set(window, dpool.handle, overVisualisationDescriptorLayout.handle);
+	{
+		VkWriteDescriptorSet desc[1]{};
+
+		VkDescriptorImageInfo inputAttachments[1]{};
+		//inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		//inputAttachments[0].imageView = colourBufferView.handle;
+		//inputAttachments[0].sampler = VK_NULL_HANDLE;
+
+		inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		inputAttachments[0].imageView = stencilBufferView.handle;
+		inputAttachments[0].sampler = VK_NULL_HANDLE;
+
+		desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		desc[0].dstSet = overVisualisationDescriptor;
+		desc[0].dstBinding = 0;
+		desc[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		desc[0].descriptorCount = 1;
+		desc[0].pImageInfo = &inputAttachments[0];
+
+		//desc[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		//desc[1].dstSet = overVisualisationDescriptor;
+		//desc[1].dstBinding = 1;
+		//desc[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		//desc[1].descriptorCount = 1;
+		//desc[1].pImageInfo = &inputAttachments[1];
+
+		constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
+		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
+	}
+
+#pragma endregion
+
 	// Load mesh data
 	// Load baked model
 	BakedModel bakedModel = load_baked_model(cfg::kModelPath);
@@ -458,6 +540,8 @@ int main() try
 		lut::CommandPool texCmdPool = lut::create_command_pool(window, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
 		textureViews.push_back(load_mesh_texture(window, texCmdPool.handle, allocator, textureInfo));
 	}
+
+#pragma region MaterialDescriptorSets
 
 	// Create Descriptor Sets for each material
 	std::vector<VkDescriptorSet> materialDescriptors;
@@ -527,13 +611,18 @@ int main() try
 		materialDescriptors.emplace_back(materialDescriptor);
 	}
 
+#pragma endregion
+
 	DescriptorSets descriptorSets{
 		materialDescriptors,
 		sceneDescriptors,
 		lightDescriptor,
 		debugDescriptor,
-		postProcessDescriptor
+		postProcessDescriptor,
+		overVisualisationDescriptor
 	};
+
+#pragma region MeshData
 
 	// Mesh Data
 	std::vector<MeshData> meshData;
@@ -723,6 +812,8 @@ int main() try
 			});
 	}
 
+#pragma endregion
+
 	// Application main loop
 	bool recreateSwapchain = false;
 
@@ -739,15 +830,18 @@ int main() try
 				renderPass = create_render_pass(window);
 				offscreenRenderPass = create_offscreen_render_pass(window);
 				postProcessRenderPass = create_post_process_render_pass(window);
+				overVisualisationsRenderPass = create_over_visualisations_render_pass(window);
 
 				renderPasses.regularRenderPass = renderPass.handle;
 				renderPasses.offscreenRenderPass = offscreenRenderPass.handle;
 				renderPasses.postProcessRenderPass = postProcessRenderPass.handle;
+				renderPasses.overVisualisationsRenderPass = overVisualisationsRenderPass.handle;
 			}
 				
 			if (changes.changedSize) {
 				std::tie(colourBuffer, colourBufferView) = create_colour_buffer(window, allocator);
 				std::tie(depthBuffer, depthBufferView) = create_depth_buffer(window, allocator);
+				std::tie(stencilBuffer, stencilBufferView) = create_just_stencil_buffer(window, allocator);
 			}
 			
 			offscreenFramebuffer = create_offscreen_framebuffer(window, offscreenRenderPass.handle, colourBufferView.handle, depthBufferView.handle);
@@ -756,6 +850,8 @@ int main() try
 			create_regular_swapchain_framebuffers(window, renderPass.handle, regularFramebuffers, depthBufferView.handle);
 			fullscreenFramebuffers.clear();
 			create_fullscreen_swapchain_framebuffers(window, postProcessRenderPass.handle, fullscreenFramebuffers);
+			overVisulisationFramebuffers.clear();
+			create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, stencilBufferView.handle);
 
 			if (changes.changedSize) {
 				pipeline = create_pipeline(window, renderPass.handle, pipeLayout.handle);
@@ -764,6 +860,7 @@ int main() try
 				debugPipeline = create_debug_pipeline(window, renderPass.handle, debugPipeLayout.handle);
 				offscreePipeline = create_pipeline(window, offscreenRenderPass.handle, pipeLayout.handle);
 				postProcessPipeline = create_post_process_pipeline(window, postProcessRenderPass.handle, postProcessLayout.handle);
+				std::tie(overVisWritePipe, overVisReadPipe) = create_over_visualisations_pipeline(window, overVisualisationsRenderPass.handle, overVisWriteLayout.handle, overVisReadLayout.handle);
 
 				pipelines.regularPipeline = pipeline.handle;
 				pipelines.alphaPipeline = alphaPipeline.handle;
@@ -771,6 +868,8 @@ int main() try
 				pipelines.debugPipeline = debugPipeline.handle;
 				pipelines.offscreenPipeline = offscreePipeline.handle;
 				pipelines.postProcessPipeline = postProcessPipeline.handle;
+				pipelines.overVisWritePipeline = overVisWritePipe.handle;
+				pipelines.overVisReadPipeline = overVisReadPipe.handle;
 			}
 
 			// Recreate post process descriptor since it relies on colour buffer
@@ -794,7 +893,40 @@ int main() try
 				vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
 			}
 
+			// Recreate over visualisation descriptor since it relies on colour buffer
+			overVisualisationDescriptor = lut::alloc_desc_set(window, dpool.handle, overVisualisationDescriptorLayout.handle);
+			{
+				VkWriteDescriptorSet desc[1]{};
+
+				VkDescriptorImageInfo inputAttachments[1]{};
+				//inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				//inputAttachments[0].imageView = colourBufferView.handle;
+				//inputAttachments[0].sampler = VK_NULL_HANDLE;
+
+				inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				inputAttachments[0].imageView = stencilBufferView.handle;
+				inputAttachments[0].sampler = VK_NULL_HANDLE;
+
+				desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				desc[0].dstSet = overVisualisationDescriptor;
+				desc[0].dstBinding = 0;
+				desc[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+				desc[0].descriptorCount = 1;
+				desc[0].pImageInfo = &inputAttachments[0];
+
+				//desc[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				//desc[1].dstSet = overVisualisationDescriptor;
+				//desc[1].dstBinding = 1;
+				//desc[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+				//desc[1].descriptorCount = 1;
+				//desc[1].pImageInfo = &inputAttachments[1];
+
+				constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
+				vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
+			}
+
 			descriptorSets.postProcessDescriptor = postProcessDescriptor;
+			descriptorSets.overVisualisationDescriptor = overVisualisationDescriptor;
 
 			recreateSwapchain = false;
 			continue;
@@ -860,6 +992,7 @@ int main() try
 
 		aFramebuffers.regularSwapchainFramebuffer = regularFramebuffers[imageIndex].handle;
 		aFramebuffers.fullscreenSwapchainFramebuffer = fullscreenFramebuffers[imageIndex].handle;
+		aFramebuffers.overVisualisationFramebuffer = overVisulisationFramebuffers[imageIndex].handle;
 
 		record_commands(
 			cbuffers[frameIndex],
@@ -931,6 +1064,7 @@ namespace {
 		if (isReleased) {
 			switch(aKey) {
 				case GLFW_KEY_1:
+					// Regular visualisation
 					state->debugVisualisation = 1;
 					//printf("Debug: 1\n");
 					break;
@@ -952,6 +1086,26 @@ namespace {
 				case GLFW_KEY_5:
 					// Toggle mosaic effect
 					state->mosaicEffect = !state->mosaicEffect;
+					break;
+				case GLFW_KEY_6:
+					// Overdraw visualisation
+					state->debugVisualisation = 5;
+					break;
+				case GLFW_KEY_7:
+					// Overshading visualisation
+					state->debugVisualisation = 6;
+					break;
+				case GLFW_KEY_EQUAL:
+					// Increment stencil reference value
+					state->reference++;
+					state->reference = std::clamp(state->reference, (uint32_t)0x00, (uint32_t)0xff);
+					printf("Debug: reference = %d\n", state->reference);
+					break;
+				case GLFW_KEY_MINUS:
+					// Decrement stencil reference value
+					state->reference--;
+					state->reference = std::clamp(state->reference, (uint32_t)0x00, (uint32_t)0xff);
+					printf("Debug: reference = %d\n", state->reference);
 					break;
 				default:
 				;
@@ -1031,6 +1185,7 @@ namespace {
 		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 
 		VkAttachmentReference subpassAttachments[1]{};
 		subpassAttachments[0].attachment = 0;
@@ -1096,6 +1251,7 @@ namespace {
 		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 
 		VkAttachmentReference subpassAttachments[1]{};
 		subpassAttachments[0].attachment = 0;
@@ -1197,6 +1353,120 @@ namespace {
 		return lut::RenderPass(aWindow.device, rpass);
 	}
 
+	lut::RenderPass create_over_visualisations_render_pass(const lut::VulkanWindow& aWindow) {
+		// First subpass writes to depth/stencil buffer
+		// Second subpass uses depth/stencil buffer to write to swapchain image
+
+		VkAttachmentDescription attachments[3]{};
+		// Swap chain image attachment
+		attachments[0].format = aWindow.swapchainFormat;
+		attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		attachments[1].format = VK_FORMAT_R8G8B8A8_SRGB;
+		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[1].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		attachments[2].format = VK_FORMAT_S8_UINT;
+		attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[2].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		VkAttachmentReference swapchainAttachment{};
+		swapchainAttachment.attachment = 0;
+		swapchainAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference colorAttachment{};
+		colorAttachment.attachment = 1;
+		colorAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference stencilAttachment{};
+		stencilAttachment.attachment = 2;
+		stencilAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpasses[2]{};
+		subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpasses[0].colorAttachmentCount = 1;
+		subpasses[0].pColorAttachments = &colorAttachment;
+		subpasses[0].pDepthStencilAttachment = &stencilAttachment;
+
+		subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpasses[1].colorAttachmentCount = 1;
+		subpasses[1].pColorAttachments = &swapchainAttachment;
+
+		VkAttachmentReference inputAttachments[2]{};
+		inputAttachments[0].attachment = 1;
+		inputAttachments[0].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		inputAttachments[1].attachment = 2;
+		inputAttachments[1].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		subpasses[1].inputAttachmentCount = 2;
+		subpasses[1].pInputAttachments = inputAttachments;
+
+		VkSubpassDependency deps[4]{};
+		deps[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+		deps[0].srcAccessMask = 0;
+		deps[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		deps[0].dstSubpass = 0;
+		deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+
+		deps[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[1].srcSubpass = VK_SUBPASS_EXTERNAL;
+		deps[1].srcAccessMask = 0;
+		deps[1].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		deps[1].dstSubpass = 1;
+		deps[1].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		deps[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+		deps[2].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[2].srcSubpass = 0;
+		deps[2].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+		deps[2].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		deps[2].dstSubpass = 1;
+		deps[2].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+		deps[2].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+
+		deps[3].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[3].srcSubpass = 1;
+		deps[3].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		deps[3].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		deps[3].dstSubpass = VK_SUBPASS_EXTERNAL;
+		deps[3].dstAccessMask = 0;
+		deps[3].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+		VkRenderPassCreateInfo passInfo{};
+		passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		passInfo.attachmentCount = 3;
+		passInfo.pAttachments = attachments;
+		passInfo.subpassCount = 2;
+		passInfo.pSubpasses = subpasses;
+		passInfo.dependencyCount = 4;
+		passInfo.pDependencies = deps;
+
+		VkRenderPass rpass = VK_NULL_HANDLE;
+		if (const auto res = vkCreateRenderPass(aWindow.device, &passInfo, nullptr, &rpass); VK_SUCCESS != res) {
+			throw lut::Error("Unable to create render pass\n vkCreateRenderPass() returned %s\n", lut::to_string(res).c_str());
+		}
+
+		return lut::RenderPass(aWindow.device, rpass);
+	}
+
 	lut::DescriptorSetLayout create_scene_descriptor_layout(const lut::VulkanWindow& aWindow) {
 		VkDescriptorSetLayoutBinding bindings[1]{};
 		bindings[0].binding = 0;
@@ -1286,6 +1556,31 @@ namespace {
 			throw lut::Error("Unable to create descriptor set layout\n vkCreateDescriptorSetLayout() returned %s", lut::to_string(res).c_str());
 
 		return lut::DescriptorSetLayout(aWindow.device, layout);
+	}
+
+	lut::DescriptorSetLayout create_over_visualisations_descriptor_layout(const lut::VulkanWindow& aWindow) {
+		VkDescriptorSetLayoutBinding bindings[1]{};
+		bindings[0].binding = 0;
+		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		bindings[0].descriptorCount = 1;
+		bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		//bindings[1].binding = 1;
+		//bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		//bindings[1].descriptorCount = 1;
+		//bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo{};
+		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layoutInfo.bindingCount = sizeof(bindings) / sizeof(bindings[0]);
+		layoutInfo.pBindings = bindings;
+
+		VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+		if (const auto res = vkCreateDescriptorSetLayout(aWindow.device, &layoutInfo, nullptr, &layout); VK_SUCCESS != res)
+			throw lut::Error("Unable to create descriptor set layout\n vkCreateDescriptorSetLayout() returned %s", lut::to_string(res).c_str());
+
+		return lut::DescriptorSetLayout(aWindow.device, layout);
+
 	}
 
 	lut::PipelineLayout create_pipeline_layout(const lut::VulkanWindow& aWindow, std::vector<VkDescriptorSetLayout>& aDescriptorSetLayouts) {
@@ -1769,6 +2064,167 @@ namespace {
 		return lut::Pipeline(aWindow.device, pipe);
 	}
 
+	std::tuple<lut::Pipeline, lut::Pipeline> create_over_visualisations_pipeline(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, VkPipelineLayout aPipelineWriteLayout, VkPipelineLayout aPipelineReadLayout) {
+		lut::ShaderModule vert = lut::load_shader_module(aWindow, cfg::kOverVisWriteVertShaderPath);
+		lut::ShaderModule frag = lut::load_shader_module(aWindow, cfg::kOverVisWriteFragShaderPath);
+
+		VkPipelineShaderStageCreateInfo stages[2]{};
+		stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+		stages[0].module = vert.handle;
+		stages[0].pName = "main";
+
+		stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		stages[1].module = frag.handle;
+		stages[1].pName = "main";
+
+		VkVertexInputBindingDescription vertexInputs[1]{};
+		vertexInputs[0].binding = 0;
+		vertexInputs[0].stride = sizeof(float) * 3;
+		vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		VkVertexInputAttributeDescription vertexAttributes[1]{};
+		vertexAttributes[0].binding = 0;
+		vertexAttributes[0].location = 0;
+		vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		vertexAttributes[0].offset = 0;
+
+		VkPipelineVertexInputStateCreateInfo inputInfo{};
+		inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		inputInfo.vertexBindingDescriptionCount = 1;
+		inputInfo.pVertexBindingDescriptions = vertexInputs;
+		inputInfo.vertexAttributeDescriptionCount = 1;
+		inputInfo.pVertexAttributeDescriptions = vertexAttributes;
+
+		VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
+		assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+		assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		assemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+		VkViewport viewport{};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = float(aWindow.swapchainExtent.width);
+		viewport.height = float(aWindow.swapchainExtent.height);
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+
+		VkRect2D scissor{};
+		scissor.offset = VkOffset2D{ 0, 0 };
+		scissor.extent = aWindow.swapchainExtent;
+
+		VkPipelineViewportStateCreateInfo viewportInfo{};
+		viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportInfo.viewportCount = 1;
+		viewportInfo.pViewports = &viewport;
+		viewportInfo.scissorCount = 1;
+		viewportInfo.pScissors = &scissor;
+
+		VkPipelineRasterizationStateCreateInfo rasterInfo{};
+		rasterInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterInfo.depthClampEnable = VK_FALSE;
+		rasterInfo.rasterizerDiscardEnable = VK_FALSE;
+		rasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterInfo.depthBiasEnable = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		rasterInfo.lineWidth = 1.0f;
+
+		VkPipelineMultisampleStateCreateInfo samplingInfo{};
+		samplingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		samplingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+		VkPipelineColorBlendAttachmentState blendStates[1]{};
+		blendStates[0].blendEnable = VK_FALSE;
+		blendStates[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+		VkPipelineColorBlendStateCreateInfo blendInfo{};
+		blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		blendInfo.logicOpEnable = VK_FALSE;
+		blendInfo.attachmentCount = 1;
+		blendInfo.pAttachments = blendStates;
+
+		VkStencilOpState stencilState{};
+		stencilState.compareOp = VK_COMPARE_OP_ALWAYS;
+		stencilState.passOp = VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+		stencilState.failOp = VK_STENCIL_OP_KEEP;
+		stencilState.depthFailOp = VK_STENCIL_OP_KEEP;
+		stencilState.writeMask = 0xff;
+		stencilState.compareMask = 0xff;
+		stencilState.reference = 0x01;
+
+		VkPipelineDepthStencilStateCreateInfo depthInfo{};
+		depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthInfo.depthTestEnable = VK_TRUE;
+		depthInfo.depthWriteEnable = VK_TRUE;
+		depthInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+		depthInfo.minDepthBounds = 0.0f;
+		depthInfo.maxDepthBounds = 1.0f;
+		depthInfo.stencilTestEnable = VK_TRUE;
+		depthInfo.front = stencilState;
+
+		VkDynamicState dynamicState{
+			VK_DYNAMIC_STATE_STENCIL_REFERENCE
+		};
+
+		VkPipelineDynamicStateCreateInfo dynamicInfo{};
+		dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+		dynamicInfo.dynamicStateCount = 1;
+		dynamicInfo.pDynamicStates = &dynamicState;
+
+		VkGraphicsPipelineCreateInfo pipeInfo{};
+		pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		pipeInfo.stageCount = 2;
+		pipeInfo.pStages = stages;
+		pipeInfo.pVertexInputState = &inputInfo;
+		pipeInfo.pInputAssemblyState = &assemblyInfo;
+		pipeInfo.pTessellationState = nullptr;
+		pipeInfo.pViewportState = &viewportInfo;
+		pipeInfo.pRasterizationState = &rasterInfo;
+		pipeInfo.pMultisampleState = &samplingInfo;
+		pipeInfo.pDepthStencilState = &depthInfo;
+		pipeInfo.pColorBlendState = &blendInfo;
+		pipeInfo.pDynamicState = nullptr;
+		pipeInfo.layout = aPipelineWriteLayout;
+		pipeInfo.renderPass = aRenderPass;
+		pipeInfo.subpass = 0;
+
+		VkPipeline writepipe = VK_NULL_HANDLE;
+		if (const auto res = vkCreateGraphicsPipelines(aWindow.device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &writepipe); VK_SUCCESS != res) {
+			throw lut::Error("Unable to create graphics pipeline\n vkCreateGraphicsPipeline() returned %s", lut::to_string(res).c_str());
+		}
+
+		lut::ShaderModule vertRead = lut::load_shader_module(aWindow, cfg::kOverVisReadVertShaderPath);
+		lut::ShaderModule fragRead = lut::load_shader_module(aWindow, cfg::kOverVisReadFragShaderPath);
+
+		stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+		stages[0].module = vertRead.handle;
+		stages[0].pName = "main";
+
+		stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		stages[1].module = fragRead.handle;
+		stages[1].pName = "main";
+
+		VkPipelineVertexInputStateCreateInfo emptyVertexState{};
+		emptyVertexState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+		rasterInfo.cullMode = VK_CULL_MODE_NONE;
+		depthInfo.depthWriteEnable = VK_FALSE;
+
+		pipeInfo.pVertexInputState = &emptyVertexState;
+		pipeInfo.layout = aPipelineReadLayout;
+		pipeInfo.subpass = 1;		
+
+		VkPipeline readpipe = VK_NULL_HANDLE;
+		if (const auto res = vkCreateGraphicsPipelines(aWindow.device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &readpipe); VK_SUCCESS != res) {
+			throw lut::Error("Unable to create graphics pipeline\n vkCreateGraphicsPipeline() returned %s", lut::to_string(res).c_str());
+		}
+
+		return { std::move(lut::Pipeline(aWindow.device, writepipe)), std::move(lut::Pipeline(aWindow.device, readpipe)) };
+	}
+
 	std::tuple<lut::Image, lut::ImageView> create_depth_buffer(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
 		VkImageCreateInfo imageInfo{};
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1781,7 +2237,7 @@ namespace {
 		imageInfo.arrayLayers = 1;
 		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -1829,7 +2285,7 @@ namespace {
 		imageInfo.arrayLayers = 1;
 		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		imageInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -1865,6 +2321,143 @@ namespace {
 		lut::ImageView imgView = lut::ImageView(aWindow.device, view);
 
 		return {std::move(colourImage), std::move(imgView)};
+	}
+
+	std::tuple<lut::Image, lut::ImageView, lut::Image, lut::ImageView> create_split_depth_stencil_buffers(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
+		VkImageCreateInfo depthInfo{};
+		depthInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		depthInfo.imageType = VK_IMAGE_TYPE_2D,
+		depthInfo.format = cfg::kDepthFormat;
+		depthInfo.extent.width = aWindow.swapchainExtent.width;
+		depthInfo.extent.height = aWindow.swapchainExtent.height;
+		depthInfo.extent.depth = 1;
+		depthInfo.mipLevels = 1;
+		depthInfo.arrayLayers = 1;
+		depthInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		depthInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		depthInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+		depthInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		depthInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		VmaAllocationCreateInfo allocInfo{};
+		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		VkImage dImage = VK_NULL_HANDLE;
+		VmaAllocation allocation = VK_NULL_HANDLE;
+
+		if (const auto res = vmaCreateImage(aAllocator.allocator, &depthInfo, &allocInfo, &dImage, &allocation, nullptr); VK_SUCCESS != res)
+			throw lut::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s", lut::to_string(res).c_str());
+
+		lut::Image depthImage(aAllocator.allocator, dImage, allocation);
+
+		VkImageViewCreateInfo depthViewInfo{};
+		depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		depthViewInfo.image = depthImage.image;
+		depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		depthViewInfo.format = cfg::kDepthFormat;
+		depthViewInfo.components = VkComponentMapping{};
+		depthViewInfo.subresourceRange = VkImageSubresourceRange{
+			VK_IMAGE_ASPECT_DEPTH_BIT,
+			0,
+			1,
+			0,
+			1
+		};
+
+		VkImageView depthView = VK_NULL_HANDLE;
+		if (const auto res = vkCreateImageView(aWindow.device, &depthViewInfo, nullptr, &depthView); VK_SUCCESS != res)
+			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
+
+		VkImageCreateInfo stencilInfo{};
+		stencilInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		stencilInfo.imageType = VK_IMAGE_TYPE_2D,
+		stencilInfo.format = cfg::kDepthFormat;
+		stencilInfo.extent.width = aWindow.swapchainExtent.width;
+		stencilInfo.extent.height = aWindow.swapchainExtent.height;
+		stencilInfo.extent.depth = 1;
+		stencilInfo.mipLevels = 1;
+		stencilInfo.arrayLayers = 1;
+		stencilInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		stencilInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		stencilInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+		stencilInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		stencilInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		VkImage sImage = VK_NULL_HANDLE;
+		allocation = VK_NULL_HANDLE;
+
+		if (const auto res = vmaCreateImage(aAllocator.allocator, &stencilInfo, &allocInfo, &sImage, &allocation, nullptr); VK_SUCCESS != res)
+			throw lut::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s", lut::to_string(res).c_str());
+
+		lut::Image stencilImage(aAllocator.allocator, sImage, allocation);
+
+		VkImageViewCreateInfo stencilViewInfo{};
+		stencilViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		stencilViewInfo.image = stencilImage.image;
+		stencilViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		stencilViewInfo.format = cfg::kDepthFormat;
+		stencilViewInfo.components = VkComponentMapping{};
+		stencilViewInfo.subresourceRange = VkImageSubresourceRange{
+			VK_IMAGE_ASPECT_STENCIL_BIT,
+			0,
+			1,
+			0,
+			1
+		};
+
+		VkImageView stencilView = VK_NULL_HANDLE;
+		if (const auto res = vkCreateImageView(aWindow.device, &stencilViewInfo, nullptr, &stencilView); VK_SUCCESS != res)
+			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
+
+		return { std::move(depthImage), lut::ImageView(aWindow.device, depthView), std::move(stencilImage), lut::ImageView(aWindow.device, stencilView) };
+	}
+
+	std::tuple<lut::Image, lut::ImageView> create_just_stencil_buffer(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D,
+		imageInfo.format = VK_FORMAT_S8_UINT;
+		imageInfo.extent.width = aWindow.swapchainExtent.width;
+		imageInfo.extent.height = aWindow.swapchainExtent.height;
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = 1;
+		imageInfo.arrayLayers = 1;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		VmaAllocationCreateInfo allocInfo{};
+		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		VkImage image = VK_NULL_HANDLE;
+		VmaAllocation allocation = VK_NULL_HANDLE;
+
+		if (const auto res = vmaCreateImage(aAllocator.allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr); VK_SUCCESS != res)
+			throw lut::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s", lut::to_string(res).c_str());
+
+		lut::Image stencilImage(aAllocator.allocator, image, allocation);
+
+		VkImageViewCreateInfo viewInfo{};
+		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewInfo.image = stencilImage.image;
+		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.format = VK_FORMAT_S8_UINT;
+		viewInfo.components = VkComponentMapping{};
+		viewInfo.subresourceRange = VkImageSubresourceRange{
+			VK_IMAGE_ASPECT_STENCIL_BIT,
+			0,
+			1,
+			0,
+			1
+		};
+
+		VkImageView view = VK_NULL_HANDLE;
+		if (const auto res = vkCreateImageView(aWindow.device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
+			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
+
+		return { std::move(stencilImage), lut::ImageView(aWindow.device, view) };
 	}
 
 	lut::Framebuffer create_offscreen_framebuffer(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, VkImageView aColourView, VkImageView aDepthView) {
@@ -1945,6 +2538,36 @@ namespace {
 		}
 
 		assert( aWindow.swapViews.size() == aFramebuffers.size() );
+	}
+
+	void create_over_visualisation_framebuffers(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, std::vector<lut::Framebuffer>& aFramebuffers, VkImageView aColorView, VkImageView aStencilView) {
+		assert(aFramebuffers.empty());
+
+		for (std::size_t i = 0; i < aWindow.swapViews.size(); ++i) {
+			VkImageView attachments[3] = {
+				aWindow.swapViews[i],
+				aColorView,
+				aStencilView
+			};
+
+			VkFramebufferCreateInfo fbInfo{};
+			fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			fbInfo.flags = 0;
+			fbInfo.renderPass = aRenderPass;
+			fbInfo.attachmentCount = 3;
+			fbInfo.pAttachments = attachments;
+			fbInfo.width = aWindow.swapchainExtent.width;
+			fbInfo.height = aWindow.swapchainExtent.height;
+			fbInfo.layers = 1;
+
+			VkFramebuffer fb = VK_NULL_HANDLE;
+			if (const auto res = vkCreateFramebuffer(aWindow.device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)
+				throw lut::Error("Unable to create framebuffer for swap chain image %zu\n vkCreateFramebuffer() returned %s", i, lut::to_string(res).c_str());
+
+			aFramebuffers.emplace_back(lut::Framebuffer(aWindow.device, fb));
+		}
+
+		assert(aWindow.swapViews.size() == aFramebuffers.size());
 	}
 
 	lut::ImageView load_mesh_texture(const lut::VulkanWindow& aWindow, VkCommandPool aCmdPool, const lut::Allocator& aAllocator, BakedTextureInfo aBakedTextureInfo) {
@@ -2187,7 +2810,59 @@ namespace {
 
 			vkCmdEndRenderPass(aCmdBuff);
 
-		} 
+		}
+		// Overdraw/-shading visualisation
+		else if (!aState.mosaicEffect && aState.debugVisualisation == 5) {
+			VkClearValue clearValues[3]{};
+			clearValues[0].color.float32[0] = 0.1f;
+			clearValues[0].color.float32[1] = 0.1f;
+			clearValues[0].color.float32[2] = 0.1f;
+			clearValues[0].color.float32[3] = 1.0f;
+
+			clearValues[1].color.float32[0] = 0.1f;
+			clearValues[1].color.float32[1] = 0.1f;
+			clearValues[1].color.float32[2] = 0.1f;
+			clearValues[1].color.float32[3] = 1.0f;
+
+			clearValues[2].depthStencil.depth = 1.0f;
+
+			VkRenderPassBeginInfo passInfo{};
+			passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			passInfo.renderPass = aRenderPasses.overVisualisationsRenderPass;
+			passInfo.framebuffer = aFramebuffers.overVisualisationFramebuffer;
+			passInfo.renderArea.offset = VkOffset2D{ 0, 0 };
+			passInfo.renderArea.extent = aExtent;
+			passInfo.clearValueCount = 3;
+			passInfo.pClearValues = clearValues;
+
+			vkCmdBeginRenderPass(aCmdBuff, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+			vkCmdBindPipeline(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelines.overVisWritePipeline);
+
+			// 1st subpass only needs scene descriptors
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.overVisWritePipelineLayout, 0, 1, &aDescriptorSets.sceneDescriptors, 0, nullptr);
+
+			for (std::size_t i = 0; i < aMeshData.size(); i++) {
+				VkBuffer vbuffers[1] = { aMeshData[i].positionBuffer.buffer };
+				VkBuffer ibuffer = aMeshData[i].indicesBuffer.buffer;
+				VkDeviceSize voffsets[1]{};
+				VkDeviceSize ioffset{};
+
+				vkCmdBindVertexBuffers(aCmdBuff, 0, 1, vbuffers, voffsets);
+				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
+
+				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);
+			}
+
+			vkCmdNextSubpass(aCmdBuff, VK_SUBPASS_CONTENTS_INLINE);
+
+			vkCmdBindPipeline(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelines.overVisReadPipeline);
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.overVisReadPipelineLayout, 0, 1, &aDescriptorSets.overVisualisationDescriptor, 0, nullptr);
+			
+			vkCmdDraw(aCmdBuff, 3, 1, 0, 0);
+
+			vkCmdEndRenderPass(aCmdBuff);
+		}
 		// Do debug visualisation rendering
 		else if (!aState.mosaicEffect && aState.debugVisualisation != 1) {
 			VkClearValue clearValues[2]{};

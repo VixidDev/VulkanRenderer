@@ -18,45 +18,46 @@ float linearise_depth(float d) {
 
 void main() {
     // Mipmap Utilisation Visualisation
-    if (debug.debug == 2) {
-        float mipmapLevel = textureQueryLod(uTexColor, v2fTexCoord).x;
+    switch(debug.debug) {
+        case 2:
+            float mipmapLevel = textureQueryLod(uTexColor, v2fTexCoord).x;
 
-        // Colors for mipmaps
-        // Colorblind friendly colors https://davidmathlogic.com/colorblind/
-        vec3 colors[7];
-        colors[0] = vec3(17.0, 119.0, 51.0) / 255;   // Murky green
-        colors[1] = vec3(136.0, 34.0, 85.0) / 255;   // Purple
-        colors[2] = vec3(0.0, 114.0, 178.0) / 255;   // Blue
-        colors[3] = vec3(204.0, 121.0, 167.0) / 255; // Pink
-        colors[4] = vec3(0.0, 158.0, 115.0) / 255;   // Turquoise
-        colors[5] = vec3(213.0, 94.0, 0.0) / 255;    // Orange
-        colors[6] = vec3(240.0, 228.0, 66.0) / 255;  // Yellow
+            // Colors for mipmaps
+            // Colorblind friendly colors https://davidmathlogic.com/colorblind/
+            vec3 colors[7];
+            colors[0] = vec3(17.0, 119.0, 51.0) / 255;   // Murky green
+            colors[1] = vec3(136.0, 34.0, 85.0) / 255;   // Purple
+            colors[2] = vec3(0.0, 114.0, 178.0) / 255;   // Blue
+            colors[3] = vec3(204.0, 121.0, 167.0) / 255; // Pink
+            colors[4] = vec3(0.0, 158.0, 115.0) / 255;   // Turquoise
+            colors[5] = vec3(213.0, 94.0, 0.0) / 255;    // Orange
+            colors[6] = vec3(240.0, 228.0, 66.0) / 255;  // Yellow
 
-        vec3 floorColor = colors[int(floor(mipmapLevel)) % 7];
-        vec3 ceilColor = colors[int(ceil(mipmapLevel)) % 7];
+            vec3 floorColor = colors[int(floor(mipmapLevel)) % 7];
+            vec3 ceilColor = colors[int(ceil(mipmapLevel)) % 7];
 
-        oColor = vec4(mix(floorColor, ceilColor, fract(mipmapLevel)), 1.0f);
-    } 
-    // Linearised Fragment Depth Visualisation
-    else if (debug.debug == 3) {
-        oColor = vec4(vec3(linearise_depth(gl_FragCoord.z) / 100.0f), 1.0f);
-    } 
-    // Partial derivatives of per-fragment depth visualisation
-    else if (debug.debug == 4) {
-        float depth = linearise_depth(gl_FragCoord.z);
+            oColor = vec4(mix(floorColor, ceilColor, fract(mipmapLevel)), 1.0f);
+            break;
+        case 3:
+            // Linearised Fragment Depth Visualisation
+            oColor = vec4(vec3(linearise_depth(gl_FragCoord.z) / 100.0f), 1.0f);
+            break;
+        case 4:
+            // Partial derivatives of per-fragment depth visualisation
+            float depth = linearise_depth(gl_FragCoord.z);
 
-        float dx = dFdx(depth) * 5;
-        float dy = dFdy(depth) * 5;
+            float dx = dFdx(depth) * 5;
+            float dy = dFdy(depth) * 5;
 
-        // float dx = abs(dFdx(gl_FragCoord.z)) * 200;
-        // float dy = abs(dFdy(gl_FragCoord.z)) * 200;
+            // float dx = abs(dFdx(gl_FragCoord.z)) * 200;
+            // float dy = abs(dFdy(gl_FragCoord.z)) * 200;
 
-        oColor = vec4(dx, dy, 0.0f, 1.0f);
-    }
-    // Normal rendering (in this case the normal rendering pipeline should be used
-    // but we put this here just in case something goes wrong somewhere)
-    else {
-        oColor = texture(uTexColor, v2fTexCoord).rgba;
+            oColor = vec4(dx, dy, 0.0f, 1.0f);
+            break;
+        default:
+            // Normal rendering (in this case the normal rendering pipeline should be used
+            // but we put this here just in case something goes wrong somewhere)
+            oColor = texture(uTexColor, v2fTexCoord).rgba;
     }
 
 }

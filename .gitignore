@@ -1,7 +1,12 @@
 .vscode
+.vs
 _build_/
 lib/
 assets/
 bin/
 Makefile
 a12output.txt
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+*.sln
