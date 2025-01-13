@@ -104,7 +104,6 @@ namespace
 
 		int debugVisualisation = 5;
 		bool mosaicEffect = false;
-		uint32_t reference = 0x01;
 
 		bool wasMousing = false;
 
@@ -220,7 +219,6 @@ namespace
 
 	std::tuple<lut::Image, lut::ImageView> create_depth_buffer(const lut::VulkanWindow&, const lut::Allocator&);
 	std::tuple<lut::Image, lut::ImageView> create_colour_buffer(const lut::VulkanWindow&, const lut::Allocator&);
-	std::tuple<lut::Image, lut::ImageView, lut::Image, lut::ImageView> create_split_depth_stencil_buffers(const lut::VulkanWindow&, const lut::Allocator&);
 	std::tuple<lut::Image, lut::ImageView> create_just_stencil_buffer(const lut::VulkanWindow&, const lut::Allocator&);
 
 	lut::Framebuffer create_offscreen_framebuffer(const lut::VulkanWindow&, VkRenderPass, VkImageView, VkImageView);
@@ -337,8 +335,6 @@ int main() try
 	auto [depthBuffer, depthBufferView] = create_depth_buffer(window, allocator);
 	// Create colour image buffer for post processing
 	auto [colourBuffer, colourBufferView] = create_colour_buffer(window, allocator);
-	// Create just stencil buffer for overdraw/-shading visualisation
-	auto [stencilBuffer, stencilBufferView] = create_just_stencil_buffer(window, allocator);
 
 	// Create offscreen framebuffer 
 	lut::Framebuffer offscreenFramebuffer = create_offscreen_framebuffer(window, offscreenRenderPass.handle, colourBufferView.handle, depthBufferView.handle);
@@ -350,7 +346,7 @@ int main() try
 	create_fullscreen_swapchain_framebuffers(window, postProcessRenderPass.handle, fullscreenFramebuffers);
 	// Create framebuffers for over visualisation debug
 	std::vector<lut::Framebuffer> overVisulisationFramebuffers;
-	create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, stencilBufferView.handle);
+	create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, depthBufferView.handle);
 
 	Framebuffers aFramebuffers{};
 	aFramebuffers.offscreenFramebuffer = offscreenFramebuffer.handle;
@@ -501,12 +497,8 @@ int main() try
 		VkWriteDescriptorSet desc[1]{};
 
 		VkDescriptorImageInfo inputAttachments[1]{};
-		//inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		//inputAttachments[0].imageView = colourBufferView.handle;
-		//inputAttachments[0].sampler = VK_NULL_HANDLE;
-
 		inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		inputAttachments[0].imageView = stencilBufferView.handle;
+		inputAttachments[0].imageView = depthBufferView.handle;
 		inputAttachments[0].sampler = VK_NULL_HANDLE;
 
 		desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -515,13 +507,6 @@ int main() try
 		desc[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 		desc[0].descriptorCount = 1;
 		desc[0].pImageInfo = &inputAttachments[0];
-
-		//desc[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		//desc[1].dstSet = overVisualisationDescriptor;
-		//desc[1].dstBinding = 1;
-		//desc[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-		//desc[1].descriptorCount = 1;
-		//desc[1].pImageInfo = &inputAttachments[1];
 
 		constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
 		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
@@ -841,7 +826,6 @@ int main() try
 			if (changes.changedSize) {
 				std::tie(colourBuffer, colourBufferView) = create_colour_buffer(window, allocator);
 				std::tie(depthBuffer, depthBufferView) = create_depth_buffer(window, allocator);
-				std::tie(stencilBuffer, stencilBufferView) = create_just_stencil_buffer(window, allocator);
 			}
 			
 			offscreenFramebuffer = create_offscreen_framebuffer(window, offscreenRenderPass.handle, colourBufferView.handle, depthBufferView.handle);
@@ -851,7 +835,7 @@ int main() try
 			fullscreenFramebuffers.clear();
 			create_fullscreen_swapchain_framebuffers(window, postProcessRenderPass.handle, fullscreenFramebuffers);
 			overVisulisationFramebuffers.clear();
-			create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, stencilBufferView.handle);
+			create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, depthBufferView.handle);
 
 			if (changes.changedSize) {
 				pipeline = create_pipeline(window, renderPass.handle, pipeLayout.handle);
@@ -899,12 +883,8 @@ int main() try
 				VkWriteDescriptorSet desc[1]{};
 
 				VkDescriptorImageInfo inputAttachments[1]{};
-				//inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				//inputAttachments[0].imageView = colourBufferView.handle;
-				//inputAttachments[0].sampler = VK_NULL_HANDLE;
-
 				inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				inputAttachments[0].imageView = stencilBufferView.handle;
+				inputAttachments[0].imageView = depthBufferView.handle;
 				inputAttachments[0].sampler = VK_NULL_HANDLE;
 
 				desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -913,13 +893,6 @@ int main() try
 				desc[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 				desc[0].descriptorCount = 1;
 				desc[0].pImageInfo = &inputAttachments[0];
-
-				//desc[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-				//desc[1].dstSet = overVisualisationDescriptor;
-				//desc[1].dstBinding = 1;
-				//desc[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-				//desc[1].descriptorCount = 1;
-				//desc[1].pImageInfo = &inputAttachments[1];
 
 				constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
 				vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
@@ -1094,18 +1067,6 @@ namespace {
 				case GLFW_KEY_7:
 					// Overshading visualisation
 					state->debugVisualisation = 6;
-					break;
-				case GLFW_KEY_EQUAL:
-					// Increment stencil reference value
-					state->reference++;
-					state->reference = std::clamp(state->reference, (uint32_t)0x00, (uint32_t)0xff);
-					printf("Debug: reference = %d\n", state->reference);
-					break;
-				case GLFW_KEY_MINUS:
-					// Decrement stencil reference value
-					state->reference--;
-					state->reference = std::clamp(state->reference, (uint32_t)0x00, (uint32_t)0xff);
-					printf("Debug: reference = %d\n", state->reference);
 					break;
 				default:
 				;
@@ -1377,7 +1338,7 @@ namespace {
 		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 
-		attachments[2].format = VK_FORMAT_S8_UINT;
+		attachments[2].format = cfg::kDepthFormat;
 		attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
 		attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -1564,11 +1525,6 @@ namespace {
 		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 		bindings[0].descriptorCount = 1;
 		bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-		//bindings[1].binding = 1;
-		//bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-		//bindings[1].descriptorCount = 1;
-		//bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -2155,7 +2111,7 @@ namespace {
 
 		VkPipelineDepthStencilStateCreateInfo depthInfo{};
 		depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-		depthInfo.depthTestEnable = VK_TRUE;
+		depthInfo.depthTestEnable = VK_FALSE;
 		depthInfo.depthWriteEnable = VK_TRUE;
 		depthInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 		depthInfo.minDepthBounds = 0.0f;
@@ -2164,7 +2120,7 @@ namespace {
 		depthInfo.front = stencilState;
 
 		VkDynamicState dynamicState{
-			VK_DYNAMIC_STATE_STENCIL_REFERENCE
+			VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE
 		};
 
 		VkPipelineDynamicStateCreateInfo dynamicInfo{};
@@ -2184,7 +2140,7 @@ namespace {
 		pipeInfo.pMultisampleState = &samplingInfo;
 		pipeInfo.pDepthStencilState = &depthInfo;
 		pipeInfo.pColorBlendState = &blendInfo;
-		pipeInfo.pDynamicState = nullptr;
+		pipeInfo.pDynamicState = &dynamicInfo;
 		pipeInfo.layout = aPipelineWriteLayout;
 		pipeInfo.renderPass = aRenderPass;
 		pipeInfo.subpass = 0;
@@ -2259,7 +2215,14 @@ namespace {
 		viewInfo.format = cfg::kDepthFormat;
 		viewInfo.components = VkComponentMapping{};
 		viewInfo.subresourceRange = VkImageSubresourceRange{
-			VK_IMAGE_ASPECT_DEPTH_BIT,
+			// We set this to stencil bit for doing overdraw/-shading visualisation,
+			// we don't need to have a separate image view with depth_bit since
+			// in all other cases where this depth/stencil buffer is used, it is used
+			// as a framebuffer attachment where the Vulkan docs state that:
+			//	"When an image view of a depth/stencil image is used as a depth/stencil 
+			//	framebuffer attachment, the aspectMask is ignored and both depth and 
+			//	stencil image subresources are used."
+			VK_IMAGE_ASPECT_STENCIL_BIT,
 			0,
 			1,
 			0,
@@ -2321,95 +2284,6 @@ namespace {
 		lut::ImageView imgView = lut::ImageView(aWindow.device, view);
 
 		return {std::move(colourImage), std::move(imgView)};
-	}
-
-	std::tuple<lut::Image, lut::ImageView, lut::Image, lut::ImageView> create_split_depth_stencil_buffers(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
-		VkImageCreateInfo depthInfo{};
-		depthInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		depthInfo.imageType = VK_IMAGE_TYPE_2D,
-		depthInfo.format = cfg::kDepthFormat;
-		depthInfo.extent.width = aWindow.swapchainExtent.width;
-		depthInfo.extent.height = aWindow.swapchainExtent.height;
-		depthInfo.extent.depth = 1;
-		depthInfo.mipLevels = 1;
-		depthInfo.arrayLayers = 1;
-		depthInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		depthInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		depthInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-		depthInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		depthInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-		VmaAllocationCreateInfo allocInfo{};
-		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-
-		VkImage dImage = VK_NULL_HANDLE;
-		VmaAllocation allocation = VK_NULL_HANDLE;
-
-		if (const auto res = vmaCreateImage(aAllocator.allocator, &depthInfo, &allocInfo, &dImage, &allocation, nullptr); VK_SUCCESS != res)
-			throw lut::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s", lut::to_string(res).c_str());
-
-		lut::Image depthImage(aAllocator.allocator, dImage, allocation);
-
-		VkImageViewCreateInfo depthViewInfo{};
-		depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		depthViewInfo.image = depthImage.image;
-		depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		depthViewInfo.format = cfg::kDepthFormat;
-		depthViewInfo.components = VkComponentMapping{};
-		depthViewInfo.subresourceRange = VkImageSubresourceRange{
-			VK_IMAGE_ASPECT_DEPTH_BIT,
-			0,
-			1,
-			0,
-			1
-		};
-
-		VkImageView depthView = VK_NULL_HANDLE;
-		if (const auto res = vkCreateImageView(aWindow.device, &depthViewInfo, nullptr, &depthView); VK_SUCCESS != res)
-			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
-
-		VkImageCreateInfo stencilInfo{};
-		stencilInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		stencilInfo.imageType = VK_IMAGE_TYPE_2D,
-		stencilInfo.format = cfg::kDepthFormat;
-		stencilInfo.extent.width = aWindow.swapchainExtent.width;
-		stencilInfo.extent.height = aWindow.swapchainExtent.height;
-		stencilInfo.extent.depth = 1;
-		stencilInfo.mipLevels = 1;
-		stencilInfo.arrayLayers = 1;
-		stencilInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		stencilInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-		stencilInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-		stencilInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		stencilInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-		VkImage sImage = VK_NULL_HANDLE;
-		allocation = VK_NULL_HANDLE;
-
-		if (const auto res = vmaCreateImage(aAllocator.allocator, &stencilInfo, &allocInfo, &sImage, &allocation, nullptr); VK_SUCCESS != res)
-			throw lut::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s", lut::to_string(res).c_str());
-
-		lut::Image stencilImage(aAllocator.allocator, sImage, allocation);
-
-		VkImageViewCreateInfo stencilViewInfo{};
-		stencilViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		stencilViewInfo.image = stencilImage.image;
-		stencilViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		stencilViewInfo.format = cfg::kDepthFormat;
-		stencilViewInfo.components = VkComponentMapping{};
-		stencilViewInfo.subresourceRange = VkImageSubresourceRange{
-			VK_IMAGE_ASPECT_STENCIL_BIT,
-			0,
-			1,
-			0,
-			1
-		};
-
-		VkImageView stencilView = VK_NULL_HANDLE;
-		if (const auto res = vkCreateImageView(aWindow.device, &stencilViewInfo, nullptr, &stencilView); VK_SUCCESS != res)
-			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
-
-		return { std::move(depthImage), lut::ImageView(aWindow.device, depthView), std::move(stencilImage), lut::ImageView(aWindow.device, stencilView) };
 	}
 
 	std::tuple<lut::Image, lut::ImageView> create_just_stencil_buffer(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
@@ -2540,14 +2414,14 @@ namespace {
 		assert( aWindow.swapViews.size() == aFramebuffers.size() );
 	}
 
-	void create_over_visualisation_framebuffers(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, std::vector<lut::Framebuffer>& aFramebuffers, VkImageView aColorView, VkImageView aStencilView) {
+	void create_over_visualisation_framebuffers(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, std::vector<lut::Framebuffer>& aFramebuffers, VkImageView aColorView, VkImageView aDepthStencilView) {
 		assert(aFramebuffers.empty());
 
 		for (std::size_t i = 0; i < aWindow.swapViews.size(); ++i) {
 			VkImageView attachments[3] = {
 				aWindow.swapViews[i],
 				aColorView,
-				aStencilView
+				aDepthStencilView
 			};
 
 			VkFramebufferCreateInfo fbInfo{};
@@ -2812,7 +2686,7 @@ namespace {
 
 		}
 		// Overdraw/-shading visualisation
-		else if (!aState.mosaicEffect && aState.debugVisualisation == 5) {
+		else if (!aState.mosaicEffect && (aState.debugVisualisation == 5 || aState.debugVisualisation == 6)) {
 			VkClearValue clearValues[3]{};
 			clearValues[0].color.float32[0] = 0.1f;
 			clearValues[0].color.float32[1] = 0.1f;
@@ -2850,6 +2724,11 @@ namespace {
 
 				vkCmdBindVertexBuffers(aCmdBuff, 0, 1, vbuffers, voffsets);
 				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
+
+				if (aState.debugVisualisation == 5) // Overdraw
+					vkCmdSetDepthTestEnable(aCmdBuff, VK_FALSE);
+				else if (aState.debugVisualisation == 6) // Overshading
+					vkCmdSetDepthTestEnable(aCmdBuff, VK_TRUE);
 
 				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);
 			}
