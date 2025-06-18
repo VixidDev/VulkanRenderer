@@ -23,7 +23,7 @@ struct InputMaterialInfo
 	std::string metalnessTexturePath;
 	std::string alphaMaskTexturePath;   // see note below
 	std::string normalMapTexturePath;
-	std::string emissiveTexturePath; // added for Coursework 3
+	std::string emissiveTexturePath;
 
 	/* Note: you may assume that if alphaMaskTexturePath is set, it is equal to
 	 * baseColorTexturePath. In this case, the corresponding texture is an RGBA

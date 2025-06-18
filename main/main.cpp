@@ -25,18 +25,18 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "../labutils/to_string.hpp"
-#include "../labutils/vulkan_window.hpp"
+#include "../utils/to_string.hpp"
+#include "../utils/vulkan_window.hpp"
 
-#include "../labutils/angle.hpp"
+#include "../utils/angle.hpp"
 using namespace labutils::literals;
 
-#include "../labutils/error.hpp"
-#include "../labutils/vkutil.hpp"
-#include "../labutils/vkimage.hpp"
-#include "../labutils/vkobject.hpp"
-#include "../labutils/vkbuffer.hpp"
-#include "../labutils/allocator.hpp" 
+#include "../utils/error.hpp"
+#include "../utils/vkutil.hpp"
+#include "../utils/vkimage.hpp"
+#include "../utils/vkobject.hpp"
+#include "../utils/vkbuffer.hpp"
+#include "../utils/allocator.hpp" 
 namespace lut = labutils;
 
 #include "baked_model.hpp"
@@ -44,29 +44,41 @@ namespace lut = labutils;
 // Anonymous namespace
 namespace
 {
+	// Apologies for the very long file, I would have refactored it
+	// and split it into separate files if I had the time, so all
+	// I can recommend is to collapse all functions and only expand
+	// functions when want to read one, or shift-click if you are
+	// using an IDE that supports that.
+
 	std::vector<lut::Image> images;
 
 	namespace cfg {
-		constexpr const char* kModelPath = "assets/a12/suntemple.comp5892mesh";
+		constexpr const char* kModelPath = "assets/main/suntemple.comp5892mesh";
 
-		constexpr const char* kVertShaderPath = "assets/a12/shaders/default.vert.spv";
-		constexpr const char* kFragShaderPath = "assets/a12/shaders/default.frag.spv";
-		constexpr const char* kDebugVertShaderPath = "assets/a12/shaders/debug.vert.spv";
-		constexpr const char* kDebugFragShaderPath = "assets/a12/shaders/debug.frag.spv";
-		constexpr const char* kPPVertShaderPath = "assets/a12/shaders/postProcess.vert.spv";
-		constexpr const char* kPPFragShaderPath = "assets/a12/shaders/postProcess.frag.spv";
-		constexpr const char* kOverVisWriteVertShaderPath = "assets/a12/shaders/overVisWrite.vert.spv";
-		constexpr const char* kOverVisWriteFragShaderPath = "assets/a12/shaders/overVisWrite.frag.spv";
-		constexpr const char* kOverVisReadVertShaderPath = "assets/a12/shaders/overVisRead.vert.spv";
-		constexpr const char* kOverVisReadFragShaderPath = "assets/a12/shaders/overVisRead.frag.spv";
+		constexpr const char* kVertShaderPath = "assets/main/shaders/default.vert.spv";
+		constexpr const char* kFragShaderPath = "assets/main/shaders/default.frag.spv"; 
+		constexpr const char* kDebugVertShaderPath = "assets/main/shaders/debug.vert.spv";
+		constexpr const char* kDebugFragShaderPath = "assets/main/shaders/debug.frag.spv";
+		constexpr const char* kPPVertShaderPath = "assets/main/shaders/postProcess.vert.spv";
+		constexpr const char* kPPFragShaderPath = "assets/main/shaders/postProcess.frag.spv";
+		constexpr const char* kOverVisWriteVertShaderPath = "assets/main/shaders/overVisWrite.vert.spv";
+		constexpr const char* kOverVisWriteFragShaderPath = "assets/main/shaders/overVisWrite.frag.spv";
+		constexpr const char* kOverVisReadVertShaderPath = "assets/main/shaders/overVisRead.vert.spv";
+		constexpr const char* kOverVisReadFragShaderPath = "assets/main/shaders/overVisRead.frag.spv";
+		constexpr const char* kWriteGBufVertShaderPath = "assets/main/shaders/gBufWrite.vert.spv";
+		constexpr const char* kWriteGBufFragShaderPath = "assets/main/shaders/gBufWrite.frag.spv";
+		constexpr const char* kDefShadingVertShaderPath = "assets/main/shaders/deferredShading.vert.spv";
+		constexpr const char* kDefShadingFragShaderPath = "assets/main/shaders/deferredShading.frag.spv";
+		constexpr const char* kShadowOffscreenVertShaderPath = "assets/main/shaders/shadowOffscreen.vert.spv";
+		constexpr const char* kShadowOffscreenFragShaderPath = "assets/main/shaders/shadowOffscreen.frag.spv";
 
-		constexpr float kCameraNear  = 0.1f;
-		constexpr float kCameraFar   = 100.f;
+		constexpr float kCameraNear = 0.1f;
+		constexpr float kCameraFar = 100.f;
 
-		constexpr auto kCameraFov    = 60.0_degf;
+		constexpr auto kCameraFov = 60.0_degf;
 
 		constexpr float kCameraBaseSpeed = 1.7f;
-		constexpr float kCameraFastMult = 5.0f;
+		constexpr float kCameraFastMult = 7.0f;
 		constexpr float kCameraSlowMult = 0.05f;
 
 		constexpr float kCameraMouseSensitivity = 0.01f;
@@ -102,18 +114,22 @@ namespace
 		float mouseX = 0.0f, mouseY = 0.0f;
 		float previousX = 0.0f, previousY = 0.0f;
 
-		int debugVisualisation = 5;
+		int debugVisualisation = 1;
 		bool mosaicEffect = false;
+		bool deferredShading = false;
+		bool shadows = false;
 
 		bool wasMousing = false;
 
 		glm::mat4 camera2world = glm::identity<glm::mat4>();
 	};
 
+	// Structures to more easily pass them to record commands function
 	struct MeshData {
 		lut::Buffer positionBuffer;
 		lut::Buffer texCoordBuffer;
 		lut::Buffer normalsBuffer;
+		lut::Buffer tangentsBuffer;
 		lut::Buffer indicesBuffer;
 		std::size_t indicesCount;
 		std::uint32_t materialId;
@@ -125,6 +141,8 @@ namespace
 		VkRenderPass offscreenRenderPass;
 		VkRenderPass postProcessRenderPass;
 		VkRenderPass overVisualisationsRenderPass;
+		VkRenderPass deferredShadingRenderPass;
+		VkRenderPass shadowOffscreenRenderPass;
 	};
 
 	struct Framebuffers {
@@ -132,6 +150,8 @@ namespace
 		VkFramebuffer regularSwapchainFramebuffer;
 		VkFramebuffer fullscreenSwapchainFramebuffer;
 		VkFramebuffer overVisualisationFramebuffer;
+		VkFramebuffer deferredShadingFramebuffer;
+		VkFramebuffer shadowOffscreenFramebuffer;
 	};
 
 	struct Pipelines {
@@ -143,12 +163,17 @@ namespace
 		VkPipeline postProcessPipeline;
 		VkPipeline overVisWritePipeline;
 		VkPipeline overVisReadPipeline;
+		VkPipeline gBufWritePipline;
+		VkPipeline deferredShadingPipeline;
+		VkPipeline shadowOffscreenPipeline;
 	};
 
 	struct UBOs {
 		VkBuffer sceneUBO;
 		VkBuffer lightUBO;
 		VkBuffer debugUBO;
+		VkBuffer multipleLightsUBO;
+		VkBuffer depthMVPUBO;
 	};
 
 	struct PipelineLayouts {
@@ -156,6 +181,9 @@ namespace
 		VkPipelineLayout postProcessPipelineLayout;
 		VkPipelineLayout overVisWritePipelineLayout;
 		VkPipelineLayout overVisReadPipelineLayout;
+		VkPipelineLayout gBufWritePipelineLayout;
+		VkPipelineLayout deferredShadingPipelineLayout;
+		VkPipelineLayout shadowOffscreenPipelineLayout;
 	};
 
 	struct DescriptorSets {
@@ -165,6 +193,10 @@ namespace
 		VkDescriptorSet debugDescriptor;
 		VkDescriptorSet postProcessDescriptor;
 		VkDescriptorSet overVisualisationDescriptor;
+		VkDescriptorSet deferredShadingDescriptor;
+		VkDescriptorSet multipleLightsDescriptor;
+		VkDescriptorSet depthMVPDescriptor;
+		VkDescriptorSet shadowMapDescriptor;
 	};
 
 	// Uniform data
@@ -186,6 +218,14 @@ namespace
 			int debug;
 		};
 
+		struct MultipleLights {
+			LightUniform light[21];
+		};
+
+		struct DepthMVP {
+			glm::mat4 depthMVP;
+		};
+
 		static_assert(sizeof(SceneUniform) <= 65536, "SceneUniform must be less than 65536 bytes for vkCmdUpdateBuffer");
 		static_assert(sizeof(SceneUniform) % 4 == 0, "SceneUniform size must be a multiple of 4 bytes");
 		static_assert(sizeof(LightUniform) % 4 == 0, "LightUniform size must be a multiple of 4 bytes");
@@ -195,42 +235,65 @@ namespace
 		glsl::SceneUniform sceneUniforms;
 		glsl::LightUniform lightUniforms;
 		glsl::DebugUniform debugUniforms;
+		glsl::MultipleLights multipleLightsUniform;
+		glsl::DepthMVP depthMVPUniform;
 	};
 
 	// Method declarations
+
+	// Render Passes
 	lut::RenderPass create_render_pass(const lut::VulkanWindow&);
 	lut::RenderPass create_offscreen_render_pass(const lut::VulkanWindow&);
 	lut::RenderPass create_post_process_render_pass(const lut::VulkanWindow&);
 	lut::RenderPass create_over_visualisations_render_pass(const lut::VulkanWindow&);
+	lut::RenderPass create_deferred_shading_render_pass(const lut::VulkanWindow&);
+	lut::RenderPass create_offscreen_shadow_render_pass(const lut::VulkanWindow&);
 
+	// Descriptor Set Layouts
 	lut::DescriptorSetLayout create_scene_descriptor_layout(const lut::VulkanWindow&);
 	lut::DescriptorSetLayout create_material_descriptor_layout(const lut::VulkanWindow&);
 	lut::DescriptorSetLayout create_fragment_ubo_descriptor_layout(const lut::VulkanWindow&);
+	lut::DescriptorSetLayout create_vertex_ubo_descriptor_layout(const lut::VulkanWindow&);
 	lut::DescriptorSetLayout create_post_process_descriptor_layout(const lut::VulkanWindow&);
 	lut::DescriptorSetLayout create_over_visualisations_descriptor_layout(const lut::VulkanWindow&);
+	lut::DescriptorSetLayout create_deferred_shading_descriptor_layout(const lut::VulkanWindow&);
+	lut::DescriptorSetLayout create_fragment_image_layout(const lut::VulkanWindow&);
 
+	// Pipeline Layouts
 	lut::PipelineLayout create_pipeline_layout(const lut::VulkanWindow&, std::vector<VkDescriptorSetLayout>&);
 
+	// Piplines
 	lut::Pipeline create_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout);
 	lut::Pipeline create_debug_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout);
 	lut::Pipeline create_alpha_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout);
 	lut::Pipeline create_post_process_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout);
 	std::tuple<lut::Pipeline, lut::Pipeline> create_over_visualisations_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout, VkPipelineLayout);
+	std::tuple<lut::Pipeline, lut::Pipeline> create_deferred_shading_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout, VkPipelineLayout);
+	lut::Pipeline create_shadow_pipeline(const lut::VulkanWindow&, VkRenderPass, VkPipelineLayout);
 
-	std::tuple<lut::Image, lut::ImageView> create_depth_buffer(const lut::VulkanWindow&, const lut::Allocator&);
+	// Buffers
+	std::tuple<lut::Image, lut::ImageView> create_depth_buffer(const lut::VulkanWindow&, const lut::Allocator&, VkImageAspectFlagBits);
 	std::tuple<lut::Image, lut::ImageView> create_colour_buffer(const lut::VulkanWindow&, const lut::Allocator&);
 	std::tuple<lut::Image, lut::ImageView> create_just_stencil_buffer(const lut::VulkanWindow&, const lut::Allocator&);
+	std::tuple<lut::Image, lut::ImageView> create_normals_buffer(const lut::VulkanWindow&, const lut::Allocator&);
+	std::tuple<lut::Image, lut::ImageView> create_albedo_buffer(const lut::VulkanWindow&, const lut::Allocator&);
+	std::tuple<lut::Image, lut::ImageView> create_shadow_depth_buffer(const lut::VulkanWindow&, const lut::Allocator&);
 
+	// Framebuffers
 	lut::Framebuffer create_offscreen_framebuffer(const lut::VulkanWindow&, VkRenderPass, VkImageView, VkImageView);
 	void create_regular_swapchain_framebuffers(const lut::VulkanWindow&, VkRenderPass, std::vector<lut::Framebuffer>&, VkImageView);
 	void create_fullscreen_swapchain_framebuffers(const lut::VulkanWindow&, VkRenderPass, std::vector<lut::Framebuffer>&);
 	void create_over_visualisation_framebuffers(const lut::VulkanWindow&, VkRenderPass, std::vector<lut::Framebuffer>&, VkImageView, VkImageView);
+	void create_deferred_shading_framebuffers(const lut::VulkanWindow&, VkRenderPass, std::vector<lut::Framebuffer>&, VkImageView, VkImageView, VkImageView);
+	void create_shadow_offscreen_framebuffers(const lut::VulkanWindow&, VkRenderPass, std::vector<lut::Framebuffer>&, VkImageView);
 
 	lut::ImageView load_mesh_texture(const lut::VulkanWindow&, VkCommandPool, const lut::Allocator&, BakedTextureInfo);
+	lut::ImageView get_dummy_texture(const lut::VulkanWindow&, VkCommandPool, const lut::Allocator&);
 
 	void update_user_state(UserState&, float);
 	void update_scene_uniforms(glsl::SceneUniform&, std::uint32_t, std::uint32_t, const UserState&);
 	void update_debug_uniforms(glsl::DebugUniform&, const UserState&);
+	void update_depth_mvp_uniforms(glsl::DepthMVP&, std::uint32_t, std::uint32_t, glm::vec4);
 
 	void record_commands(
 		VkCommandBuffer aCmdBuff,
@@ -271,24 +334,33 @@ int main() try
 	lut::RenderPass offscreenRenderPass = create_offscreen_render_pass(window);
 	lut::RenderPass postProcessRenderPass = create_post_process_render_pass(window);
 	lut::RenderPass overVisualisationsRenderPass = create_over_visualisations_render_pass(window);
+	lut::RenderPass deferredShadingRenderPass = create_deferred_shading_render_pass(window);
+	lut::RenderPass shadowOffscreenRenderPass = create_offscreen_shadow_render_pass(window);
 
 	RenderPasses renderPasses{};
 	renderPasses.regularRenderPass = renderPass.handle;
 	renderPasses.offscreenRenderPass = offscreenRenderPass.handle;
 	renderPasses.postProcessRenderPass = postProcessRenderPass.handle;
 	renderPasses.overVisualisationsRenderPass = overVisualisationsRenderPass.handle;
+	renderPasses.deferredShadingRenderPass = deferredShadingRenderPass.handle;
+	renderPasses.shadowOffscreenRenderPass = shadowOffscreenRenderPass.handle;
 
 	// Create descriptor set layouts
 	lut::DescriptorSetLayout sceneLayout = create_scene_descriptor_layout(window);
 	lut::DescriptorSetLayout materialLayout = create_material_descriptor_layout(window);
 	lut::DescriptorSetLayout uboLayout = create_fragment_ubo_descriptor_layout(window);
+	lut::DescriptorSetLayout uboLayoutVert = create_vertex_ubo_descriptor_layout(window);
 	lut::DescriptorSetLayout postProcessDescriptorLayout = create_post_process_descriptor_layout(window);
 	lut::DescriptorSetLayout overVisualisationDescriptorLayout = create_over_visualisations_descriptor_layout(window);
+	lut::DescriptorSetLayout deferredShadingDescriptorLayout = create_deferred_shading_descriptor_layout(window);
+	lut::DescriptorSetLayout fragImageLayout = create_fragment_image_layout(window);
 
 	std::vector<VkDescriptorSetLayout> sceneDescriptorSetLayouts;
 	sceneDescriptorSetLayouts.emplace_back(sceneLayout.handle);
 	sceneDescriptorSetLayouts.emplace_back(materialLayout.handle);
 	sceneDescriptorSetLayouts.emplace_back(uboLayout.handle);
+	sceneDescriptorSetLayouts.emplace_back(uboLayoutVert.handle);
+	sceneDescriptorSetLayouts.emplace_back(fragImageLayout.handle);
 
 	std::vector<VkDescriptorSetLayout> postProcessDescriptorSetLayouts;
 	postProcessDescriptorSetLayouts.emplace_back(postProcessDescriptorLayout.handle);
@@ -299,18 +371,35 @@ int main() try
 	std::vector<VkDescriptorSetLayout> overVisReadDescriptorSetLayouts;
 	overVisReadDescriptorSetLayouts.emplace_back(overVisualisationDescriptorLayout.handle);
 
+	std::vector<VkDescriptorSetLayout> gBufWriteDescriptorSetLayouts;
+	gBufWriteDescriptorSetLayouts.emplace_back(sceneLayout.handle);
+
+	std::vector<VkDescriptorSetLayout> deferredShadingDescriptorSetLayouts;
+	deferredShadingDescriptorSetLayouts.emplace_back(deferredShadingDescriptorLayout.handle);
+	deferredShadingDescriptorSetLayouts.emplace_back(sceneLayout.handle);
+	deferredShadingDescriptorSetLayouts.emplace_back(uboLayout.handle);
+
+	std::vector<VkDescriptorSetLayout> shadowOffscreenDescriptorSetLayouts;
+	shadowOffscreenDescriptorSetLayouts.emplace_back(uboLayoutVert.handle);
+
 	// Create pipeline layouts
 	lut::PipelineLayout pipeLayout = create_pipeline_layout(window, sceneDescriptorSetLayouts);
 	lut::PipelineLayout debugPipeLayout = create_pipeline_layout(window, sceneDescriptorSetLayouts);
 	lut::PipelineLayout postProcessLayout = create_pipeline_layout(window, postProcessDescriptorSetLayouts);
 	lut::PipelineLayout overVisWriteLayout = create_pipeline_layout(window, overVisWriteDescriptorSetLayouts);
 	lut::PipelineLayout overVisReadLayout = create_pipeline_layout(window, overVisReadDescriptorSetLayouts);
+	lut::PipelineLayout gBufWriteLayout = create_pipeline_layout(window, sceneDescriptorSetLayouts);
+	lut::PipelineLayout deferredShadingLayout = create_pipeline_layout(window, deferredShadingDescriptorSetLayouts);
+	lut::PipelineLayout shadowOffscreenLayout = create_pipeline_layout(window, shadowOffscreenDescriptorSetLayouts);
 
 	PipelineLayouts pipelineLayouts{};
 	pipelineLayouts.regularPipelineLayout = pipeLayout.handle;
 	pipelineLayouts.postProcessPipelineLayout = postProcessLayout.handle;
 	pipelineLayouts.overVisWritePipelineLayout = overVisWriteLayout.handle;
 	pipelineLayouts.overVisReadPipelineLayout = overVisReadLayout.handle;
+	pipelineLayouts.gBufWritePipelineLayout = gBufWriteLayout.handle;
+	pipelineLayouts.deferredShadingPipelineLayout = deferredShadingLayout.handle;
+	pipelineLayouts.shadowOffscreenPipelineLayout = shadowOffscreenLayout.handle;
 
 	// Create pipelines
 	lut::Pipeline pipeline = create_pipeline(window, renderPass.handle, pipeLayout.handle);
@@ -320,6 +409,8 @@ int main() try
 	lut::Pipeline offscreePipeline = create_pipeline(window, offscreenRenderPass.handle, pipeLayout.handle);
 	lut::Pipeline postProcessPipeline = create_post_process_pipeline(window, postProcessRenderPass.handle, postProcessLayout.handle);
 	auto [overVisWritePipe, overVisReadPipe] = create_over_visualisations_pipeline(window, overVisualisationsRenderPass.handle, overVisWriteLayout.handle, overVisReadLayout.handle);
+	auto [gBufWritePipe, deferredShadingPipe] = create_deferred_shading_pipeline(window, deferredShadingRenderPass.handle, gBufWriteLayout.handle, deferredShadingLayout.handle);
+	lut::Pipeline shadowOffscreenPipeline = create_shadow_pipeline(window, shadowOffscreenRenderPass.handle, shadowOffscreenLayout.handle);
 
 	Pipelines pipelines{};
 	pipelines.regularPipeline = pipeline.handle;
@@ -330,23 +421,40 @@ int main() try
 	pipelines.postProcessPipeline = postProcessPipeline.handle;
 	pipelines.overVisWritePipeline = overVisWritePipe.handle;
 	pipelines.overVisReadPipeline = overVisReadPipe.handle;
+	pipelines.gBufWritePipline = gBufWritePipe.handle;
+	pipelines.deferredShadingPipeline = deferredShadingPipe.handle;
+	pipelines.shadowOffscreenPipeline = shadowOffscreenPipeline.handle;
 
-	// Create depth buffer
-	auto [depthBuffer, depthBufferView] = create_depth_buffer(window, allocator);
+	// Create depth specific depth buffer
+	auto [DdepthBuffer, DdepthBufferView] = create_depth_buffer(window, allocator, VK_IMAGE_ASPECT_DEPTH_BIT);
+	// Create stencil specific depth buffer
+	auto [SdepthBuffer, SdepthBufferView] = create_depth_buffer(window, allocator, VK_IMAGE_ASPECT_STENCIL_BIT);
 	// Create colour image buffer for post processing
 	auto [colourBuffer, colourBufferView] = create_colour_buffer(window, allocator);
+	// Create normals buffer
+	auto [normalsBuffer, normalsBufferView] = create_normals_buffer(window, allocator);
+	// Create tex coords buffer
+	auto [albedoBuffer, albedoBufferView] = create_albedo_buffer(window, allocator);
+	// Create shadow depth buffer
+	auto [shadowDepthBuffer, shadowDepthBufferView] = create_shadow_depth_buffer(window, allocator);
 
 	// Create offscreen framebuffer 
-	lut::Framebuffer offscreenFramebuffer = create_offscreen_framebuffer(window, offscreenRenderPass.handle, colourBufferView.handle, depthBufferView.handle);
+	lut::Framebuffer offscreenFramebuffer = create_offscreen_framebuffer(window, offscreenRenderPass.handle, colourBufferView.handle, DdepthBufferView.handle);
 	// Create swapchain framebuffers
 	std::vector<lut::Framebuffer> regularFramebuffers;
-	create_regular_swapchain_framebuffers(window, renderPass.handle, regularFramebuffers, depthBufferView.handle);
+	create_regular_swapchain_framebuffers(window, renderPass.handle, regularFramebuffers, DdepthBufferView.handle);
 	// Create framebuffers for doing post processing
 	std::vector<lut::Framebuffer> fullscreenFramebuffers;
 	create_fullscreen_swapchain_framebuffers(window, postProcessRenderPass.handle, fullscreenFramebuffers);
 	// Create framebuffers for over visualisation debug
 	std::vector<lut::Framebuffer> overVisulisationFramebuffers;
-	create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, depthBufferView.handle);
+	create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, SdepthBufferView.handle);
+	// Create framebuffers for deferred shading
+	std::vector<lut::Framebuffer> deferredShadingFramebuffers;
+	create_deferred_shading_framebuffers(window, deferredShadingRenderPass.handle, deferredShadingFramebuffers, DdepthBufferView.handle, normalsBufferView.handle, albedoBufferView.handle);
+	// Create shadow offscreen framebuffers
+	std::vector<lut::Framebuffer> shadowFramebuffers;
+	create_shadow_offscreen_framebuffers(window, shadowOffscreenRenderPass.handle, shadowFramebuffers, shadowDepthBufferView.handle);
 
 	Framebuffers aFramebuffers{};
 	aFramebuffers.offscreenFramebuffer = offscreenFramebuffer.handle;
@@ -396,15 +504,39 @@ int main() try
 		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
 	);
 
+	// Create Lights Uniform Buffer
+	lut::Buffer multipleLightsUBO = lut::create_buffer(
+		allocator,
+		sizeof(glsl::MultipleLights),
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		0,
+		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+	);
+
+	// Create Depth MVP Buffer
+	lut::Buffer depthMVPUBO = lut::create_buffer(
+		allocator,
+		sizeof(glsl::DepthMVP),
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+		0,
+		VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+	);
+
 	UBOs ubos{};
 	ubos.sceneUBO = sceneUBO.buffer;
 	ubos.lightUBO = lightUBO.buffer;
 	ubos.debugUBO = debugUBO.buffer;
+	ubos.multipleLightsUBO = multipleLightsUBO.buffer;
+	ubos.depthMVPUBO = depthMVPUBO.buffer;
 
 #pragma endregion
 
 	// Create descriptor pool
 	lut::DescriptorPool dpool = lut::create_descriptor_pool(window);
+
+	// Create sampler
+	lut::Sampler sampler = lut::create_default_sampler(window);
+	lut::Sampler shadowSampler = lut::create_shadow_sampler(window);
 
 #pragma region DescriptorSets
 
@@ -468,9 +600,6 @@ int main() try
 		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
 	}
 
-	// Create sampler
-	lut::Sampler sampler = lut::create_default_sampler(window);
-
 	VkDescriptorSet postProcessDescriptor = lut::alloc_desc_set(window, dpool.handle, postProcessDescriptorLayout.handle);
 	{
 		VkWriteDescriptorSet desc[1]{};
@@ -498,7 +627,7 @@ int main() try
 
 		VkDescriptorImageInfo inputAttachments[1]{};
 		inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		inputAttachments[0].imageView = depthBufferView.handle;
+		inputAttachments[0].imageView = SdepthBufferView.handle;
 		inputAttachments[0].sampler = VK_NULL_HANDLE;
 
 		desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -507,6 +636,110 @@ int main() try
 		desc[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
 		desc[0].descriptorCount = 1;
 		desc[0].pImageInfo = &inputAttachments[0];
+
+		constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
+		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
+	}
+
+	// Create deferred shading descriptor
+	VkDescriptorSet deferredShadingDescriptor = lut::alloc_desc_set(window, dpool.handle, deferredShadingDescriptorLayout.handle);
+	{
+		VkWriteDescriptorSet desc[3]{};
+
+		VkDescriptorImageInfo inputAttachments[3]{};
+		inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		inputAttachments[0].imageView = normalsBufferView.handle;
+		inputAttachments[0].sampler = VK_NULL_HANDLE;
+
+		inputAttachments[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		inputAttachments[1].imageView = albedoBufferView.handle;
+		inputAttachments[1].sampler = VK_NULL_HANDLE;
+
+		inputAttachments[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		inputAttachments[2].imageView = DdepthBufferView.handle;
+		inputAttachments[2].sampler = VK_NULL_HANDLE; 
+
+		desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		desc[0].dstSet = deferredShadingDescriptor;
+		desc[0].dstBinding = 0;
+		desc[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		desc[0].descriptorCount = 1;
+		desc[0].pImageInfo = &inputAttachments[0];
+
+		desc[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		desc[1].dstSet = deferredShadingDescriptor;
+		desc[1].dstBinding = 1;
+		desc[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		desc[1].descriptorCount = 1;
+		desc[1].pImageInfo = &inputAttachments[1];
+
+		desc[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		desc[2].dstSet = deferredShadingDescriptor;
+		desc[2].dstBinding = 2;
+		desc[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		desc[2].descriptorCount = 1;
+		desc[2].pImageInfo = &inputAttachments[2];
+		
+		constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
+		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
+	}
+
+	// Create lights descriptor set
+	VkDescriptorSet mutlipleLightsDescriptor = lut::alloc_desc_set(window, dpool.handle, uboLayout.handle);
+	{
+		VkWriteDescriptorSet desc[1]{};
+
+		VkDescriptorBufferInfo lightsUboInfo{};
+		lightsUboInfo.buffer = multipleLightsUBO.buffer;
+		lightsUboInfo.range = VK_WHOLE_SIZE;
+
+		desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		desc[0].dstSet = mutlipleLightsDescriptor;
+		desc[0].dstBinding = 0;
+		desc[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		desc[0].descriptorCount = 1;
+		desc[0].pBufferInfo = &lightsUboInfo;
+
+		constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
+		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
+	}
+
+	// Create depth MVP descriptor set
+	VkDescriptorSet depthMVPDescriptor = lut::alloc_desc_set(window, dpool.handle, uboLayoutVert.handle);
+	{
+		VkWriteDescriptorSet desc[1]{};
+
+		VkDescriptorBufferInfo depthUboInfo{};
+		depthUboInfo.buffer = depthMVPUBO.buffer;
+		depthUboInfo.range = VK_WHOLE_SIZE;
+
+		desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		desc[0].dstSet = depthMVPDescriptor;
+		desc[0].dstBinding = 0;
+		desc[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		desc[0].descriptorCount = 1;
+		desc[0].pBufferInfo = &depthUboInfo;
+
+		constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
+		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
+	}
+
+	// Create shadow map image descriptor set
+	VkDescriptorSet shadowMapDescriptor = lut::alloc_desc_set(window, dpool.handle, fragImageLayout.handle);
+	{
+		VkWriteDescriptorSet desc[1]{};
+
+		VkDescriptorImageInfo imageInfo[1]{};
+		imageInfo[0].imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		imageInfo[0].imageView = shadowDepthBufferView.handle;
+		imageInfo[0].sampler = shadowSampler.handle;
+
+		desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		desc[0].dstSet = shadowMapDescriptor;
+		desc[0].dstBinding = 0;
+		desc[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		desc[0].descriptorCount = 1;
+		desc[0].pImageInfo = imageInfo;
 
 		constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
 		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
@@ -528,11 +761,15 @@ int main() try
 
 #pragma region MaterialDescriptorSets
 
+	// Vector of dummy texture image views outside of the loop so they don't get destructed
+	// when control goes out of loop
+	std::vector<lut::ImageView> dummyTextures;
+
 	// Create Descriptor Sets for each material
 	std::vector<VkDescriptorSet> materialDescriptors;
 	for (std::size_t i = 0; i < bakedModel.materials.size(); i++) {
 		VkDescriptorSet materialDescriptor = lut::alloc_desc_set(window, dpool.handle, materialLayout.handle);
-		VkWriteDescriptorSet desc[4]{};
+		VkWriteDescriptorSet desc[5]{};
 
 		VkDescriptorImageInfo baseColourInfo{};
 		baseColourInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -590,11 +827,27 @@ int main() try
 		desc[3].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		desc[3].descriptorCount = 1;
 		desc[3].pImageInfo = &alphaMaskInfo;
+
+		VkDescriptorImageInfo normalMapInfo{};
+		normalMapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		normalMapInfo.imageView = textureViews[bakedModel.materials[i].normalMapTextureId].handle;
+		normalMapInfo.sampler = sampler.handle;
+
+		desc[4].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		desc[4].dstSet = materialDescriptor;
+		desc[4].dstBinding = 4;
+		desc[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		desc[4].descriptorCount = 1;
+		desc[4].pImageInfo = &normalMapInfo;
 			
 		constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
 		vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
 		materialDescriptors.emplace_back(materialDescriptor);
 	}
+
+	//for (std::size_t i = 0; i < bakedModel.materials.size(); i++) {
+	//	std::cout << "i: " << i << "textureViews[" << bakedModel.materials[i].normalMapTextureId << "]: " << textureViews[bakedModel.materials[i].normalMapTextureId].handle << std::endl;
+	//}
 
 #pragma endregion
 
@@ -604,7 +857,11 @@ int main() try
 		lightDescriptor,
 		debugDescriptor,
 		postProcessDescriptor,
-		overVisualisationDescriptor
+		overVisualisationDescriptor,
+		deferredShadingDescriptor,
+		mutlipleLightsDescriptor,
+		depthMVPDescriptor,
+		shadowMapDescriptor
 	};
 
 #pragma region MeshData
@@ -628,9 +885,19 @@ int main() try
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
 		);
 
+		// Even though we pass the TBN frame, this is kept in to allow me to compare and get the
+		// screenshots to compare against the TBN normal mapping
 		lut::Buffer vertexNormGPU = lut::create_buffer(
 			allocator,
 			bakedModel.meshes[i].normals.size() * sizeof(glm::vec3),
+			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			0,
+			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+		);
+
+		lut::Buffer vertexTangGPU = lut::create_buffer(
+			allocator,
+			bakedModel.meshes[i].tangentsComp.size() * sizeof(std::uint32_t),
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			0,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
@@ -665,6 +932,13 @@ int main() try
 			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
 		);
 
+		lut::Buffer tangStaging = lut::create_buffer(
+			allocator,
+			bakedModel.meshes[i].tangentsComp.size() * sizeof(std::uint32_t),
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+		);
+
 		lut::Buffer indexStaging = lut::create_buffer(
 			allocator,
 			bakedModel.meshes[i].indices.size() * sizeof(std::uint32_t),
@@ -692,6 +966,13 @@ int main() try
 
 		std::memcpy(normPtr, bakedModel.meshes[i].normals.data(), bakedModel.meshes[i].normals.size() * sizeof(glm::vec3));
 		vmaUnmapMemory(allocator.allocator, normStaging.allocation);
+
+		void* tangPtr = nullptr;
+		if (const auto res = vmaMapMemory(allocator.allocator, tangStaging.allocation, &tangPtr); VK_SUCCESS != res)
+			throw lut::Error("Mapping memory for writing\n vmaMapMemory() returned %s", lut::to_string(res).c_str());
+
+		std::memcpy(tangPtr, bakedModel.meshes[i].tangentsComp.data(), bakedModel.meshes[i].tangentsComp.size() * sizeof(std::uint32_t));
+		vmaUnmapMemory(allocator.allocator, tangStaging.allocation);
 
 		void* indexPtr = nullptr;
 		if (const auto res = vmaMapMemory(allocator.allocator, indexStaging.allocation, &indexPtr); VK_SUCCESS != res)
@@ -754,6 +1035,20 @@ int main() try
 			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT
 		);
 
+		VkBufferCopy tangcopy{};
+		tangcopy.size = bakedModel.meshes[i].tangentsComp.size() * sizeof(std::uint32_t);
+
+		vkCmdCopyBuffer(uploadCmd, tangStaging.buffer, vertexTangGPU.buffer, 1, &tangcopy);
+
+		lut::buffer_barrier(
+			uploadCmd,
+			vertexTangGPU.buffer,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_VERTEX_INPUT_BIT
+		);
+
 		VkBufferCopy icopy{};
 		icopy.size = bakedModel.meshes[i].indices.size() * sizeof(std::uint32_t);
 
@@ -789,7 +1084,9 @@ int main() try
 			MeshData {
 				std::move(vertexPosGPU), 
 				std::move(vertexTexGPU),
-				std::move(vertexNormGPU),
+				std::move(vertexNormGPU), // Even though we pass the TBN frame, this is kept in to allow me to compare and get the
+										  // screenshots to compare against the TBN normal mapping
+				std::move(vertexTangGPU),
 				std::move(vertexIndexGPU), 
 				bakedModel.meshes[i].indices.size(),
 				bakedModel.meshes[i].materialId,
@@ -816,26 +1113,37 @@ int main() try
 				offscreenRenderPass = create_offscreen_render_pass(window);
 				postProcessRenderPass = create_post_process_render_pass(window);
 				overVisualisationsRenderPass = create_over_visualisations_render_pass(window);
+				deferredShadingRenderPass = create_deferred_shading_render_pass(window);
+				shadowOffscreenRenderPass = create_offscreen_shadow_render_pass(window);
 
 				renderPasses.regularRenderPass = renderPass.handle;
 				renderPasses.offscreenRenderPass = offscreenRenderPass.handle;
 				renderPasses.postProcessRenderPass = postProcessRenderPass.handle;
 				renderPasses.overVisualisationsRenderPass = overVisualisationsRenderPass.handle;
+				renderPasses.deferredShadingRenderPass = deferredShadingRenderPass.handle;
+				renderPasses.shadowOffscreenRenderPass = shadowOffscreenRenderPass.handle;
 			}
 				
 			if (changes.changedSize) {
 				std::tie(colourBuffer, colourBufferView) = create_colour_buffer(window, allocator);
-				std::tie(depthBuffer, depthBufferView) = create_depth_buffer(window, allocator);
+				std::tie(DdepthBuffer, DdepthBufferView) = create_depth_buffer(window, allocator, VK_IMAGE_ASPECT_DEPTH_BIT);
+				std::tie(SdepthBuffer, SdepthBufferView) = create_depth_buffer(window, allocator, VK_IMAGE_ASPECT_STENCIL_BIT);
+				std::tie(normalsBuffer, normalsBufferView) = create_normals_buffer(window, allocator);
+				std::tie(albedoBuffer, albedoBufferView) = create_albedo_buffer(window, allocator);
 			}
 			
-			offscreenFramebuffer = create_offscreen_framebuffer(window, offscreenRenderPass.handle, colourBufferView.handle, depthBufferView.handle);
+			offscreenFramebuffer = create_offscreen_framebuffer(window, offscreenRenderPass.handle, colourBufferView.handle, DdepthBufferView.handle);
 			aFramebuffers.offscreenFramebuffer = offscreenFramebuffer.handle; 
 			regularFramebuffers.clear();
-			create_regular_swapchain_framebuffers(window, renderPass.handle, regularFramebuffers, depthBufferView.handle);
+			create_regular_swapchain_framebuffers(window, renderPass.handle, regularFramebuffers, DdepthBufferView.handle);
 			fullscreenFramebuffers.clear();
 			create_fullscreen_swapchain_framebuffers(window, postProcessRenderPass.handle, fullscreenFramebuffers);
 			overVisulisationFramebuffers.clear();
-			create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, depthBufferView.handle);
+			create_over_visualisation_framebuffers(window, overVisualisationsRenderPass.handle, overVisulisationFramebuffers, colourBufferView.handle, SdepthBufferView.handle);
+			deferredShadingFramebuffers.clear();
+			create_deferred_shading_framebuffers(window, deferredShadingRenderPass.handle, deferredShadingFramebuffers, DdepthBufferView.handle, normalsBufferView.handle, albedoBufferView.handle);
+			shadowFramebuffers.clear();
+			create_shadow_offscreen_framebuffers(window, shadowOffscreenRenderPass.handle, shadowFramebuffers, shadowDepthBufferView.handle);
 
 			if (changes.changedSize) {
 				pipeline = create_pipeline(window, renderPass.handle, pipeLayout.handle);
@@ -845,6 +1153,7 @@ int main() try
 				offscreePipeline = create_pipeline(window, offscreenRenderPass.handle, pipeLayout.handle);
 				postProcessPipeline = create_post_process_pipeline(window, postProcessRenderPass.handle, postProcessLayout.handle);
 				std::tie(overVisWritePipe, overVisReadPipe) = create_over_visualisations_pipeline(window, overVisualisationsRenderPass.handle, overVisWriteLayout.handle, overVisReadLayout.handle);
+				std::tie(gBufWritePipe, deferredShadingPipe) = create_deferred_shading_pipeline(window, deferredShadingRenderPass.handle, gBufWriteLayout.handle, deferredShadingLayout.handle);
 
 				pipelines.regularPipeline = pipeline.handle;
 				pipelines.alphaPipeline = alphaPipeline.handle;
@@ -854,6 +1163,8 @@ int main() try
 				pipelines.postProcessPipeline = postProcessPipeline.handle;
 				pipelines.overVisWritePipeline = overVisWritePipe.handle;
 				pipelines.overVisReadPipeline = overVisReadPipe.handle;
+				pipelines.gBufWritePipline = gBufWritePipe.handle;
+				pipelines.deferredShadingPipeline = deferredShadingPipe.handle;
 			}
 
 			// Recreate post process descriptor since it relies on colour buffer
@@ -884,7 +1195,7 @@ int main() try
 
 				VkDescriptorImageInfo inputAttachments[1]{};
 				inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-				inputAttachments[0].imageView = depthBufferView.handle;
+				inputAttachments[0].imageView = SdepthBufferView.handle;
 				inputAttachments[0].sampler = VK_NULL_HANDLE;
 
 				desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -898,8 +1209,52 @@ int main() try
 				vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
 			}
 
+			// Recreate deferred shading descriptor as it relies on normals and albedo buffers
+			deferredShadingDescriptor = lut::alloc_desc_set(window, dpool.handle, deferredShadingDescriptorLayout.handle);
+			{
+				VkWriteDescriptorSet desc[3]{};
+
+				VkDescriptorImageInfo inputAttachments[3]{};
+				inputAttachments[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				inputAttachments[0].imageView = normalsBufferView.handle;
+				inputAttachments[0].sampler = VK_NULL_HANDLE;
+
+				inputAttachments[1].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				inputAttachments[1].imageView = albedoBufferView.handle;
+				inputAttachments[1].sampler = VK_NULL_HANDLE;
+
+				inputAttachments[2].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+				inputAttachments[2].imageView = DdepthBufferView.handle;
+				inputAttachments[2].sampler = VK_NULL_HANDLE;
+
+				desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				desc[0].dstSet = deferredShadingDescriptor;
+				desc[0].dstBinding = 0;
+				desc[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+				desc[0].descriptorCount = 1;
+				desc[0].pImageInfo = &inputAttachments[0];
+
+				desc[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				desc[1].dstSet = deferredShadingDescriptor;
+				desc[1].dstBinding = 1;
+				desc[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+				desc[1].descriptorCount = 1;
+				desc[1].pImageInfo = &inputAttachments[1];
+
+				desc[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+				desc[2].dstSet = deferredShadingDescriptor;
+				desc[2].dstBinding = 2;
+				desc[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+				desc[2].descriptorCount = 1;
+				desc[2].pImageInfo = &inputAttachments[2];
+
+				constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
+				vkUpdateDescriptorSets(window.device, numSets, desc, 0, nullptr);
+			}
+
 			descriptorSets.postProcessDescriptor = postProcessDescriptor;
 			descriptorSets.overVisualisationDescriptor = overVisualisationDescriptor;
+			descriptorSets.deferredShadingDescriptor = deferredShadingDescriptor;
 
 			recreateSwapchain = false;
 			continue;
@@ -951,21 +1306,63 @@ int main() try
 
 		glsl::SceneUniform sceneUniforms{};
 		glsl::DebugUniform debugUniforms{};
+		glsl::DepthMVP depthMVPUniform{};
 		update_scene_uniforms(sceneUniforms, window.swapchainExtent.width, window.swapchainExtent.height, state);
 		update_debug_uniforms(debugUniforms, state);
 
 		glsl::LightUniform lightUniforms{};
-		lightUniforms.lightPos = glm::vec4(-0.2972, 7.3100, -11.9532, 0.0f);
+		lightUniforms.lightPos = glm::vec4(-0.2972f, 7.3100f, -11.9532f, 0.0f);
 		lightUniforms.lightColour = glm::vec4(1.0f, 1.0f, 1.0f, 1.0f);
+
+		update_depth_mvp_uniforms(depthMVPUniform, window.swapchainExtent.width, window.swapchainExtent.height, lightUniforms.lightPos);
+
+		glsl::MultipleLights multipleLightsUniform{};
+		// The 8 braziers in the main room surrounding statue
+		multipleLightsUniform.light[0].lightPos = glm::vec4(8.0377f, -1.1000f, -15.8845f, 0.0f);
+		multipleLightsUniform.light[1].lightPos = glm::vec4(5.6632f, -1.1000f, -12.2500f, 0.0f);
+		multipleLightsUniform.light[2].lightPos = glm::vec4(2.1255f, -1.1000f, -10.1000f, 0.0f);
+		multipleLightsUniform.light[3].lightPos = glm::vec4(-2.0867f, -1.1000f, -10.2500f, 0.0f);
+		multipleLightsUniform.light[4].lightPos = glm::vec4(-5.7367f, -1.1000f, -12.2000f, 0.0f);
+		multipleLightsUniform.light[5].lightPos = glm::vec4(-7.8244f, -1.1000f, -15.8500f, 0.0f);
+		multipleLightsUniform.light[6].lightPos = glm::vec4(3.0632f, -1.1000f, -25.8500f, 0.0f);
+		multipleLightsUniform.light[7].lightPos = glm::vec4(-3.0632f, -1.1000f, -25.8500f, 0.0f);
+		// The 1 lone brazier in the smaller room with statue
+		multipleLightsUniform.light[8].lightPos = glm::vec4(-7.4867f, -1.1000f, -36.0500f, 0.0f);
+		// 3 next to statue in smaller room
+		multipleLightsUniform.light[9].lightPos = glm::vec4(-2.4367f, -3.1000f, -46.5500f, 0.0f);
+		multipleLightsUniform.light[10].lightPos = glm::vec4(2.3632f, -3.1000f, -46.5500f, 0.0f);
+		multipleLightsUniform.light[11].lightPos = glm::vec4(-0.0514f, -3.9000f, -49.6000f, 0.0f);
+		// 2 going into back hallway
+		multipleLightsUniform.light[12].lightPos = glm::vec4(-7.2367f, -3.1000f, -61.2500f, 0.0f);
+		multipleLightsUniform.light[13].lightPos = glm::vec4(7.1088f, -3.1000f, -61.2500f, 0.0f);
+		// 4 before large middle one
+		multipleLightsUniform.light[14].lightPos = glm::vec4(-2.0867f, -3.1000f, -66.5500f, 0.0f);
+		multipleLightsUniform.light[15].lightPos = glm::vec4(2.0867f, -3.1000f, -66.5500f, 0.0f);
+		multipleLightsUniform.light[16].lightPos = glm::vec4(-2.0867f, -3.1000f, -68.9000f, 0.0f);
+		multipleLightsUniform.light[17].lightPos = glm::vec4(2.0867f, -3.1000f, -68.9000f, 0.0f);
+		// 1 large middle one
+		multipleLightsUniform.light[18].lightPos = glm::vec4(0.0000f, -4.1000f, -76.0000f, 0.0f);
+		// 2 final back ones
+		multipleLightsUniform.light[19].lightPos = glm::vec4(-1.6867f, -3.1000f, -88.8500f, 0.0f);
+		multipleLightsUniform.light[20].lightPos = glm::vec4(1.6867f, -3.1000f, -88.8500f, 0.0f);
+
+		// Give all lights a 'fire' orange colour
+		for (int i = 0; i < 21; i++) {
+			multipleLightsUniform.light[i].lightColour = glm::vec4(0.9882f, 0.4549f, 0.0196f, 1.0f);
+		}		
 
 		Uniforms uniforms{};
 		uniforms.sceneUniforms = sceneUniforms;
 		uniforms.debugUniforms = debugUniforms;
 		uniforms.lightUniforms = lightUniforms;
+		uniforms.multipleLightsUniform = multipleLightsUniform;
+		uniforms.depthMVPUniform = depthMVPUniform;
 
 		aFramebuffers.regularSwapchainFramebuffer = regularFramebuffers[imageIndex].handle;
 		aFramebuffers.fullscreenSwapchainFramebuffer = fullscreenFramebuffers[imageIndex].handle;
 		aFramebuffers.overVisualisationFramebuffer = overVisulisationFramebuffers[imageIndex].handle;
+		aFramebuffers.deferredShadingFramebuffer = deferredShadingFramebuffers[imageIndex].handle;
+		aFramebuffers.shadowOffscreenFramebuffer = shadowFramebuffers[imageIndex].handle;
 
 		record_commands(
 			cbuffers[frameIndex],
@@ -1067,6 +1464,14 @@ namespace {
 				case GLFW_KEY_7:
 					// Overshading visualisation
 					state->debugVisualisation = 6;
+					break;
+				case GLFW_KEY_8:
+					// Toggle deferred shading
+					state->deferredShading = !state->deferredShading;
+					break;
+				case GLFW_KEY_9:
+					// Toggle shadows
+					state->shadows = !state->shadows;
 					break;
 				default:
 				;
@@ -1428,6 +1833,189 @@ namespace {
 		return lut::RenderPass(aWindow.device, rpass);
 	}
 
+	lut::RenderPass create_deferred_shading_render_pass(const lut::VulkanWindow& aWindow) {
+		// Geometry pass to write data to G-Buffers then 2nd pass
+		// for shading
+
+		VkAttachmentDescription attachments[4]{};
+		// Swap chain image attachment
+		attachments[0].format = aWindow.swapchainFormat;
+		attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[0].finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		attachments[0].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		// Normal Attachment
+		attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT; // Maybe R10G10B10A2?
+		attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[1].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		attachments[1].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[1].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		// Albedo Attachment
+		attachments[2].format = VK_FORMAT_R16G16B16A16_SFLOAT; // Maybe reduce to 16 bit components since 32 may not be needed
+		attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[2].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		attachments[2].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[2].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		// Depth Attachment
+		attachments[3].format = cfg::kDepthFormat;
+		attachments[3].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[3].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[3].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[3].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		attachments[3].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[3].stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+
+		VkAttachmentReference swapchainAttachment{};
+		swapchainAttachment.attachment = 0;
+		swapchainAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference depthAttachment{};
+		depthAttachment.attachment = 3;
+		depthAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkAttachmentReference normalAndAlbedoAttachments[2]{};
+		normalAndAlbedoAttachments[0].attachment = 1;
+		normalAndAlbedoAttachments[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		normalAndAlbedoAttachments[1].attachment = 2;
+		normalAndAlbedoAttachments[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpasses[2]{};
+		subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpasses[0].colorAttachmentCount = 2;
+		subpasses[0].pColorAttachments = normalAndAlbedoAttachments;
+		subpasses[0].pDepthStencilAttachment = &depthAttachment;
+
+		subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpasses[1].colorAttachmentCount = 1;
+		subpasses[1].pColorAttachments = &swapchainAttachment;
+
+		VkAttachmentReference inputAttachments[3]{};
+		inputAttachments[0].attachment = 1;
+		inputAttachments[0].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		inputAttachments[1].attachment = 2;
+		inputAttachments[1].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		inputAttachments[2].attachment = 3;
+		inputAttachments[2].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		subpasses[1].inputAttachmentCount = 3;
+		subpasses[1].pInputAttachments = inputAttachments;
+
+		VkSubpassDependency deps[4]{};
+		deps[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+		deps[0].srcAccessMask = 0;
+		deps[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		deps[0].dstSubpass = 0;
+		deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+
+		deps[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[1].srcSubpass = VK_SUBPASS_EXTERNAL;
+		deps[1].srcAccessMask = 0;
+		deps[1].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+		deps[1].dstSubpass = 1;
+		deps[1].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		deps[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+		deps[2].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[2].srcSubpass = 0;
+		deps[2].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+		deps[2].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		deps[2].dstSubpass = 1;
+		deps[2].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+		deps[2].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+
+		deps[3].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[3].srcSubpass = 1;
+		deps[3].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		deps[3].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		deps[3].dstSubpass = VK_SUBPASS_EXTERNAL;
+		deps[3].dstAccessMask = 0;
+		deps[3].dstStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+
+		VkRenderPassCreateInfo passInfo{};
+		passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		passInfo.attachmentCount = 4;
+		passInfo.pAttachments = attachments;
+		passInfo.subpassCount = 2;
+		passInfo.pSubpasses = subpasses;
+		passInfo.dependencyCount = 4;
+		passInfo.pDependencies = deps;
+
+		VkRenderPass rpass = VK_NULL_HANDLE;
+		if (const auto res = vkCreateRenderPass(aWindow.device, &passInfo, nullptr, &rpass); VK_SUCCESS != res) {
+			throw lut::Error("Unable to create render pass\n vkCreateRenderPass() returned %s\n", lut::to_string(res).c_str());
+		}
+
+		return lut::RenderPass(aWindow.device, rpass);
+	}
+
+	lut::RenderPass create_offscreen_shadow_render_pass(const lut::VulkanWindow& aWindow) {
+		VkAttachmentDescription attachments[1]{};
+		attachments[0].format = cfg::kDepthFormat;
+		attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
+		attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+		attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+		attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		attachments[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+		attachments[0].stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+
+		VkAttachmentReference depthAttachment{};
+		depthAttachment.attachment = 0;
+		depthAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		VkSubpassDescription subpasses[1]{};
+		subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+		subpasses[0].colorAttachmentCount = 0;
+		subpasses[0].pDepthStencilAttachment = &depthAttachment;
+
+		VkSubpassDependency deps[2]{};
+		deps[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+		deps[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		deps[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+		deps[0].dstSubpass = 0;
+		deps[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		deps[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+
+		deps[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+		deps[1].srcSubpass = 0;
+		deps[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		deps[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+		deps[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		deps[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+
+		VkRenderPassCreateInfo passInfo{};
+		passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+		passInfo.attachmentCount = 1;
+		passInfo.pAttachments = attachments;
+		passInfo.subpassCount = 1;
+		passInfo.pSubpasses = subpasses;
+		passInfo.dependencyCount = 2;
+		passInfo.pDependencies = deps;
+
+		VkRenderPass rpass = VK_NULL_HANDLE;
+		if (const auto res = vkCreateRenderPass(aWindow.device, &passInfo, nullptr, &rpass); VK_SUCCESS != res) {
+			throw lut::Error("Unable to create render pass\n vkCreateRenderPass() returned %s\n", lut::to_string(res).c_str());
+		}
+
+		return lut::RenderPass(aWindow.device, rpass);
+	}
+
 	lut::DescriptorSetLayout create_scene_descriptor_layout(const lut::VulkanWindow& aWindow) {
 		VkDescriptorSetLayoutBinding bindings[1]{};
 		bindings[0].binding = 0;
@@ -1448,7 +2036,7 @@ namespace {
 	}
 
 	lut::DescriptorSetLayout create_material_descriptor_layout(const lut::VulkanWindow& aWindow) {
-		VkDescriptorSetLayoutBinding bindings[4]{};
+		VkDescriptorSetLayoutBinding bindings[5]{};
 		bindings[0].binding = 0;
 		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		bindings[0].descriptorCount = 1;
@@ -1469,6 +2057,11 @@ namespace {
 		bindings[3].descriptorCount = 1;
 		bindings[3].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
+		bindings[4].binding = 4;
+		bindings[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[4].descriptorCount = 1;
+		bindings[4].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 		layoutInfo.bindingCount = sizeof(bindings) / sizeof(bindings[0]);
@@ -1487,6 +2080,25 @@ namespace {
 		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		bindings[0].descriptorCount = 1;
 		bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo{};
+		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layoutInfo.bindingCount = sizeof(bindings) / sizeof(bindings[0]);
+		layoutInfo.pBindings = bindings;
+
+		VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+		if (const auto res = vkCreateDescriptorSetLayout(aWindow.device, &layoutInfo, nullptr, &layout); VK_SUCCESS != res)
+			throw lut::Error("Unable to create descriptor set layout\n vkCreateDescriptorSetLayout() returned %s", lut::to_string(res).c_str());
+
+		return lut::DescriptorSetLayout(aWindow.device, layout);
+	}
+
+	lut::DescriptorSetLayout create_vertex_ubo_descriptor_layout(const lut::VulkanWindow& aWindow) {
+		VkDescriptorSetLayoutBinding bindings[1]{};
+		bindings[0].binding = 0;
+		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		bindings[0].descriptorCount = 1;
+		bindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -1539,6 +2151,54 @@ namespace {
 
 	}
 
+	lut::DescriptorSetLayout create_deferred_shading_descriptor_layout(const lut::VulkanWindow& aWindow) {
+		VkDescriptorSetLayoutBinding bindings[3]{};
+		bindings[0].binding = 0;
+		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		bindings[0].descriptorCount = 1;
+		bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		bindings[1].binding = 1;
+		bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		bindings[1].descriptorCount = 1;
+		bindings[1].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		bindings[2].binding = 2;
+		bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+		bindings[2].descriptorCount = 1;
+		bindings[2].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo{};
+		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layoutInfo.bindingCount = sizeof(bindings) / sizeof(bindings[0]);
+		layoutInfo.pBindings = bindings;
+
+		VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+		if (const auto res = vkCreateDescriptorSetLayout(aWindow.device, &layoutInfo, nullptr, &layout); VK_SUCCESS != res)
+			throw lut::Error("Unable to create descriptor set layout\n vkCreateDescriptorSetLayout() returned %s", lut::to_string(res).c_str());
+
+		return lut::DescriptorSetLayout(aWindow.device, layout);
+	}
+
+	lut::DescriptorSetLayout create_fragment_image_layout(const lut::VulkanWindow& aWindow) {
+		VkDescriptorSetLayoutBinding bindings[1]{};
+		bindings[0].binding = 0;
+		bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		bindings[0].descriptorCount = 1;
+		bindings[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+		VkDescriptorSetLayoutCreateInfo layoutInfo{};
+		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+		layoutInfo.bindingCount = sizeof(bindings) / sizeof(bindings[0]);
+		layoutInfo.pBindings = bindings;
+
+		VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+		if (const auto res = vkCreateDescriptorSetLayout(aWindow.device, &layoutInfo, nullptr, &layout); VK_SUCCESS != res)
+			throw lut::Error("Unable to create descriptor set layout\n vkCreateDescriptorSetLayout() returned %s", lut::to_string(res).c_str());
+
+		return lut::DescriptorSetLayout(aWindow.device, layout);
+	}
+
 	lut::PipelineLayout create_pipeline_layout(const lut::VulkanWindow& aWindow, std::vector<VkDescriptorSetLayout>& aDescriptorSetLayouts) {
 		VkPipelineLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -1570,7 +2230,9 @@ namespace {
 		stages[1].module = frag.handle;
 		stages[1].pName = "main";
 
-		VkVertexInputBindingDescription vertexInputs[3]{};
+		// Even though we pass the TBN frame, normals are kept in to allow me to compare and get the
+		// screenshots to compare against the TBN normal mapping for the report
+		VkVertexInputBindingDescription vertexInputs[4]{};
 		vertexInputs[0].binding = 0;
 		vertexInputs[0].stride = sizeof(float) * 3;
 		vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
@@ -1580,8 +2242,11 @@ namespace {
 		vertexInputs[2].binding = 2;
 		vertexInputs[2].stride = sizeof(float) * 3;
 		vertexInputs[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		vertexInputs[3].binding = 3;
+		vertexInputs[3].stride = sizeof(std::uint32_t) * 1;
+		vertexInputs[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-		VkVertexInputAttributeDescription vertexAttributes[3]{};
+		VkVertexInputAttributeDescription vertexAttributes[4]{};
 		vertexAttributes[0].binding = 0;
 		vertexAttributes[0].location = 0;
 		vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -1594,12 +2259,16 @@ namespace {
 		vertexAttributes[2].location = 2;
 		vertexAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
 		vertexAttributes[2].offset = 0;
+		vertexAttributes[3].binding = 3;
+		vertexAttributes[3].location = 3;
+		vertexAttributes[3].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+		vertexAttributes[3].offset = 0;
 
 		VkPipelineVertexInputStateCreateInfo inputInfo{};
 		inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		inputInfo.vertexBindingDescriptionCount = 3;
+		inputInfo.vertexBindingDescriptionCount = 4;
 		inputInfo.pVertexBindingDescriptions = vertexInputs;
-		inputInfo.vertexAttributeDescriptionCount = 3;
+		inputInfo.vertexAttributeDescriptionCount = 4;
 		inputInfo.pVertexAttributeDescriptions = vertexAttributes;
 
 		VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
@@ -1698,7 +2367,9 @@ namespace {
 		stages[1].module = frag.handle;
 		stages[1].pName = "main";
 
-		VkVertexInputBindingDescription vertexInputs[3]{};
+		// Even though we pass the TBN frame, normals are kept in to allow me to compare and get the
+		// screenshots to compare against the TBN normal mapping for the report
+		VkVertexInputBindingDescription vertexInputs[4]{};
 		vertexInputs[0].binding = 0;
 		vertexInputs[0].stride = sizeof(float) * 3;
 		vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
@@ -1708,8 +2379,11 @@ namespace {
 		vertexInputs[2].binding = 2;
 		vertexInputs[2].stride = sizeof(float) * 3;
 		vertexInputs[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		vertexInputs[3].binding = 3;
+		vertexInputs[3].stride = sizeof(std::uint32_t) * 1;
+		vertexInputs[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-		VkVertexInputAttributeDescription vertexAttributes[3]{};
+		VkVertexInputAttributeDescription vertexAttributes[4]{};
 		vertexAttributes[0].binding = 0;
 		vertexAttributes[0].location = 0;
 		vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -1722,12 +2396,16 @@ namespace {
 		vertexAttributes[2].location = 2;
 		vertexAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
 		vertexAttributes[2].offset = 0;
+		vertexAttributes[3].binding = 3;
+		vertexAttributes[3].location = 3;
+		vertexAttributes[3].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+		vertexAttributes[3].offset = 0;
 
 		VkPipelineVertexInputStateCreateInfo inputInfo{};
 		inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		inputInfo.vertexBindingDescriptionCount = 3;
+		inputInfo.vertexBindingDescriptionCount = 4;
 		inputInfo.pVertexBindingDescriptions = vertexInputs;
-		inputInfo.vertexAttributeDescriptionCount = 3;
+		inputInfo.vertexAttributeDescriptionCount = 4;
 		inputInfo.pVertexAttributeDescriptions = vertexAttributes;
 
 		VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
@@ -2181,7 +2859,309 @@ namespace {
 		return { std::move(lut::Pipeline(aWindow.device, writepipe)), std::move(lut::Pipeline(aWindow.device, readpipe)) };
 	}
 
-	std::tuple<lut::Image, lut::ImageView> create_depth_buffer(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
+	std::tuple<lut::Pipeline, lut::Pipeline> create_deferred_shading_pipeline(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, VkPipelineLayout aPipelineGBufLayout, VkPipelineLayout aPipelineShadingLayout) {
+		lut::ShaderModule vert = lut::load_shader_module(aWindow, cfg::kWriteGBufVertShaderPath);
+		lut::ShaderModule frag = lut::load_shader_module(aWindow, cfg::kWriteGBufFragShaderPath);
+
+		VkPipelineShaderStageCreateInfo stages[2]{};
+		stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+		stages[0].module = vert.handle;
+		stages[0].pName = "main";
+
+		stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		stages[1].module = frag.handle;
+		stages[1].pName = "main";
+
+		// Even though we pass the TBN frame, normals are kept in to allow me to compare and get the
+		// screenshots to compare against the TBN normal mapping for the report
+		VkVertexInputBindingDescription vertexInputs[4]{};
+		vertexInputs[0].binding = 0;
+		vertexInputs[0].stride = sizeof(float) * 3;
+		vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		vertexInputs[1].binding = 1;
+		vertexInputs[1].stride = sizeof(float) * 2;
+		vertexInputs[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		vertexInputs[2].binding = 2;
+		vertexInputs[2].stride = sizeof(float) * 3;
+		vertexInputs[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+		vertexInputs[3].binding = 3;
+		vertexInputs[3].stride = sizeof(std::uint32_t) * 1;
+		vertexInputs[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		VkVertexInputAttributeDescription vertexAttributes[4]{};
+		vertexAttributes[0].binding = 0;
+		vertexAttributes[0].location = 0;
+		vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		vertexAttributes[0].offset = 0;
+		vertexAttributes[1].binding = 1;
+		vertexAttributes[1].location = 1;
+		vertexAttributes[1].format = VK_FORMAT_R32G32_SFLOAT;
+		vertexAttributes[1].offset = 0;
+		vertexAttributes[2].binding = 2;
+		vertexAttributes[2].location = 2;
+		vertexAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+		vertexAttributes[2].offset = 0;
+		vertexAttributes[3].binding = 3;
+		vertexAttributes[3].location = 3;
+		vertexAttributes[3].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+		vertexAttributes[3].offset = 0;
+
+		VkPipelineVertexInputStateCreateInfo inputInfo{};
+		inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		inputInfo.vertexBindingDescriptionCount = 4;
+		inputInfo.pVertexBindingDescriptions = vertexInputs;
+		inputInfo.vertexAttributeDescriptionCount = 4;
+		inputInfo.pVertexAttributeDescriptions = vertexAttributes;
+
+		VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
+		assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+		assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		assemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+		VkViewport viewport{};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = float(aWindow.swapchainExtent.width);
+		viewport.height = float(aWindow.swapchainExtent.height);
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+
+		VkRect2D scissor{};
+		scissor.offset = VkOffset2D{ 0, 0 };
+		scissor.extent = aWindow.swapchainExtent;
+
+		VkPipelineViewportStateCreateInfo viewportInfo{};
+		viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportInfo.viewportCount = 1;
+		viewportInfo.pViewports = &viewport;
+		viewportInfo.scissorCount = 1;
+		viewportInfo.pScissors = &scissor;
+
+		VkPipelineRasterizationStateCreateInfo rasterInfo{};
+		rasterInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterInfo.depthClampEnable = VK_FALSE;
+		rasterInfo.rasterizerDiscardEnable = VK_FALSE;
+		rasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+		rasterInfo.depthBiasEnable = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		rasterInfo.lineWidth = 1.0f;
+
+		VkPipelineMultisampleStateCreateInfo samplingInfo{};
+		samplingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		samplingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+		VkPipelineColorBlendAttachmentState blendStates[2]{};
+		blendStates[0].blendEnable = VK_FALSE;
+		blendStates[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+		blendStates[1].blendEnable = VK_FALSE;
+		blendStates[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+		VkPipelineColorBlendStateCreateInfo blendInfo{};
+		blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		blendInfo.logicOpEnable = VK_FALSE;
+		blendInfo.attachmentCount = 2;
+		blendInfo.pAttachments = blendStates;
+
+		VkPipelineDepthStencilStateCreateInfo depthInfo{};
+		depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthInfo.depthTestEnable = VK_TRUE;
+		depthInfo.depthWriteEnable = VK_TRUE;
+		depthInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+		depthInfo.minDepthBounds = 0.0f;
+		depthInfo.maxDepthBounds = 1.0f;
+
+		VkDynamicState dynamicState{
+			VK_DYNAMIC_STATE_CULL_MODE
+		};
+
+		VkPipelineDynamicStateCreateInfo dynamicInfo{};
+		dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+		dynamicInfo.dynamicStateCount = 1;
+		dynamicInfo.pDynamicStates = &dynamicState;
+
+		VkGraphicsPipelineCreateInfo pipeInfo{};
+		pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		pipeInfo.stageCount = 2;
+		pipeInfo.pStages = stages;
+		pipeInfo.pVertexInputState = &inputInfo;
+		pipeInfo.pInputAssemblyState = &assemblyInfo;
+		pipeInfo.pTessellationState = nullptr;
+		pipeInfo.pViewportState = &viewportInfo;
+		pipeInfo.pRasterizationState = &rasterInfo;
+		pipeInfo.pMultisampleState = &samplingInfo;
+		pipeInfo.pDepthStencilState = &depthInfo;
+		pipeInfo.pColorBlendState = &blendInfo;
+		pipeInfo.pDynamicState = &dynamicInfo;
+		pipeInfo.layout = aPipelineGBufLayout;
+		pipeInfo.renderPass = aRenderPass;
+		pipeInfo.subpass = 0;
+
+		VkPipeline writepipe = VK_NULL_HANDLE;
+		if (const auto res = vkCreateGraphicsPipelines(aWindow.device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &writepipe); VK_SUCCESS != res) {
+			throw lut::Error("Unable to create graphics pipeline\n vkCreateGraphicsPipeline() returned %s", lut::to_string(res).c_str());
+		}
+
+		lut::ShaderModule vertRead = lut::load_shader_module(aWindow, cfg::kDefShadingVertShaderPath);
+		lut::ShaderModule fragRead = lut::load_shader_module(aWindow, cfg::kDefShadingFragShaderPath);
+
+		stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+		stages[0].module = vertRead.handle;
+		stages[0].pName = "main";
+
+		stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		stages[1].module = fragRead.handle;
+		stages[1].pName = "main";
+
+		VkPipelineVertexInputStateCreateInfo emptyVertexState{};
+		emptyVertexState.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+
+		VkPipelineColorBlendAttachmentState blendStates2[1]{};
+		blendStates2[0].blendEnable = VK_FALSE;
+		blendStates2[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+		VkPipelineColorBlendStateCreateInfo blendInfo2{};
+		blendInfo2.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		blendInfo2.logicOpEnable = VK_FALSE;
+		blendInfo2.attachmentCount = 1;
+		blendInfo2.pAttachments = blendStates2;
+
+		rasterInfo.cullMode = VK_CULL_MODE_NONE;
+		depthInfo.depthWriteEnable = VK_FALSE;
+
+		pipeInfo.pVertexInputState = &emptyVertexState;
+		pipeInfo.pColorBlendState = &blendInfo2;
+		pipeInfo.layout = aPipelineShadingLayout;
+		pipeInfo.subpass = 1;
+
+		VkPipeline shadingpipe = VK_NULL_HANDLE;
+		if (const auto res = vkCreateGraphicsPipelines(aWindow.device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &shadingpipe); VK_SUCCESS != res) {
+			throw lut::Error("Unable to create graphics pipeline\n vkCreateGraphicsPipeline() returned %s", lut::to_string(res).c_str());
+		}
+
+		return { std::move(lut::Pipeline(aWindow.device, writepipe)), std::move(lut::Pipeline(aWindow.device, shadingpipe)) };
+	}
+
+	lut::Pipeline create_shadow_pipeline(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, VkPipelineLayout aPipelineLayout) {
+		lut::ShaderModule vert = lut::load_shader_module(aWindow, cfg::kShadowOffscreenVertShaderPath);
+		lut::ShaderModule frag = lut::load_shader_module(aWindow, cfg::kShadowOffscreenFragShaderPath);
+
+		VkPipelineShaderStageCreateInfo stages[2]{};
+		stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
+		stages[0].module = vert.handle;
+		stages[0].pName = "main";
+
+		stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+		stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+		stages[1].module = frag.handle;
+		stages[1].pName = "main";
+
+		VkVertexInputBindingDescription vertexInputs[1]{};
+		vertexInputs[0].binding = 0;
+		vertexInputs[0].stride = sizeof(float) * 3;
+		vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+		VkVertexInputAttributeDescription vertexAttributes[1]{};
+		vertexAttributes[0].binding = 0;
+		vertexAttributes[0].location = 0;
+		vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+		vertexAttributes[0].offset = 0;
+
+		VkPipelineVertexInputStateCreateInfo inputInfo{};
+		inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+		inputInfo.vertexBindingDescriptionCount = 1;
+		inputInfo.pVertexBindingDescriptions = vertexInputs;
+		inputInfo.vertexAttributeDescriptionCount = 1;
+		inputInfo.pVertexAttributeDescriptions = vertexAttributes;
+
+		VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
+		assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+		assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		assemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+		VkViewport viewport{};
+		viewport.x = 0.0f;
+		viewport.y = 0.0f;
+		viewport.width = float(2048);
+		viewport.height = float(2048);
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+
+		VkRect2D scissor{};
+		scissor.offset = VkOffset2D{ 0, 0 };
+		scissor.extent = VkExtent2D{ 2048, 2048 };
+
+		VkPipelineViewportStateCreateInfo viewportInfo{};
+		viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+		viewportInfo.viewportCount = 1;
+		viewportInfo.pViewports = &viewport;
+		viewportInfo.scissorCount = 1;
+		viewportInfo.pScissors = &scissor;
+
+		VkPipelineRasterizationStateCreateInfo rasterInfo{};
+		rasterInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterInfo.depthClampEnable = VK_FALSE;
+		rasterInfo.rasterizerDiscardEnable = VK_FALSE;
+		rasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
+		rasterInfo.cullMode = VK_CULL_MODE_NONE;
+		rasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		rasterInfo.depthBiasEnable = VK_TRUE;
+		rasterInfo.depthBiasConstantFactor = 7.0f;
+		rasterInfo.depthBiasSlopeFactor = 10.0f;
+		rasterInfo.lineWidth = 1.0f;
+
+		VkPipelineMultisampleStateCreateInfo samplingInfo{};
+		samplingInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+		samplingInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+		VkPipelineColorBlendAttachmentState blendStates[1]{};
+		blendStates[0].blendEnable = VK_FALSE;
+		blendStates[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+		VkPipelineColorBlendStateCreateInfo blendInfo{};
+		blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+		blendInfo.logicOpEnable = VK_FALSE;
+		blendInfo.attachmentCount = 0;
+		blendInfo.pAttachments = blendStates;
+
+		VkPipelineDepthStencilStateCreateInfo depthInfo{};
+		depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+		depthInfo.depthTestEnable = VK_TRUE;
+		depthInfo.depthWriteEnable = VK_TRUE;
+		depthInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+		depthInfo.minDepthBounds = 0.0f;
+		depthInfo.maxDepthBounds = 1.0f;
+
+		VkGraphicsPipelineCreateInfo pipeInfo{};
+		pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+		pipeInfo.stageCount = 2;
+		pipeInfo.pStages = stages;
+		pipeInfo.pVertexInputState = &inputInfo;
+		pipeInfo.pInputAssemblyState = &assemblyInfo;
+		pipeInfo.pTessellationState = nullptr;
+		pipeInfo.pViewportState = &viewportInfo;
+		pipeInfo.pRasterizationState = &rasterInfo;
+		pipeInfo.pMultisampleState = &samplingInfo;
+		pipeInfo.pDepthStencilState = &depthInfo;
+		pipeInfo.pColorBlendState = &blendInfo;
+		pipeInfo.pDynamicState = nullptr;
+		pipeInfo.layout = aPipelineLayout;
+		pipeInfo.renderPass = aRenderPass;
+		pipeInfo.subpass = 0;
+
+		VkPipeline pipe = VK_NULL_HANDLE;
+		if (const auto res = vkCreateGraphicsPipelines(aWindow.device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &pipe); VK_SUCCESS != res) {
+			throw lut::Error("Unable to create graphics pipeline\n vkCreateGraphicsPipeline() returned %s", lut::to_string(res).c_str());
+		}
+
+		return lut::Pipeline(aWindow.device, pipe);
+	}
+
+	std::tuple<lut::Image, lut::ImageView> create_depth_buffer(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator, VkImageAspectFlagBits aImageAspectFlagBits) {
 		VkImageCreateInfo imageInfo{};
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		imageInfo.imageType = VK_IMAGE_TYPE_2D,
@@ -2215,14 +3195,7 @@ namespace {
 		viewInfo.format = cfg::kDepthFormat;
 		viewInfo.components = VkComponentMapping{};
 		viewInfo.subresourceRange = VkImageSubresourceRange{
-			// We set this to stencil bit for doing overdraw/-shading visualisation,
-			// we don't need to have a separate image view with depth_bit since
-			// in all other cases where this depth/stencil buffer is used, it is used
-			// as a framebuffer attachment where the Vulkan docs state that:
-			//	"When an image view of a depth/stencil image is used as a depth/stencil 
-			//	framebuffer attachment, the aspectMask is ignored and both depth and 
-			//	stencil image subresources are used."
-			VK_IMAGE_ASPECT_STENCIL_BIT,
+			(unsigned int)aImageAspectFlagBits,
 			0,
 			1,
 			0,
@@ -2332,6 +3305,150 @@ namespace {
 			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
 
 		return { std::move(stencilImage), lut::ImageView(aWindow.device, view) };
+	}
+
+	std::tuple<lut::Image, lut::ImageView> create_normals_buffer(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D,
+		imageInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+		imageInfo.extent.width = aWindow.swapchainExtent.width;
+		imageInfo.extent.height = aWindow.swapchainExtent.height;
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = 1;
+		imageInfo.arrayLayers = 1;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		VmaAllocationCreateInfo allocInfo{};
+		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		VkImage image = VK_NULL_HANDLE;
+		VmaAllocation allocation = VK_NULL_HANDLE;
+
+		if (const auto res = vmaCreateImage(aAllocator.allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr); VK_SUCCESS != res)
+			throw lut::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s", lut::to_string(res).c_str());
+
+		lut::Image normalsImage(aAllocator.allocator, image, allocation);
+
+		VkImageViewCreateInfo viewInfo{};
+		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewInfo.image = normalsImage.image;
+		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+		viewInfo.components = VkComponentMapping{};
+		viewInfo.subresourceRange = VkImageSubresourceRange{
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			0,
+			1,
+			0,
+			1
+		};
+
+		VkImageView view = VK_NULL_HANDLE;
+		if (const auto res = vkCreateImageView(aWindow.device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
+			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
+
+		return { std::move(normalsImage), lut::ImageView(aWindow.device, view) };
+	}
+
+	std::tuple<lut::Image, lut::ImageView> create_albedo_buffer(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D,
+		imageInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+		imageInfo.extent.width = aWindow.swapchainExtent.width;
+		imageInfo.extent.height = aWindow.swapchainExtent.height;
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = 1;
+		imageInfo.arrayLayers = 1;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		VmaAllocationCreateInfo allocInfo{};
+		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		VkImage image = VK_NULL_HANDLE;
+		VmaAllocation allocation = VK_NULL_HANDLE;
+
+		if (const auto res = vmaCreateImage(aAllocator.allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr); VK_SUCCESS != res)
+			throw lut::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s", lut::to_string(res).c_str());
+
+		lut::Image albedoImage(aAllocator.allocator, image, allocation);
+
+		VkImageViewCreateInfo viewInfo{};
+		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewInfo.image = albedoImage.image;
+		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.format = VK_FORMAT_R16G16B16A16_SFLOAT;
+		viewInfo.components = VkComponentMapping{};
+		viewInfo.subresourceRange = VkImageSubresourceRange{
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			0,
+			1,
+			0,
+			1
+		};
+
+		VkImageView view = VK_NULL_HANDLE;
+		if (const auto res = vkCreateImageView(aWindow.device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
+			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
+
+		return { std::move(albedoImage), lut::ImageView(aWindow.device, view) };
+	}
+
+	std::tuple<lut::Image, lut::ImageView> create_shadow_depth_buffer(const lut::VulkanWindow& aWindow, const lut::Allocator& aAllocator) {
+		VkImageCreateInfo imageInfo{};
+		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		imageInfo.imageType = VK_IMAGE_TYPE_2D,
+		imageInfo.format = cfg::kDepthFormat;
+		imageInfo.extent.width = 2048;
+		imageInfo.extent.height = 2048;
+		imageInfo.extent.depth = 1;
+		imageInfo.mipLevels = 1;
+		imageInfo.arrayLayers = 1;
+		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+		imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+		imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+		VmaAllocationCreateInfo allocInfo{};
+		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		VkImage image = VK_NULL_HANDLE;
+		VmaAllocation allocation = VK_NULL_HANDLE;
+
+		if (const auto res = vmaCreateImage(aAllocator.allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr); VK_SUCCESS != res)
+			throw lut::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s", lut::to_string(res).c_str());
+
+		lut::Image depthImage(aAllocator.allocator, image, allocation);
+
+		VkImageViewCreateInfo viewInfo{};
+		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		viewInfo.image = depthImage.image;
+		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		viewInfo.format = cfg::kDepthFormat;
+		viewInfo.components = VkComponentMapping{};
+		viewInfo.subresourceRange = VkImageSubresourceRange{
+			VK_IMAGE_ASPECT_DEPTH_BIT,
+			0,
+			1,
+			0,
+			1
+		};
+
+		VkImageView view = VK_NULL_HANDLE;
+		if (const auto res = vkCreateImageView(aWindow.device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
+			throw lut::Error("Unable to create image view.\n vkCreateImageView() returned %s", lut::to_string(res).c_str());
+
+		return { std::move(depthImage), lut::ImageView(aWindow.device, view) };
 	}
 
 	lut::Framebuffer create_offscreen_framebuffer(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, VkImageView aColourView, VkImageView aDepthView) {
@@ -2444,6 +3561,63 @@ namespace {
 		assert(aWindow.swapViews.size() == aFramebuffers.size());
 	}
 
+	void create_deferred_shading_framebuffers(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, std::vector<lut::Framebuffer>& aFramebuffers, VkImageView aDepthView, VkImageView aNormalsView, VkImageView aAlbedoView) {
+		assert(aFramebuffers.empty());
+
+		for (std::size_t i = 0; i < aWindow.swapViews.size(); ++i) {
+			VkImageView attachments[4] = {
+				aWindow.swapViews[i],
+				aNormalsView,
+				aAlbedoView,
+				aDepthView
+			};
+
+			VkFramebufferCreateInfo fbInfo{};
+			fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			fbInfo.flags = 0;
+			fbInfo.renderPass = aRenderPass;
+			fbInfo.attachmentCount = 4;
+			fbInfo.pAttachments = attachments;
+			fbInfo.width = aWindow.swapchainExtent.width;
+			fbInfo.height = aWindow.swapchainExtent.height;
+			fbInfo.layers = 1;
+
+			VkFramebuffer fb = VK_NULL_HANDLE;
+			if (const auto res = vkCreateFramebuffer(aWindow.device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)
+				throw lut::Error("Unable to create framebuffer for swap chain image %zu\n vkCreateFramebuffer() returned %s", i, lut::to_string(res).c_str());
+
+			aFramebuffers.emplace_back(lut::Framebuffer(aWindow.device, fb));
+		}
+
+		assert(aWindow.swapViews.size() == aFramebuffers.size());
+	}
+
+	void create_shadow_offscreen_framebuffers(const lut::VulkanWindow& aWindow, VkRenderPass aRenderPass, std::vector<lut::Framebuffer>& aFramebuffers, VkImageView aDepthView) {
+		assert(aFramebuffers.empty());
+
+		for (std::size_t i = 0; i < aWindow.swapViews.size(); ++i) {
+			VkImageView attachments = aDepthView;
+
+			VkFramebufferCreateInfo fbInfo{};
+			fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+			fbInfo.flags = 0;
+			fbInfo.renderPass = aRenderPass;
+			fbInfo.attachmentCount = 1;
+			fbInfo.pAttachments = &attachments;
+			fbInfo.width = 2048;
+			fbInfo.height = 2048;
+			fbInfo.layers = 1;
+
+			VkFramebuffer fb = VK_NULL_HANDLE;
+			if (const auto res = vkCreateFramebuffer(aWindow.device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)
+				throw lut::Error("Unable to create framebuffer\n vkCreateFramebuffer() returned %s", lut::to_string(res).c_str());
+
+			aFramebuffers.emplace_back(lut::Framebuffer(aWindow.device, fb));
+		}
+
+		assert(aWindow.swapViews.size() == aFramebuffers.size());
+	}
+
 	lut::ImageView load_mesh_texture(const lut::VulkanWindow& aWindow, VkCommandPool aCmdPool, const lut::Allocator& aAllocator, BakedTextureInfo aBakedTextureInfo) {
 		VkFormat format = aBakedTextureInfo.space == ETextureSpace::srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
 
@@ -2453,6 +3627,15 @@ namespace {
 		
 		lut::ImageView imageView = lut::create_image_view_texture2d(aWindow, image.image, format);
 		images.emplace_back(std::move(image));
+
+		return imageView;
+	}
+
+	lut::ImageView get_dummy_texture(const lut::VulkanWindow& aWindow, VkCommandPool aCmdPool, const lut::Allocator& aAllocator) {
+		lut::Image image = lut::get_dummy_image(aWindow, aAllocator, aCmdPool, VK_FORMAT_R8G8B8A8_UNORM);
+
+		lut::ImageView imageView = lut::create_image_view_texture2d(aWindow, image.image, VK_FORMAT_R8G8B8A8_UNORM);
+		images.push_back(std::move(image));
 
 		return imageView;
 	}
@@ -2501,12 +3684,26 @@ namespace {
 		aSceneUniforms.projection = glm::perspectiveRH_ZO(lut::Radians(cfg::kCameraFov).value(), aspect, cfg::kCameraNear, cfg::kCameraFar);
 		aSceneUniforms.projection[1][1] *= -1.0f;
 		aSceneUniforms.camera = glm::inverse(aState.camera2world);
+		//aSceneUniforms.projection = glm::orthoRH_ZO(-10.0f, 10.0f, 10.0f, -10.0f, 0.1f, 1000.0f);
+		//aSceneUniforms.projection = glm::perspectiveRH_ZO(lut::Radians(90.0f).value(), 1.0f, cfg::kCameraNear, cfg::kCameraFar);
+		//aSceneUniforms.projection[1][1] *= -1.0f;
+		//aSceneUniforms.camera = glm::lookAt(glm::vec3(-0.2972f, 7.3100f, -11.9532f), glm::vec3(0.0f, 0.0f, -48.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 		aSceneUniforms.projCam = aSceneUniforms.projection * aSceneUniforms.camera;
 		aSceneUniforms.camPos = glm::vec4(aState.camera2world[3][0], aState.camera2world[3][1], aState.camera2world[3][2], 1.0f);
 	}
 
 	void update_debug_uniforms(glsl::DebugUniform& aDebugUniform, const UserState& aState) {
 		aDebugUniform.debug = aState.debugVisualisation;
+	}
+
+	void update_depth_mvp_uniforms(glsl::DepthMVP& aDepthUniform, std::uint32_t aFramebufferWidth, std::uint32_t aFramebufferHeight, glm::vec4 lightPos) {
+		const float aspect = aFramebufferWidth / float(aFramebufferHeight);
+
+		glm::mat4 depthProjection = glm::perspectiveRH_ZO(lut::Radians(90.0f).value(), 1.0f, cfg::kCameraNear, cfg::kCameraFar);
+		depthProjection[1][1] *= -1.0f;
+		glm::mat4 depthView = glm::lookAt(glm::vec3(lightPos), glm::vec3(0.0f, 0.0f, -48.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+		
+		aDepthUniform.depthMVP = depthProjection * depthView;
 	}
 
 	void record_commands(
@@ -2594,8 +3791,199 @@ namespace {
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
 		);
 
+		// Lights UBO
+		lut::buffer_barrier(
+			aCmdBuff,
+			aUBOs.multipleLightsUBO,
+			VK_ACCESS_UNIFORM_READ_BIT,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT
+		);
+
+		vkCmdUpdateBuffer(aCmdBuff, aUBOs.multipleLightsUBO, 0, sizeof(glsl::MultipleLights), &aUniforms.multipleLightsUniform);
+
+		lut::buffer_barrier(
+			aCmdBuff,
+			aUBOs.multipleLightsUBO,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_UNIFORM_READ_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT
+		);
+
+		lut::buffer_barrier(
+			aCmdBuff,
+			aUBOs.depthMVPUBO,
+			VK_ACCESS_UNIFORM_READ_BIT,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT
+		);
+
+		vkCmdUpdateBuffer(aCmdBuff, aUBOs.depthMVPUBO, 0, sizeof(glsl::DepthMVP), &aUniforms.depthMVPUniform);
+
+		lut::buffer_barrier(
+			aCmdBuff,
+			aUBOs.depthMVPUBO,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_UNIFORM_READ_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_VERTEX_SHADER_BIT
+		);
+
+		// Deferred shading
+		if (aState.deferredShading && !aState.mosaicEffect) {
+			VkClearValue clearValues[4]{};
+			clearValues[0].color.float32[0] = 0.1f;
+			clearValues[0].color.float32[1] = 0.1f;
+			clearValues[0].color.float32[2] = 0.1f;
+			clearValues[0].color.float32[3] = 0.1f;
+
+			clearValues[1].color.float32[0] = 0.1f;
+			clearValues[1].color.float32[1] = 0.1f;
+			clearValues[1].color.float32[2] = 0.1f;
+			clearValues[1].color.float32[3] = 0.1f;
+
+			clearValues[2].color.float32[0] = 0.1f;
+			clearValues[2].color.float32[1] = 0.1f;
+			clearValues[2].color.float32[2] = 0.1f;
+			clearValues[2].color.float32[3] = 0.1f;			
+			
+			clearValues[3].depthStencil.depth = 1.0f;
+
+			VkRenderPassBeginInfo passInfo{};
+			passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			passInfo.renderPass = aRenderPasses.deferredShadingRenderPass;
+			passInfo.framebuffer = aFramebuffers.deferredShadingFramebuffer;
+			passInfo.renderArea.offset = VkOffset2D{ 0, 0 };
+			passInfo.renderArea.extent = aExtent;
+			passInfo.clearValueCount = 4;
+			passInfo.pClearValues = clearValues;
+
+			vkCmdBeginRenderPass(aCmdBuff, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+			vkCmdBindPipeline(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelines.gBufWritePipline);
+
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.gBufWritePipelineLayout, 0, 1, &aDescriptorSets.sceneDescriptors, 0, nullptr);
+
+			vkCmdSetCullMode(aCmdBuff, VK_CULL_MODE_BACK_BIT);
+
+			// Draw all non alpha masked meshes
+			for (std::size_t i = 0; i < aMeshData.size(); i++) {
+				if (aMeshData[i].hasAlphaMask) continue;
+
+				vkCmdBindDescriptorSets(
+					aCmdBuff,
+					VK_PIPELINE_BIND_POINT_GRAPHICS,
+					aPipelineLayouts.gBufWritePipelineLayout,
+					1,
+					1,
+					&aDescriptorSets.materialDescriptors[aMeshData[i].materialId],
+					0,
+					nullptr
+				);
+
+				VkBuffer vbuffers[4] = {
+					aMeshData[i].positionBuffer.buffer,
+					aMeshData[i].texCoordBuffer.buffer,
+					aMeshData[i].normalsBuffer.buffer,
+					aMeshData[i].tangentsBuffer.buffer
+				};
+				VkBuffer ibuffer = aMeshData[i].indicesBuffer.buffer;
+				VkDeviceSize voffsets[4]{};
+				VkDeviceSize ioffset{};
+
+				vkCmdBindVertexBuffers(aCmdBuff, 0, 4, vbuffers, voffsets);
+				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
+
+				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);
+			}
+
+			// We dont want to cull back faces for alpha masked meshes since those are the foliage and we want both sides of the mesh
+			vkCmdSetCullMode(aCmdBuff, VK_CULL_MODE_NONE);
+
+			for (std::size_t i = 0; i < aMeshData.size(); i++) {
+				if (!aMeshData[i].hasAlphaMask) continue;
+
+				vkCmdBindDescriptorSets(
+					aCmdBuff,
+					VK_PIPELINE_BIND_POINT_GRAPHICS,
+					aPipelineLayouts.gBufWritePipelineLayout,
+					1,
+					1,
+					&aDescriptorSets.materialDescriptors[aMeshData[i].materialId],
+					0,
+					nullptr
+				);
+
+				VkBuffer vbuffers[4] = {
+					aMeshData[i].positionBuffer.buffer,
+					aMeshData[i].texCoordBuffer.buffer,
+					aMeshData[i].normalsBuffer.buffer,
+					aMeshData[i].tangentsBuffer.buffer
+				};
+				VkBuffer ibuffer = aMeshData[i].indicesBuffer.buffer;
+				VkDeviceSize voffsets[4]{};
+				VkDeviceSize ioffset{};
+
+				vkCmdBindVertexBuffers(aCmdBuff, 0, 4, vbuffers, voffsets);
+				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
+
+				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);
+			}
+
+			vkCmdNextSubpass(aCmdBuff, VK_SUBPASS_CONTENTS_INLINE);
+
+			vkCmdBindPipeline(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelines.deferredShadingPipeline);
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.deferredShadingPipelineLayout, 0, 1, &aDescriptorSets.deferredShadingDescriptor, 0, nullptr);
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.deferredShadingPipelineLayout, 1, 1, &aDescriptorSets.sceneDescriptors, 0, nullptr);
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.deferredShadingPipelineLayout, 2, 1, &aDescriptorSets.multipleLightsDescriptor, 0, nullptr);
+
+			vkCmdDraw(aCmdBuff, 3, 1, 0, 0);
+
+			vkCmdEndRenderPass(aCmdBuff);
+		}
 		// Setup regular rendering (no debug, no mosaic)
-		if (!aState.mosaicEffect && aState.debugVisualisation == 1) {
+		else if (!aState.mosaicEffect && aState.debugVisualisation == 1) {
+			// Shadow pass
+			VkClearValue clearValuesS{};
+			clearValuesS.depthStencil.depth = 1.0f;
+
+			VkRenderPassBeginInfo passInfoS{};
+			passInfoS.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+			passInfoS.renderPass = aRenderPasses.shadowOffscreenRenderPass;
+			passInfoS.framebuffer = aFramebuffers.shadowOffscreenFramebuffer;
+			passInfoS.renderArea.offset = VkOffset2D{ 0, 0 };
+			passInfoS.renderArea.extent = VkExtent2D{ 2048, 2048 };
+			passInfoS.clearValueCount = 1;
+			passInfoS.pClearValues = &clearValuesS;
+
+			vkCmdBeginRenderPass(aCmdBuff, &passInfoS, VK_SUBPASS_CONTENTS_INLINE);
+
+			vkCmdBindPipeline(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelines.shadowOffscreenPipeline);
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.shadowOffscreenPipelineLayout, 0, 1, &aDescriptorSets.depthMVPDescriptor, 0, nullptr);
+
+			// Draw all non alpha masked meshes
+			for (std::size_t i = 0; i < aMeshData.size(); i++) {
+				if (aMeshData[i].hasAlphaMask) continue;
+
+				VkBuffer vbuffers[1] = {
+					aMeshData[i].positionBuffer.buffer
+				};
+				VkBuffer ibuffer = aMeshData[i].indicesBuffer.buffer;
+				VkDeviceSize voffsets[1]{};
+				VkDeviceSize ioffset{};
+
+				vkCmdBindVertexBuffers(aCmdBuff, 0, 1, vbuffers, voffsets);
+				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
+
+				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);
+			}
+
+			vkCmdEndRenderPass(aCmdBuff);
+
+			// Default rendering
 			VkClearValue clearValues[2]{};
 			clearValues[0].color.float32[0] = 0.1f;
 			clearValues[0].color.float32[1] = 0.1f;
@@ -2619,6 +4007,8 @@ namespace {
 
 			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.regularPipelineLayout, 0, 1, &aDescriptorSets.sceneDescriptors, 0, nullptr);
 			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.regularPipelineLayout, 2, 1, &aDescriptorSets.lightDescriptor, 0, nullptr);
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.regularPipelineLayout, 3, 1, &aDescriptorSets.depthMVPDescriptor, 0, nullptr);
+			vkCmdBindDescriptorSets(aCmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, aPipelineLayouts.regularPipelineLayout, 4, 1, &aDescriptorSets.shadowMapDescriptor, 0, nullptr);
 
 			// Draw all non alpha masked meshes
 			for (std::size_t i = 0; i < aMeshData.size(); i++) {
@@ -2635,16 +4025,17 @@ namespace {
 					nullptr
 				);
 
-				VkBuffer vbuffers[3] = {
+				VkBuffer vbuffers[4] = {
 					aMeshData[i].positionBuffer.buffer,
 					aMeshData[i].texCoordBuffer.buffer,
-					aMeshData[i].normalsBuffer.buffer
+					aMeshData[i].normalsBuffer.buffer,
+					aMeshData[i].tangentsBuffer.buffer
 				};
 				VkBuffer ibuffer = aMeshData[i].indicesBuffer.buffer;
-				VkDeviceSize voffsets[3]{};
+				VkDeviceSize voffsets[4]{};
 				VkDeviceSize ioffset{};
 
-				vkCmdBindVertexBuffers(aCmdBuff, 0, 3, vbuffers, voffsets);
+				vkCmdBindVertexBuffers(aCmdBuff, 0, 4, vbuffers, voffsets);
 				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
 
 				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);
@@ -2667,16 +4058,17 @@ namespace {
 					nullptr
 				);
 
-				VkBuffer vbuffers[3] = {
+				VkBuffer vbuffers[4] = {
 					aMeshData[i].positionBuffer.buffer,
 					aMeshData[i].texCoordBuffer.buffer,
-					aMeshData[i].normalsBuffer.buffer
+					aMeshData[i].normalsBuffer.buffer,
+					aMeshData[i].tangentsBuffer.buffer
 				};
 				VkBuffer ibuffer = aMeshData[i].indicesBuffer.buffer;
-				VkDeviceSize voffsets[3]{};
+				VkDeviceSize voffsets[4]{};
 				VkDeviceSize ioffset{};
 
-				vkCmdBindVertexBuffers(aCmdBuff, 0, 3, vbuffers, voffsets);
+				vkCmdBindVertexBuffers(aCmdBuff, 0, 4, vbuffers, voffsets);
 				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
 
 				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);
@@ -2688,9 +4080,9 @@ namespace {
 		// Overdraw/-shading visualisation
 		else if (!aState.mosaicEffect && (aState.debugVisualisation == 5 || aState.debugVisualisation == 6)) {
 			VkClearValue clearValues[3]{};
-			clearValues[0].color.float32[0] = 0.1f;
-			clearValues[0].color.float32[1] = 0.1f;
-			clearValues[0].color.float32[2] = 0.1f;
+			clearValues[0].color.float32[0] = 0.0f;
+			clearValues[0].color.float32[1] = 1.0f;
+			clearValues[0].color.float32[2] = 0.0f;
 			clearValues[0].color.float32[3] = 1.0f;
 
 			clearValues[1].color.float32[0] = 0.1f;
@@ -2781,16 +4173,17 @@ namespace {
 					nullptr
 				);
 
-				VkBuffer vbuffers[3] = {
+				VkBuffer vbuffers[4] = {
 					aMeshData[i].positionBuffer.buffer,
 					aMeshData[i].texCoordBuffer.buffer,
-					aMeshData[i].normalsBuffer.buffer
+					aMeshData[i].normalsBuffer.buffer,
+					aMeshData[i].tangentsBuffer.buffer
 				};
 				VkBuffer ibuffer = aMeshData[i].indicesBuffer.buffer;
-				VkDeviceSize voffsets[3]{};
+				VkDeviceSize voffsets[4]{};
 				VkDeviceSize ioffset{};
 
-				vkCmdBindVertexBuffers(aCmdBuff, 0, 3, vbuffers, voffsets);
+				vkCmdBindVertexBuffers(aCmdBuff, 0, 4, vbuffers, voffsets);
 				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
 
 				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);
@@ -2839,16 +4232,17 @@ namespace {
 					nullptr
 				);
 
-				VkBuffer vbuffers[3] = {
+				VkBuffer vbuffers[4] = {
 					aMeshData[i].positionBuffer.buffer,
 					aMeshData[i].texCoordBuffer.buffer,
-					aMeshData[i].normalsBuffer.buffer
+					aMeshData[i].normalsBuffer.buffer,
+					aMeshData[i].tangentsBuffer.buffer
 				};
 				VkBuffer ibuffer = aMeshData[i].indicesBuffer.buffer;
-				VkDeviceSize voffsets[3]{};
+				VkDeviceSize voffsets[4]{};
 				VkDeviceSize ioffset{};
 
-				vkCmdBindVertexBuffers(aCmdBuff, 0, 3, vbuffers, voffsets);
+				vkCmdBindVertexBuffers(aCmdBuff, 0, 4, vbuffers, voffsets);
 				vkCmdBindIndexBuffer(aCmdBuff, ibuffer, ioffset, VK_INDEX_TYPE_UINT32);
 
 				vkCmdDrawIndexed(aCmdBuff, aMeshData[i].indicesCount, 1, 0, 0, 0);

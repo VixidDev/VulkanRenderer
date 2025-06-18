@@ -3,14 +3,14 @@
 #include <cstdio>
 #include <cstring>
 
-#include "../labutils/error.hpp"
+#include "../utils/error.hpp"
 namespace lut = labutils;
 
 namespace
 {
 	// See cw2-bake/main.cpp for more info
 	constexpr char kFileMagic[16] = "\0\0COMP5892Mmesh";
-	constexpr char kFileVariant[16] = "default-a12";
+	constexpr char kFileVariant[16] = "21-tan";
 
 	constexpr std::uint32_t kMaxString = 32*1024;
 
@@ -151,6 +151,11 @@ namespace
 			data.texcoords.resize( V );
 			checked_read_( aFin, V*sizeof(glm::vec2), data.texcoords.data() );
 
+			data.tangents.resize(V);
+			checked_read_(aFin, V * sizeof(glm::vec4), data.tangents.data());
+
+			data.tangentsComp.resize(V);
+			checked_read_(aFin, V * sizeof(std::uint32_t), data.tangentsComp.data());
 
 			data.indices.resize( I );
 			checked_read_( aFin, I*sizeof(std::uint32_t), data.indices.data() );

@@ -7,5 +7,7 @@ layout(location = 0) out vec4 oColor;
 void main() {
 	ivec4 stencilVal = subpassLoad(inputDepth);
 
-	oColor = vec4(stencilVal.r / 255.0f);
+	vec4 g = vec4(0.0f, 0.3f, 0.0f, 0.1f);
+
+	oColor = g + vec4(vec3(stencilVal.r / 25.0f), 0.0f);
 }

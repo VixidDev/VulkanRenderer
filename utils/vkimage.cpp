@@ -292,4 +292,129 @@ namespace labutils
 		std::uint32_t const leadingZeros = std::countl_zero( bits );
 		return 32-leadingZeros;
 	}
+
+	Image get_dummy_image(const VulkanContext& aContext, const Allocator& aAllocator, VkCommandPool aCmdPool, VkFormat aFormat) {
+		std::uint8_t data[4] = { std::uint8_t(255), std::uint8_t(255), std::uint8_t(255), std::uint8_t(255) };
+
+		auto staging = create_buffer(
+			aAllocator,
+			4, // 1 byte
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+		);
+
+		void* sptr = nullptr;
+		if (const auto res = vmaMapMemory(aAllocator.allocator, staging.allocation, &sptr); VK_SUCCESS != res)
+			throw Error("Unable to map memory\n vmaMapMemory() returned %s", to_string(res).c_str());
+
+		std::memcpy(sptr, data, 4);
+		vmaUnmapMemory(aAllocator.allocator, staging.allocation);
+
+		Image ret = create_image_texture2d(
+			aAllocator,
+			1,
+			1,
+			aFormat,
+			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+		);
+
+		VkCommandBuffer cbuff = alloc_command_buffer(aContext, aCmdPool);
+
+		VkCommandBufferBeginInfo beginInfo{};
+		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		beginInfo.flags = 0;
+		beginInfo.pInheritanceInfo = nullptr;
+
+		if (const auto res = vkBeginCommandBuffer(cbuff, &beginInfo); VK_SUCCESS != res)
+			throw Error("Unable to begin command buffer\n vkBeginCommandBuffer() returned %s", to_string(res).c_str());
+
+		image_barrier(
+			cbuff,
+			ret.image,
+			0,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				0,
+				1,
+				0,
+				1
+			}
+		);
+
+		VkBufferImageCopy copy;
+		copy.bufferOffset = 0;
+		copy.bufferRowLength = 0;
+		copy.bufferImageHeight = 0;
+		copy.imageSubresource = VkImageSubresourceLayers{
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			0,
+			0,
+			1
+		};
+		copy.imageOffset = VkOffset3D{ 0, 0, 0 };
+		copy.imageExtent = VkExtent3D{ 1, 1, 1 };
+
+		vkCmdCopyBufferToImage(cbuff, staging.buffer, ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+
+		image_barrier(
+			cbuff,
+			ret.image,
+			VK_ACCESS_TRANSFER_WRITE_BIT,
+			VK_ACCESS_TRANSFER_READ_BIT,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				0,
+				1,
+				0,
+				1
+			}
+		);
+
+		image_barrier(
+			cbuff,
+			ret.image,
+			VK_ACCESS_TRANSFER_READ_BIT,
+			VK_ACCESS_SHADER_READ_BIT,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VkImageSubresourceRange{
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				0,
+				1,
+				0,
+				1
+			}
+		);
+
+		if (const auto res = vkEndCommandBuffer(cbuff); VK_SUCCESS != res)
+			throw Error("Unable to end command buffer\n vkEndCommandBuffer() returned %s", to_string(res).c_str());
+
+		Fence uploadComplete = create_fence(aContext);
+
+		VkSubmitInfo submitInfo{};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &cbuff;
+
+		if (const auto res = vkQueueSubmit(aContext.graphicsQueue, 1, &submitInfo, uploadComplete.handle); VK_SUCCESS != res)
+			throw Error("Unable to queue submit\n vkQueueSubmit() returned %s", to_string(res).c_str());
+
+		if (const auto res = vkWaitForFences(aContext.device, 1, &uploadComplete.handle, VK_TRUE, std::numeric_limits<std::uint64_t>::max()); VK_SUCCESS != res)
+			throw Error("Unable to wait for fences\n vkWaitForFences() returned %s", to_string(res).c_str());
+
+		vkFreeCommandBuffers(aContext.device, aCmdPool, 1, &cbuff);
+
+		return ret;
+	}
 }

@@ -52,6 +52,8 @@ namespace labutils
 		allocInfo.device            = aContext.device;
 		allocInfo.instance          = aContext.instance;
 		allocInfo.pVulkanFunctions  = &functions;
+
+		std::printf("major: %d - minor: %d\n", VK_VERSION_MAJOR(allocInfo.vulkanApiVersion), VK_VERSION_MINOR(allocInfo.vulkanApiVersion));
 		
 		VmaAllocator allocator = VK_NULL_HANDLE;
 		if( auto const res = vmaCreateAllocator( &allocInfo, &allocator ); VK_SUCCESS != res )

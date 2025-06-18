@@ -142,8 +142,6 @@ namespace labutils
 
 		std::vector<char const*> enabledLayers, enabledExensions;
 
-		//TODO: check that the instance extensions required by GLFW are available,
-		//TODO: and if so, request these to be enabled in the instance creation.
 		std::uint32_t reqExtCount = 0;
 		const char** requiredExt = glfwGetRequiredInstanceExtensions(&reqExtCount);
 
@@ -184,11 +182,9 @@ namespace labutils
 		if( enableDebugUtils )
 			ret.debugMessenger = detail::create_debug_messenger( ret.instance );
 
-		//TODO: create GLFW window
-		//TODO: get VkSurfaceKHR from the window
 		glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-		ret.window = glfwCreateWindow(1280, 720, "Exercise 3", nullptr, nullptr);
+		ret.window = glfwCreateWindow(1280, 720, "Vulkan Renderer", nullptr, nullptr);
 		if (!ret.window) {
 			const char* errMsg = nullptr;
 			glfwGetError(&errMsg);
@@ -216,7 +212,6 @@ namespace labutils
 		// request it without further checks.
 		std::vector<char const*> enabledDevExensions;
 
-		//TODO: list necessary extensions here
 		enabledDevExensions.emplace_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
 		for( auto const& ext : enabledDevExensions )
@@ -227,7 +222,6 @@ namespace labutils
 		// - otherwise: one GRAPHICS queue and any queue that can present
 		std::vector<std::uint32_t> queueFamilyIndices;
 
-		//TODO: logic to select necessary queue families to instantiate
 		if (const auto index = find_queue_family(ret.physicalDevice, VK_QUEUE_GRAPHICS_BIT, ret.surface)) {
 			ret.graphicsFamilyIndex = *index;
 
@@ -352,7 +346,6 @@ namespace
 		auto const formats = get_surface_formats( aPhysicalDev, aSurface );
 		auto const modes = get_present_modes( aPhysicalDev, aSurface );
 
-		//TODO: pick appropriate VkSurfaceFormatKHR format.
 		VkSurfaceFormatKHR format = formats[0];
 		for (const auto fmt : formats) {
 			if (VK_FORMAT_R8G8B8A8_SRGB == fmt.format && VK_COLOR_SPACE_SRGB_NONLINEAR_KHR == fmt.colorSpace) {
@@ -366,12 +359,10 @@ namespace
 			}
 		}
 
-		//TODO: pick appropriate VkPresentModeKHR
 		VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 		if (modes.count(VK_PRESENT_MODE_FIFO_RELAXED_KHR))
 			presentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
 
-		//TODO: pick image count
 		VkSurfaceCapabilitiesKHR caps;
 		if (const auto res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(aPhysicalDev, aSurface, &caps); VK_SUCCESS != res)
 			throw lut::Error("Unable to get surface capabilities\n vkGetPhysicalDeviceSurfaceCapabilitiesKHR() returned %s", lut::to_string(res).c_str());
@@ -384,7 +375,6 @@ namespace
 		if (caps.maxImageCount > 0 && imageCount > caps.maxImageCount)
 			imageCount = caps.maxImageCount;
 
-		//TODO: figure out swap extent
 		VkExtent2D extent = caps.currentExtent;
 		if (std::numeric_limits<std::uint32_t>::max() == extent.width) {
 			int width, height;
@@ -397,7 +387,6 @@ namespace
 			extent.height = std::clamp(std::uint32_t(height), min.height, max.height);
 		}
 
-		// TODO: create swap chain
 		VkSwapchainCreateInfoKHR chainInfo{};
 		chainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 		chainInfo.surface = aSurface;
@@ -433,7 +422,6 @@ namespace
 	{
 		assert( 0 == aImages.size() );
 
-		// TODO: get swapchain image handles with vkGetSwapchainImagesKHR
 		std::uint32_t numImages = 0;
 		if (const auto res = vkGetSwapchainImagesKHR(aDevice, aSwapchain, &numImages, nullptr); VK_SUCCESS != res)
 			throw lut::Error("Unable to get swapchain images\n vkGetSwapchainImagesKHR() returned %s", lut::to_string(res).c_str());
@@ -449,7 +437,6 @@ namespace
 	{
 		assert( 0 == aViews.size() );
 
-		// TODO: create a VkImageView for each of the VkImages.
 		for (std::size_t i = 0; i < aImages.size(); ++i) {
 			VkImageViewCreateInfo viewInfo{};
 			viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -488,8 +475,6 @@ namespace
 	// GPUs), you would need to use different logic.
 	std::optional<std::uint32_t> find_queue_family( VkPhysicalDevice aPhysicalDev, VkQueueFlags aQueueFlags, VkSurfaceKHR aSurface )
 	{
-		//TODO: find queue family with the specified queue flags that can 
-		//TODO: present to the surface (if specified)
 		std::uint32_t numQueues = 0;
 		vkGetPhysicalDeviceQueueFamilyProperties(aPhysicalDev, &numQueues, nullptr);
 
@@ -573,13 +558,6 @@ namespace
 			std::fprintf( stderr, "Info: Discarding device '%s': insufficient vulkan version\n", props.deviceName );
 			return -1.f;
 		}
-
-		//TODO: additional checks
-		//TODO:  - check that the VK_KHR_swapchain extension is supported
-		//TODO:  - check that there is a queue family that can present to the
-		//TODO:    given surface
-		//TODO:  - check that there is a queue family that supports graphics
-		//TODO:    commands
 
 		const auto exts = lut::detail::get_device_extensions(aPhysicalDev);
 

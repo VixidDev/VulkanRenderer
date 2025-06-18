@@ -1,4 +1,4 @@
-workspace "COMP5892M-vulkan"
+workspace "VulkanRenderer"
 	language "C++"
 	cppdialect "C++20"
 
@@ -8,7 +8,7 @@ workspace "COMP5892M-vulkan"
 	flags "NoPCH"
 	flags "MultiProcessorCompile"
 
-	startproject "a12"
+	startproject "main"
 
 	debugdir "%{wks.location}"
 	objdir "_build_/%{cfg.buildcfg}-%{cfg.platform}-%{cfg.toolset}"
@@ -66,26 +66,21 @@ dofile( "util/glslc.lua" )
 
 -- Projects
 
-
-
-
-
-
-project "a12"
+project "main"
 	local sources = { 
-		"a12/**.cpp",
-		"a12/**.hpp",
-		"a12/**.hxx"
+		"main/**.cpp",
+		"main/**.hpp",
+		"main/**.hxx"
 	}
 
 	kind "ConsoleApp"
-	location "a12"
+	location "main"
 
 	files( sources )
 
-	dependson "a12-shaders"
+	dependson "shaders"
 
-	links "labutils"
+	links "utils"
 	links "x-volk"
 	links "x-stb"
 	links "x-glfw"
@@ -93,51 +88,51 @@ project "a12"
 
 	dependson "x-glm"
 
-project "a12-shaders"
+project "shaders"
 	local shaders = { 
-		"a12/shaders/*.vert",
-		"a12/shaders/*.frag",
-		"a12/shaders/*.comp",
-		"a12/shaders/*.geom",
-		"a12/shaders/*.tesc",
-		"a12/shaders/*.tese"
+		"main/shaders/*.vert",
+		"main/shaders/*.frag",
+		"main/shaders/*.comp",
+		"main/shaders/*.geom",
+		"main/shaders/*.tesc",
+		"main/shaders/*.tese"
 	}
 
 	kind "Utility"
-	location "a12/shaders"
+	location "main/shaders"
 
 	files( shaders )
 
-	handle_glsl_files( glslcOptions, "assets/a12/shaders", {} )
+	handle_glsl_files( glslcOptions, "assets/main/shaders", {} )
 
-project "a12-bake"
+project "main-bake"
 	local sources = { 
-		"a12-bake/**.cpp",
-		"a12-bake/**.hpp",
-		"a12-bake/**.hxx"
+		"main-bake/**.cpp",
+		"main-bake/**.hpp",
+		"main-bake/**.hxx"
 	}
 
 	kind "ConsoleApp"
-	location "a12-bake"
+	location "main-bake"
 
 	files( sources )
 
-	links "labutils" -- for lut::Error
+	links "utils"
 	links "x-tgen"
 	links "x-zstd"
 
 	dependson "x-glm" 
 	dependson "x-rapidobj"
 
-project "labutils"
+project "utils"
 	local sources = { 
-		"labutils/**.cpp",
-		"labutils/**.hpp",
-		"labutils/**.hxx"
+		"utils/**.cpp",
+		"utils/**.hpp",
+		"utils/**.hxx"
 	}
 
 	kind "StaticLib"
-	location "labutils"
+	location "utils"
 
 	files( sources )
 

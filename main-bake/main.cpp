@@ -16,7 +16,7 @@
 #include "input_model.hpp"
 #include "load_model_obj.hpp"
 
-#include "../labutils/error.hpp"
+#include "../utils/error.hpp"
 namespace lut = labutils;
 
 
@@ -36,18 +36,14 @@ namespace
 	 constexpr char kFileMagic[16] = "\0\0COMP5892Mmesh";
 
 	/* Note: change the file variant if you change the file format! 
-	 *
-	 * Suggestion: use 'uid-tag'. For example, I would use "scsmbil-tan" to
-	 * indicate that this is a custom format by myself (=scsmbil) with
-	 * additional tangent space information.
 	 */
-	constexpr char kFileVariant[16] = "default-a12";
+	constexpr char kFileVariant[16] = "21-tan";
 
 	/* Fallback texture for RGBA 1111 and Grayscale 1
 	 */
-	constexpr char kTextureFallbackR1[] = "assets-src/a12/r1.png";
-	constexpr char kTextureFallbackRGBA1111[] = "assets-src/a12/rgba1111.png";
-	constexpr char kTextureFallbackRGB000[] = "assets-src/a12/rgb000.png";
+	constexpr char kTextureFallbackR1[] = "assets-src/main/r1.png";
+	constexpr char kTextureFallbackRGBA1111[] = "assets-src/main/rgba1111.png";
+	constexpr char kTextureFallbackRGB000[] = "assets-src/main/rgb000.png";
 
 	// types
 	struct TextureInfo_
@@ -129,8 +125,8 @@ int main() try
 	 */
 #	endif
 	process_model_(
-		"assets/a12/suntemple.comp5892mesh",
-		"assets-src/a12/suntemple.obj-zstd"
+		"assets/main/suntemple.comp5892mesh",
+		"assets-src/main/suntemple.obj-zstd"
 	);
 
 	return 0;
@@ -362,6 +358,7 @@ namespace
 		//    - repeat V times: vec3 position
 		//    - repeat V times: vec3 normal
 		//    - repeat V times: vec2 texture coordinate
+		//    - repeat V times: vec4 tangent
 		//    - repeat I times: uint32_t index
 		std::uint32_t const meshCount = std::uint32_t(aModel.meshes.size());
 		checked_write_( aOut, sizeof(meshCount), &meshCount );
@@ -384,7 +381,8 @@ namespace
 			checked_write_( aOut, sizeof(glm::vec3)*vertexCount, imesh.vert.data() );
 			checked_write_( aOut, sizeof(glm::vec3)*vertexCount, imesh.norm.data() );
 			checked_write_( aOut, sizeof(glm::vec2)*vertexCount, imesh.text.data() );
-
+			checked_write_( aOut, sizeof(glm::vec4)*vertexCount, imesh.tangent.data() ); // imesh.tangent populated in index_mesh.cpp
+			checked_write_( aOut, sizeof(std::uint32_t)*vertexCount, imesh.tangentComp.data() );
 
 			checked_write_( aOut, sizeof(std::uint32_t)*indexCount, imesh.indices.data() );
 		}

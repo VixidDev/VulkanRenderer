@@ -6,6 +6,9 @@
 #include <cstddef>
 
 #include <glm/glm.hpp>
+#include <glm/gtc/quaternion.hpp>
+
+#include <tgen.h>
 
 namespace
 {
@@ -130,6 +133,92 @@ IndexedMesh make_indexed_mesh( TriangleSoup const& aSoup, float aErrorTolerance 
 	}
 
 	ret.indices = std::move(indices);
+
+	// Put indices in format for tgen
+	std::vector<tgen::VIndexT> newIndices(ret.indices.begin(), ret.indices.end());
+
+	// Put vertices, texCoords and normals in a format for tgen
+	std::vector<tgen::RealT> vertices, texCoords, normals;
+	
+	for (glm::vec3 vertex : ret.vert) {
+		vertices.push_back(vertex.x);
+		vertices.push_back(vertex.y);
+		vertices.push_back(vertex.z);
+	}
+
+	for (glm::vec2 texCoord : ret.text) {
+		texCoords.push_back(texCoord.x);
+		texCoords.push_back(texCoord.y);
+	}
+
+	for (glm::vec3 normal : ret.norm) {
+		normals.push_back(normal.x);
+		normals.push_back(normal.y);
+		normals.push_back(normal.z);
+	}
+
+	// Tangent and Bitangent destination vectors
+	std::vector<tgen::RealT> cornerTangents, cornerBitangents;
+	std::vector<tgen::RealT> vertexTangents, vertexBitangents;
+
+	// Final tangent result vector
+	std::vector<tgen::RealT> tangents;
+
+	tgen::computeCornerTSpace(newIndices, newIndices, vertices, texCoords, cornerTangents, cornerBitangents);
+	tgen::computeVertexTSpace(newIndices, cornerTangents, cornerBitangents, newIndices.size(), vertexTangents, vertexBitangents);
+	tgen::orthogonalizeTSpace(normals, vertexTangents, vertexBitangents);
+	tgen::computeTangent4D(normals, vertexTangents, vertexBitangents, tangents);
+
+	// Put tangents into the IndexedMesh's glm::vec4
+	for (std::size_t i = 0; i < tangents.size(); i += 4)
+		ret.tangent.push_back(glm::vec4(tangents[i], tangents[i + 1], tangents[i + 2], tangents[i + 3]));
+
+	ret.tangentComp.resize(verts);
+	// Optimised TBN frame
+	for (std::size_t i = 0; i < ret.vert.size(); i++) {
+		// Get 3 components to TBN frame
+		glm::vec3 T = glm::normalize(glm::vec3(ret.tangent[i]) * ret.tangent[i].w); // Times by 4th component to flip mirrored tangents
+		glm::vec3 N = glm::normalize(ret.norm[i]);
+		glm::vec3 B = glm::normalize(glm::cross(N, T)); // Get bitangent
+
+		glm::mat3 TBN = glm::mat3(T, B, N); // Form the TBN matrix that expresses a rotation
+
+		glm::quat quaternionTBN = glm::normalize(glm::quat_cast(TBN)); // Express as a unit (by normalising) quaternion
+		
+		// Put the 4 absolute quaternion values into a vector to find max value and its index easier
+		std::vector<float> quatVec;
+		quatVec.push_back(std::abs(quaternionTBN.x));
+		quatVec.push_back(std::abs(quaternionTBN.y));
+		quatVec.push_back(std::abs(quaternionTBN.z));
+		quatVec.push_back(std::abs(quaternionTBN.w));
+
+		// Get the index of the max element of quatVec
+		auto maxIndex = std::distance(quatVec.begin(), std::max_element(quatVec.begin(), quatVec.end()));
+		
+		// Get the sign of the actual value of the max element
+		bool negative = quaternionTBN[maxIndex] < 0.0f ? true : false;
+
+		// If the largest value is negative, flip the sign of the entire quaternion
+		if (negative) quaternionTBN = -quaternionTBN;
+
+		// We want to map our smallest 3 values from the range [-1/sqrt(2), 1/sqrt(2)] to [0, 1023] as 1024 values is how many 10 bits can store (2^10)
+		// ([-1/sqrt(2), 1/sqrt(2)] range explained by https://github.com/niklasfrykholm/blog/blob/master/2009/the-bitsquid-low-level-animation-system.md)
+		std::uint32_t smallestIndex = 0;	
+		std::uint32_t smallest[3] = { 0, 0, 0 };
+		// Loop through the quaternion
+		for (std::size_t i = 0; i < 4; i++) {
+			// Ignore the largest component
+			if (i != maxIndex) {
+				// Map quaternion value to [0, 1023] range
+				smallest[smallestIndex++] = (quaternionTBN[i] + (1 / std::sqrt(2))) / std::sqrt(2) * 1023.0f;
+			}
+		}
+
+		// Put values in 32 bit value
+		// Put max component index in 2 most significant bits as our TBN format is A2R10G10B10
+		ret.tangentComp[i] = (maxIndex << 30) | (smallest[0] << 20) | (smallest[1] << 10) | smallest[2];
+		
+	}
 
 	// meta-data & return
 	ret.aabbMin = bmin;

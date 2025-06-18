@@ -195,6 +195,27 @@ namespace labutils
 		return Sampler(aContext.device, sampler);
 	}
 
+	Sampler create_shadow_sampler(const VulkanContext& aContext) {
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerInfo.magFilter = VK_FILTER_LINEAR;
+		samplerInfo.minFilter = VK_FILTER_LINEAR;
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.compareEnable = VK_TRUE;
+		samplerInfo.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
+		samplerInfo.mipLodBias = 0.0f;
+
+		VkSampler sampler = VK_NULL_HANDLE;
+		if (const auto res = vkCreateSampler(aContext.device, &samplerInfo, nullptr, &sampler); VK_SUCCESS != res)
+			throw Error("Unable to create sampler\n vkCreateSampler() returned %s", to_string(res).c_str());
+
+		return Sampler(aContext.device, sampler);
+	}
+
 	void buffer_barrier(
 		VkCommandBuffer aCmdBuff,
 		VkBuffer aBuffer,

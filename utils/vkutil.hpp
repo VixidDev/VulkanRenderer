@@ -29,6 +29,7 @@ namespace labutils
 	VkDescriptorSet alloc_desc_set(VulkanContext const&, VkDescriptorPool, VkDescriptorSetLayout);
 
 	Sampler create_default_sampler(VulkanContext const&);
+	Sampler create_shadow_sampler(VulkanContext const&);
 
 	void buffer_barrier(
 		VkCommandBuffer,

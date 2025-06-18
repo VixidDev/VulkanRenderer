@@ -5,7 +5,7 @@
 
 #include <zstd.h>
 
-#include "../labutils/error.hpp"
+#include "../utils/error.hpp"
 namespace lut = labutils;
 
 namespace

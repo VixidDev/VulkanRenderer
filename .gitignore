@@ -10,3 +10,4 @@ a12output.txt
 *.vcxproj.user
 *.vcxproj.filters
 *.sln
+*.make

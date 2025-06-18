@@ -41,6 +41,7 @@ namespace labutils
 
 	std::uint32_t compute_mip_level_count( std::uint32_t aWidth, std::uint32_t aHeight );
 
+	Image get_dummy_image(const VulkanContext&, const Allocator&, VkCommandPool, VkFormat);
 }
 
 #endif // VKIMAGE_HPP_A6C9F4C6_C25F_4B9D_B9E9_3D81400A2AF1

@@ -10,7 +10,7 @@
 #include "input_model.hpp"
 #include "zstdistream.hpp"
 
-#include "../labutils/error.hpp"
+#include "../utils/error.hpp"
 namespace lut = labutils;
 
 InputModel load_compressed_wavefront_obj( char const* aPath )

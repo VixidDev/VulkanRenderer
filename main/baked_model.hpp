@@ -8,6 +8,7 @@
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
 
 
 /* Baked file format:
@@ -91,9 +92,6 @@ struct BakedMaterialInfo
 	std::uint32_t alphaMaskTextureId; // May be set to 0xffffffff if no alpha mask
 	std::uint32_t normalMapTextureId; // May be set to 0xffffffff if no normal map
 	std::uint32_t emissiveTextureId; // May be set to 0xffffffff if no emissive map
-
-	// The emissive map can be ignored in Assignment 1.2. It is only required 
-	// in parts of Assignment 2.2.
 };
 
 struct BakedMeshData
@@ -103,7 +101,8 @@ struct BakedMeshData
 	std::vector<glm::vec3> positions;
 	std::vector<glm::vec2> texcoords;
 	std::vector<glm::vec3> normals;
-
+	std::vector<glm::vec4> tangents;
+	std::vector<std::uint32_t> tangentsComp;
 
 	std::vector<std::uint32_t> indices;
 };
