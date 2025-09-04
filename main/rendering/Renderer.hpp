@@ -74,6 +74,7 @@ public:
 
 	void setRecreateSwapchain(bool value, bool force = false);
 
+	float shadowBias = 0.0001f;
 private:
 	Driver* driver;
 	VulkanContext context;

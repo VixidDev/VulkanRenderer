@@ -4,8 +4,7 @@
 
 layout(location = 0) in vec3 v2fPosition;
 layout(location = 1) in vec2 v2fTexCoord;
-layout(location = 2) in vec4 v2fLightSpacePosition;
-layout(location = 3) in mat3 v2fTBN;
+layout(location = 2) in mat3 v2fTBN;
 
 layout(set = 0, binding = 0) uniform MVP {
 	mat4 projection;
@@ -19,7 +18,13 @@ layout(set = 1, binding = 2) uniform sampler2D uRoughness;
 layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
 
-layout(set = 3, binding = 0) uniform sampler2DShadow shadowMap;
+layout(set = 3, binding = 0) uniform samplerCubeShadow shadowMap;
+
+layout(set = 4, binding = 0) uniform ClipPlanes {
+	float far;
+	float near;
+	float bias;
+} planes;
 
 layout(location = 0) out vec4 oColour;
 
@@ -41,7 +46,8 @@ vec3 fresnel(float metalness, vec3 halfwayVector, vec3 viewDir) {
 	// Fresnel
     // Specular base reflectivity
     vec3 f0 = (1 - metalness) * vec3(0.04f) + (metalness * texture(uTexColor, v2fTexCoord).rgb);
-    vec3 fresnel = f0 + (1 - f0) * pow((1 - dot(halfwayVector, viewDir)), 5.0f);
+	float base = max(1 - dot(halfwayVector, viewDir), 0.001f);
+    vec3 fresnel = f0 + (1 - f0) * pow(base, 5.0f);
     return fresnel;
 }
 
@@ -93,7 +99,12 @@ void main() {
 	float alphaValue = texture(uAlphaMask, v2fTexCoord).a;
 	if (alphaValue < 0.5f) discard;
 
-	float shadow = max(texture(shadowMap, v2fLightSpacePosition.xyz / v2fLightSpacePosition.w), 0.1f);
+	//float shadow = max(texture(shadowMap, v2fLightSpacePosition.xyz / v2fLightSpacePosition.w), 0.1f);
+	vec3 lightToFrag = v2fPosition - lightPos;
+	float currentDepth = length(lightToFrag) / planes.far;
+	vec3 dir = normalize(lightToFrag);
+	//float bias = 0.00005f;
+	float shadow = texture(shadowMap, vec4(dir, currentDepth - planes.bias));
 
 	vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * 100;
 	vec3 lightCol = vec3(1.0f);
@@ -103,4 +114,17 @@ void main() {
 	vec3 colour = ambient + (brdfVal * lightCol * NdotL) * attenuation;
 
 	oColour = vec4(colour, 1.0f);
+	//oColour = vec4(vec3(length(v2fPosition - lightPos) / planes.far), 1.0);
+	//oColour = vec4(v2fPosition * 0.1 + 0.5, 1.0);
+	//if (shadow == 0.0) {
+	//	oColour = vec4(vec3(1.0f, 0.0f, 0.0f), 1.0f);
+	//} else if (shadow == 0.25) {
+	//	oColour = vec4(vec3(0.0f, 1.0f, 0.0f), 1.0f);
+	//} else if (shadow == 0.5) {
+	//	oColour = vec4(vec3(0.0f, 0.0f, 1.0f), 1.0f);
+	//} else if (shadow == 1.0) {
+	//	oColour = vec4(vec3(1.0f, 1.0f, 1.0f), 1.0f);
+	//} else {
+	//	oColour = vec4(vec3(1.0f, 0.0f, 1.0f), 1.0f);
+	//}
 }

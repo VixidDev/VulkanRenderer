@@ -27,7 +27,7 @@ workspace "VulkanRenderer"
 	filter "*"
 
 	-- default options for GLSLC
-	glslcOptions = "-O --target-env=vulkan1.2"
+	glslcOptions = "-O --target-env=vulkan1.2 -g"
 
 	-- default libraries
 	filter "system:linux"

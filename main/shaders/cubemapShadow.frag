@@ -5,6 +5,7 @@ layout(location = 0) in vec3 worldPos;
 layout(set = 1, binding = 0) uniform ClipPlanes {
 	float far;
 	float near;
+	float bias;
 } planes;
 
 void main() {

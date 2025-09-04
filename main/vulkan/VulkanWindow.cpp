@@ -167,7 +167,7 @@ std::unique_ptr<VulkanWindow> initialiseVulkanWindow() {
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-	window->window = glfwCreateWindow(1280, 720, "Vulkan Renderer", nullptr, nullptr);
+	window->window = glfwCreateWindow(2048, 2048, "Vulkan Renderer", nullptr, nullptr);
 	if (!window->window) {
 		const char* errMsg = nullptr;
 		glfwGetError(&errMsg);

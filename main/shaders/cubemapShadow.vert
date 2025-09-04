@@ -9,7 +9,6 @@ layout(set = 0, binding = 0) uniform UScene {
 layout(location = 0) out vec3 worldPos;
 
 void main() {
-	vec4 pos = uScene.depthMVP * vec4(iPosition, 1.0f);
-	worldPos = pos.xyz;
-	gl_Position = pos;
+	worldPos = iPosition;
+	gl_Position = uScene.depthMVP * vec4(iPosition, 1.0f);
 }

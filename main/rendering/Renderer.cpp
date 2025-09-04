@@ -54,7 +54,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->context.window = initialiseVulkanWindow();
 	this->context.allocator = initialiseVulkanAllocator(*this->context.window);
 
-	this->camera = Camera(90.0f, 0.01f, 1000.0f, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+	this->camera = Camera(90.0f, 0.01f, 1024.0f, glm::vec3(-0.2972f, 7.3100f, -11.9532f), glm::vec3(0.0f, 0.0f, -1.0f));
 
 	VulkanWindow* window = this->context.window.get();
 	VulkanAllocator* allocator = this->context.allocator.get();
@@ -127,11 +127,13 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		VK_FILTER_LINEAR,
 		VK_FILTER_LINEAR,
 		VK_SAMPLER_ADDRESS_MODE_REPEAT,
-		VK_SAMPLER_ADDRESS_MODE_REPEAT};
+		VK_SAMPLER_ADDRESS_MODE_REPEAT,
+		VK_SAMPLER_ADDRESS_MODE_REPEAT };
 	this->defaultSampler = createTextureSampler(*window, defaultSamplerInfo);
 	SamplerInfo shadowMapSamplerInfo = {
 		VK_FILTER_LINEAR,
 		VK_FILTER_LINEAR,
+		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		1, VK_COMPARE_OP_LESS_OR_EQUAL };
@@ -158,8 +160,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// TEMP
 	glm::vec3 lightPos(-0.2972f, 7.3100f, -11.9532f);
 	
-	glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 256.0f);
-	cubePerspective[1][1] *= -1.0f;
+	glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 1024.0f);
+	//cubePerspective[1][1] *= -1.0f;
 
 	glm::vec3 directions[6] = {
 		glm::vec3(1.0f, 0.0f, 0.0f),
@@ -171,12 +173,12 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	};
 
 	glm::vec3 upVectors[6] = {
-		glm::vec3(0.0f, 1.0f, 0.0f),
-		glm::vec3(0.0f, 1.0f, 0.0f),
+		glm::vec3(0.0f, -1.0f, 0.0f),
+		glm::vec3(0.0f, -1.0f, 0.0f),
 		glm::vec3(0.0f, 0.0f, 1.0f),
 		glm::vec3(0.0f, 0.0f, -1.0f),
-		glm::vec3(0.0f, 1.0f, 0.0f),
-		glm::vec3(0.0f, 1.0f, 0.0f),
+		glm::vec3(0.0f, -1.0f, 0.0f),
+		glm::vec3(0.0f, -1.0f, 0.0f),
 	};
 	
 	for (std::size_t i = 0; i < 6; i++) {
@@ -259,7 +261,7 @@ void Renderer::update(float timeDelta) {
 
 	this->uniforms.mvpUniform.projection = glm::perspective(
 		glm::radians(this->camera.getFov()), 
-		aspectRatio, 
+		1.0f, 
 		this->camera.getNearPlane(), 
 		this->camera.getFarPlane());
 	this->uniforms.mvpUniform.projection[1][1] *= -1.0f;
@@ -295,10 +297,15 @@ void Renderer::render() {
 	// Shadow pass
 	if (this->shadowsEnabled) {
 
+		this->uniforms.cameraPlanesUniform._far = 1024.0f;
+		this->uniforms.cameraPlanesUniform._near = 0.01f;
+		this->uniforms.cameraPlanesUniform.bias = this->shadowBias;
+
 		// Render to each face of the cube map
 		for (std::size_t face = 0; face < 6; face++) {
 			this->uniforms.depthMVPUniform.depthMVP = this->cubeProjections[face];
 			this->uniformBuffers.at("depthMVP")->update(cmdBuff);
+			this->uniformBuffers.at("cameraPlanes")->update(cmdBuff);
 
 			RendererUtils::beginRenderPass(cmdBuff, this->renderPasses.at("cubemapShadow").get(), this->framebuffers.at("cubemapShadow").get(), face);
 
@@ -307,6 +314,10 @@ void Renderer::render() {
 				cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
 				this->pipelineLayouts.at("cubemapShadow")->getHandle(), 0, 1,
 				&this->descriptorSets.at("depthMVP")->getHandle(), 0, nullptr);
+			vkCmdBindDescriptorSets(
+				cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+				this->pipelineLayouts.at("cubemapShadow")->getHandle(), 1, 1,
+				&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
 			vkCmdSetDepthBias(cmdBuff, this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
 			for (std::size_t i = 0; i < meshData.size(); i++)
@@ -352,7 +363,10 @@ void Renderer::render() {
 			&this->descriptorSets.at("depthMVP")->getHandle(), 0, nullptr);
 		vkCmdBindDescriptorSets(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
-			&this->descriptorSets.at("shadowMap")->getHandle(), 0, nullptr);
+			&this->descriptorSets.at("shadowCubemap")->getHandle(), 0, nullptr);
+		vkCmdBindDescriptorSets(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			this->pipelineLayouts.at("forward")->getHandle(), 4, 1,
+			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
 	}
 
 	vkCmdSetCullMode(cmdBuff, VK_CULL_MODE_BACK_BIT);

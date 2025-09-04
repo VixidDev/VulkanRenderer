@@ -23,6 +23,7 @@ void ForwardPipelineLayout::recreate() {
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("materials").handle); // Material textures
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("uboV").handle); // Depth matrix
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Shadow map
+	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes
 
 	std::vector<VkPushConstantRange> emptyPushConstant;
 

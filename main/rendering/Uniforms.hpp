@@ -17,5 +17,6 @@ namespace glsl {
 	struct CameraPlanesUniform {
 		float _far;
 		float _near;
+		float bias;
 	};
 }

@@ -70,6 +70,7 @@ void GUI::draw() {
 	ImGui::Text("Depth bias settings:");
 	ImGui::SliderFloat("Depth Bias Constant", &renderer.getDepthBiasConstant(), 0.0f, 10.0f);
 	ImGui::SliderFloat("Depth Bias Slope Factor", &renderer.getDepthBiasSlopeFactor(), 0.0f, 10.0f);
+	ImGui::SliderFloat("Shadow Bias", &renderer.shadowBias, 0.0f, 0.1f);
 
 	// Camera debug
 	Camera& camera = renderer.getCamera();

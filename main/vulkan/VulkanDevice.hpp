@@ -42,6 +42,7 @@ struct SamplerInfo {
 	VkFilter magFilter;
 	VkSamplerAddressMode addressModeU;
 	VkSamplerAddressMode addressModeV;
+	VkSamplerAddressMode addressModeW;
 	VkBool32 compareEnable = 0;
 	VkCompareOp compareOp = VK_COMPARE_OP_NEVER;
 };

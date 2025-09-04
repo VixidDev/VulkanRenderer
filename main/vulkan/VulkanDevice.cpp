@@ -153,6 +153,7 @@ vk::Sampler createTextureSampler(const VulkanWindow& window, SamplerInfo sampler
 	samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
 	samplerCreateInfo.addressModeU = samplerInfo.addressModeU;
 	samplerCreateInfo.addressModeV = samplerInfo.addressModeV;
+	samplerCreateInfo.addressModeW = samplerInfo.addressModeW;
 	samplerCreateInfo.compareEnable = samplerInfo.compareEnable;
 	samplerCreateInfo.compareOp = samplerInfo.compareOp;
 	samplerCreateInfo.anisotropyEnable = window.deviceFeatures.samplerAnisotropy;
@@ -160,6 +161,7 @@ vk::Sampler createTextureSampler(const VulkanWindow& window, SamplerInfo sampler
 	samplerCreateInfo.minLod = 0.0f;
 	samplerCreateInfo.maxLod = VK_LOD_CLAMP_NONE;
 	samplerCreateInfo.mipLodBias = 0.0f;
+	samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
 
 	VkSampler sampler = VK_NULL_HANDLE;
 	if (const auto res = vkCreateSampler(window.device->device, &samplerCreateInfo, nullptr, &sampler); VK_SUCCESS != res)

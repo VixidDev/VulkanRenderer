@@ -3,6 +3,7 @@
 layout(set = 1, binding = 0) uniform ClipPlanes {
 	float far;
 	float near;
+	float bias;
 } planes;
 
 layout(location = 0) out vec4 linearDepth;
