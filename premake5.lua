@@ -3,7 +3,7 @@ workspace "VulkanRenderer"
 	cppdialect "C++20"
 
 	platforms { "x64" }
-	configurations { "debug", "release" }
+	configurations { "Debug", "Release" }
 
 	flags "NoPCH"
 	flags "MultiProcessorCompile"
@@ -62,21 +62,29 @@ workspace "VulkanRenderer"
 include "third_party" 
 
 -- GLSLC helpers
-dofile( "util/glslc.lua" )
+dofile("util/glslc.lua")
 
 -- Projects
 
 project "main"
 	local sources = { 
 		"main/**.cpp",
-		"main/**.hpp",
-		"main/**.hxx"
+		"main/**.h*"
+	}
+	
+	includedirs {
+		"utils",
+		"main/imgui"
+	}
+
+	files(sources)
+
+	vpaths {
+		["*"] = "main/**"
 	}
 
 	kind "ConsoleApp"
 	location "main"
-
-	files( sources )
 
 	dependson "shaders"
 
@@ -101,9 +109,9 @@ project "shaders"
 	kind "Utility"
 	location "main/shaders"
 
-	files( shaders )
+	files(shaders)
 
-	handle_glsl_files( glslcOptions, "assets/main/shaders", {} )
+	handle_glsl_files(glslcOptions, "assets/main/shaders", {})
 
 project "main-bake"
 	local sources = { 
@@ -115,7 +123,7 @@ project "main-bake"
 	kind "ConsoleApp"
 	location "main-bake"
 
-	files( sources )
+	files(sources)
 
 	links "utils"
 	links "x-tgen"
@@ -134,7 +142,7 @@ project "utils"
 	kind "StaticLib"
 	location "utils"
 
-	files( sources )
+	files(sources)
 
 project()
 

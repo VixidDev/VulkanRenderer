@@ -1,11 +1,9 @@
-#include "error.hpp"
-
-// SOLUTION_TAGS: vulkan-(ex-[^1]|cw-.)
+#include "Error.hpp"
 
 #include <cstdarg>
 
-namespace labutils
-{
+namespace Utils {
+
 	Error::Error( char const* aFmt, ... )
 	{
 		va_list args;
@@ -23,6 +21,5 @@ namespace labutils
 	{
 		return mMsg.c_str();
 	}
-}
 
-//EOF vim:syntax=cpp:foldmethod=marker:ts=4:noexpandtab: 
+}

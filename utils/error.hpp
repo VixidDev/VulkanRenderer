@@ -1,12 +1,10 @@
-#ifndef ERROR_HPP_BA8CF134_C99C_4A3A_BEB4_E688A62EF47D
-#define ERROR_HPP_BA8CF134_C99C_4A3A_BEB4_E688A62EF47D
-// SOLUTION_TAGS: vulkan-(ex-[^1]|cw-.)
+#pragma once
 
 #include <string>
 #include <exception>
 
-namespace labutils
-{
+namespace Utils {
+
 	// Class used for exceptions. Unlike e.g. std::runtime_error, which only
 	// accepts a "fixed" string, Error provides std::printf()-like formatting.
 	// Example:
@@ -24,6 +22,5 @@ namespace labutils
 		private:
 			std::string mMsg;
 	};
-}
 
-#endif // ERROR_HPP_BA8CF134_C99C_4A3A_BEB4_E688A62EF47D
+}
