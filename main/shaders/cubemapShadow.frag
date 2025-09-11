@@ -2,14 +2,13 @@
 
 layout(location = 0) in vec3 worldPos;
 
-layout(set = 1, binding = 0) uniform ClipPlanes {
-	float far;
-	float near;
-	float bias;
-} planes;
+layout(push_constant) uniform PushConstant {
+	layout(offset = 64) vec3 lightPos;
+	layout(offset = 80) float farPlane;
+} pConsts;
 
 void main() {
 	// For now light pos is hardcoded. Will be dynamic later
-	float distToLight = length(worldPos - vec3(-0.2972f, 7.3100f, -11.9532f));
-	gl_FragDepth = distToLight / planes.far;
+	float distToLight = length(worldPos - pConsts.lightPos);
+	gl_FragDepth = distToLight / pConsts.farPlane;
 }

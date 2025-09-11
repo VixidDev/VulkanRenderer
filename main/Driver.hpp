@@ -16,7 +16,6 @@
 using Clock = std::chrono::steady_clock;
 using Timepoint = Clock::time_point;
 using Seconds = std::chrono::duration<float, std::ratio<1>>;
-using _Light = std::unique_ptr<Light>;
 
 class Driver {
 public:
@@ -43,6 +42,6 @@ private:
 	BakedModel bakedModel;
 	std::vector<std::pair<vk::Image, vk::ImageView>> sceneTextures;
 	std::vector<VkDescriptorSet> materialDescriptors;
-	std::vector<_Light> lights{};
+	std::vector<Light> lights{};
 	std::vector<MeshData> meshData;
 };

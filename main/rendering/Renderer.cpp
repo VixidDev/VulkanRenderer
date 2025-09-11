@@ -29,16 +29,20 @@
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/ShadowDepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/CubemapDepthTextureBuffer.hpp"
+#include "objects/impl/textureBuffers/CubemapArrayDepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/ColourTextureBuffer.hpp"
 
 #include "objects/impl/framebuffers/ForwardFramebuffer.hpp"
 #include "objects/impl/framebuffers/ShadowFramebuffer.hpp"
 #include "objects/impl/framebuffers/CubemapFramebuffer.hpp"
+#include "objects/impl/framebuffers/CubemapArrayFramebuffer.hpp"
 #include "objects/impl/framebuffers/GUIFramebuffer.hpp"
 
 #include "objects/impl/uniformBuffers/MVPUniformBuffer.hpp"
 #include "objects/impl/uniformBuffers/DepthMVPUniformBuffer.hpp"
 #include "objects/impl/uniformBuffers/CameraPlanesUniformBuffer.hpp"
+
+#include "objects/impl/shaderStorageBuffers/LightShaderStorageBuffer.hpp"
 
 #include "objects/impl/descriptorSets/BufferDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ImageDescriptorSet.hpp"
@@ -68,7 +72,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Descriptor Set Layouts
 	std::vector<DescriptorSetting> uniformBufferV = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT } };
 	std::vector<DescriptorSetting> uniformBufferF = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT } };
-	std::vector<DescriptorSetting> uniformBufferVF = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT }};
+	std::vector<DescriptorSetting> uniformBufferVF = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT } };
+	std::vector<DescriptorSetting> ssboF = { { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT } };
 	std::vector<DescriptorSetting> imageF = { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
 	std::vector<DescriptorSetting> materialSettings = {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
@@ -80,6 +85,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSetLayouts.emplace("uboV", createDescriptorLayout(*window, uniformBufferV));
 	this->descriptorSetLayouts.emplace("uboF", createDescriptorLayout(*window, uniformBufferF));
 	this->descriptorSetLayouts.emplace("uboVF", createDescriptorLayout(*window, uniformBufferVF));
+	this->descriptorSetLayouts.emplace("ssboF", createDescriptorLayout(*window, ssboF));
 	this->descriptorSetLayouts.emplace("imageF", createDescriptorLayout(*window, imageF));
 	this->descriptorSetLayouts.emplace("materials", createDescriptorLayout(*window, materialSettings));
 
@@ -102,7 +108,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Framebuffers
 	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, &this->renderPasses.at("forward"), &this->sampleCountSetting));
 	this->framebuffers.emplace("shadow", std::make_unique<ShadowFramebuffer>(window, &this->textureBuffers, &this->renderPasses.at("shadow"), &this->currentShadowResolution));
-	this->framebuffers.emplace("cubemapShadow", std::make_unique<CubemapFramebuffer>(window, &this->textureBuffers, &this->renderPasses.at("cubemapShadow"), &this->currentShadowResolution));
+	this->framebuffers.emplace("cubemapShadow", std::make_unique<CubemapFramebuffer>(window, &this->textureBuffers.at("cubemapDepth"), &this->renderPasses.at("cubemapShadow"), &this->currentShadowResolution));
 	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, &this->renderPasses.at("gui")));
 
 	// Uniform Buffers
@@ -140,51 +146,98 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->shadowMapSampler = createTextureSampler(*window, shadowMapSamplerInfo);
 
 	// Descriptor Sets
-	std::vector<DescriptorBufferSetting> mvpDescriptorSettings = {{ this->uniformBuffers.at("mvp").get(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER }};
-	std::vector<DescriptorBufferSetting> depthDescriptorSettings = {{ this->uniformBuffers.at("depthMVP").get(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER }};
-	std::vector<DescriptorBufferSetting> cameraPlanesDescriptorSettings = {{ this->uniformBuffers.at("cameraPlanes").get(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER }};
+	std::vector<DescriptorBufferSetting> mvpDescriptorSettings = {
+		{ this->uniformBuffers.at("mvp")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER }};
+	std::vector<DescriptorBufferSetting> depthDescriptorSettings = {
+		{ this->uniformBuffers.at("depthMVP")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER}};
+	std::vector<DescriptorBufferSetting> cameraPlanesDescriptorSettings = {
+		{ this->uniformBuffers.at("cameraPlanes")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER }};
 	std::vector<DescriptorImageSetting> shadowMapDescriptorSettings = { 
 		{ this->textureBuffers.at("shadowDepth").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle }};
 	std::vector<DescriptorImageSetting> debugLinearDepthDescriptorSettings = { 
 		{ this->textureBuffers.at("debugLinearDepth").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle }};
-	std::vector<DescriptorImageSetting> shadowCubemapDescriptorSettings = {
-		{ this->textureBuffers.at("cubemapDepth").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle }};
+	//std::vector<DescriptorImageSetting> shadowCubemapDescriptorSettings = {
+	//	{ this->textureBuffers.at("cubemapDepth").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle }};
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("depthMVP", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboV").handle, depthDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
 	this->descriptorSets.emplace("shadowMap", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, shadowMapDescriptorSettings));
 	this->descriptorSets.emplace("debugLinearDepth", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, debugLinearDepthDescriptorSettings));
-	this->descriptorSets.emplace("shadowCubemap", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, shadowCubemapDescriptorSettings));
+	//this->descriptorSets.emplace("shadowCubemap", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, shadowCubemapDescriptorSettings));
+}
 
-	// TEMP
-	glm::vec3 lightPos(-0.2972f, 7.3100f, -11.9532f);
-	
-	glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 1024.0f);
-	//cubePerspective[1][1] *= -1.0f;
+void Renderer::setLights(std::vector<Light>* lights) {
+	this->lights = lights;
 
-	glm::vec3 directions[6] = {
-		glm::vec3(1.0f, 0.0f, 0.0f),
-		glm::vec3(-1.0f, 0.0f, 0.0f),
-		glm::vec3(0.0f, 1.0f, 0.0f),
-		glm::vec3(0.0f, -1.0f, 0.0f),
-		glm::vec3(0.0f, 0.0f, 1.0f),
-		glm::vec3(0.0f, 0.0f, -1.0f),
-	};
+	VulkanWindow* window = this->context.window.get();
+	VulkanAllocator* allocator = this->context.allocator.get();
 
-	glm::vec3 upVectors[6] = {
-		glm::vec3(0.0f, -1.0f, 0.0f),
-		glm::vec3(0.0f, -1.0f, 0.0f),
-		glm::vec3(0.0f, 0.0f, 1.0f),
-		glm::vec3(0.0f, 0.0f, -1.0f),
-		glm::vec3(0.0f, -1.0f, 0.0f),
-		glm::vec3(0.0f, -1.0f, 0.0f),
-	};
-	
-	for (std::size_t i = 0; i < 6; i++) {
-		glm::mat4 cubeView = glm::lookAt(lightPos, lightPos + directions[i], upVectors[i]);
-		this->cubeProjections.emplace_back(cubePerspective * cubeView);
+	std::uint32_t numPointLights = 0;
+
+	// Iterate over lights and find number of point lights
+	for (std::size_t i = 0; i < lights->size(); i++) {
+		Light light = lights->at(i);
+
+		if (light.getLightType() == LightType::POINT)
+			numPointLights++;
 	}
+
+	// Create a cubemap array texture for point lights given the number of point lights
+	this->textureBuffers.emplace("cubeArrayShadows", std::make_unique<CubemapArrayDepthTextureBuffer>(&this->context, numPointLights, &this->currentShadowResolution));
+	this->framebuffers.emplace("cubeArrayShadows", std::make_unique<CubemapArrayFramebuffer>(window, &this->textureBuffers.at("cubeArrayShadows"), &this->renderPasses.at("cubemapShadow"), numPointLights, &this->currentShadowResolution));
+
+	// Light type counters (surely I can make a better system than this)
+	int pointLightIndex = 0;
+	int directionalLightIndex = 0;
+	int spotLightIndex = 0;
+
+	// Populate ssbos.lights
+	for (std::size_t i = 0; i < lights->size(); i++) {
+		Light light = lights->at(i);
+
+		glsl::Light lightStruct = {
+			.position = light.getPosition(),
+			.direction = light.getDirection(),
+			.colour = light.getColour(),
+			.metadata = glm::ivec2(static_cast<int>(light.getLightType()), 0)
+		};
+
+		switch (light.getLightType()) {
+		case LightType::POINT:
+		{
+			lightStruct.metadata.y = pointLightIndex;
+			pointLightIndex++;
+			break;
+		}
+		case LightType::DIRECTIONAL:
+		{
+			lightStruct.metadata.y = directionalLightIndex;
+			directionalLightIndex++;
+			break;
+		}
+		case LightType::SPOT:
+		{
+			lightStruct.metadata.y = spotLightIndex;
+			spotLightIndex++;
+			break;
+		}
+		}
+
+		this->ssbos.lights.emplace_back(lightStruct);
+	}
+
+	// Create lights SSBO
+	this->shaderStorageBuffers.emplace("lights", std::make_unique<LightShaderStorageBuffer>(&this->context, &this->ssbos.lights));
+
+	// Create descriptor sets
+	std::vector<DescriptorImageSetting> pointLightShadowsDescriptorSettings = {
+		{ this->textureBuffers.at("cubeArrayShadows").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle }};
+	std::vector<DescriptorBufferSetting> lightSSBODescriptorSettings = {
+		{ this->shaderStorageBuffers.at("lights")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->shaderStorageBuffers.at("lights")->getBufferSize() }};
+
+	this->descriptorSets.emplace("pointLightShadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDescriptorSettings));
+	this->descriptorSets.emplace("lights", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightSSBODescriptorSettings));
 }
 
 bool Renderer::checkSwapchain() {
@@ -261,7 +314,7 @@ void Renderer::update(float timeDelta) {
 
 	this->uniforms.mvpUniform.projection = glm::perspective(
 		glm::radians(this->camera.getFov()), 
-		1.0f, 
+		aspectRatio, 
 		this->camera.getNearPlane(), 
 		this->camera.getFarPlane());
 	this->uniforms.mvpUniform.projection[1][1] *= -1.0f;
@@ -286,94 +339,56 @@ void Renderer::update(float timeDelta) {
 
 void Renderer::render() {
 	// Begin command buffer
-	VkCommandBuffer cmdBuff = this->cmdBuffers[this->frameIndex];
-	beginCommandBuffer(cmdBuff, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	this->cmdBuff = this->cmdBuffers[this->frameIndex];
+	beginCommandBuffer(this->cmdBuff, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
 	// Update uniform buffers
-	this->uniformBuffers.at("mvp")->update(cmdBuff);
+	this->uniformBuffers.at("mvp")->update(this->cmdBuff);
 
 	// Shadow pass
 	if (this->shadowsEnabled) {
 
+		// TODO: remove?
 		this->uniforms.cameraPlanesUniform._far = 1024.0f;
 		this->uniforms.cameraPlanesUniform._near = 0.01f;
-		this->uniforms.cameraPlanesUniform.bias = this->shadowBias;
 
-		// Render to each face of the cube map
-		for (std::size_t face = 0; face < 6; face++) {
-			this->uniforms.depthMVPUniform.depthMVP = this->cubeProjections[face];
-			this->uniformBuffers.at("depthMVP")->update(cmdBuff);
-			this->uniformBuffers.at("cameraPlanes")->update(cmdBuff);
+		this->uniformBuffers.at("cameraPlanes")->update(this->cmdBuff);
 
-			RendererUtils::beginRenderPass(cmdBuff, this->renderPasses.at("cubemapShadow").get(), this->framebuffers.at("cubemapShadow").get(), face);
-
-			vkCmdBindPipeline(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("cubemapShadow")->getHandle());
-			vkCmdBindDescriptorSets(
-				cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
-				this->pipelineLayouts.at("cubemapShadow")->getHandle(), 0, 1,
-				&this->descriptorSets.at("depthMVP")->getHandle(), 0, nullptr);
-			vkCmdBindDescriptorSets(
-				cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
-				this->pipelineLayouts.at("cubemapShadow")->getHandle(), 1, 1,
-				&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-			vkCmdSetDepthBias(cmdBuff, this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
-
-			for (std::size_t i = 0; i < meshData.size(); i++)
-				this->drawMeshGeometry(cmdBuff, meshData[i]);
-
-			RendererUtils::endRenderPass(cmdBuff);
-		}
-
-		//this->uniformBuffers.at("depthMVP")->update(cmdBuff);
-		//this->uniformBuffers.at("cameraPlanes")->update(cmdBuff);
-
-		//RendererUtils::beginRenderPass(cmdBuff, this->renderPasses.at("shadow").get(), this->framebuffers.at("shadow").get(), this->imageIndex);
-
-		//vkCmdBindPipeline(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("shadow")->getHandle());
-		//vkCmdBindDescriptorSets(
-		//	cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		//	this->pipelineLayouts.at("shadow")->getHandle(), 0, 1,
-		//	&this->descriptorSets.at("depthMVP")->getHandle(), 0, nullptr);
-		//vkCmdBindDescriptorSets(
-		//	cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		//	this->pipelineLayouts.at("shadow")->getHandle(), 1, 1,
-		//	&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-		//vkCmdSetDepthBias(cmdBuff, this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
-
-		//for (std::size_t i = 0; i < meshData.size(); i++)
-		//	this->drawMeshGeometry(cmdBuff, meshData[i]);
-
-		//RendererUtils::endRenderPass(cmdBuff);
+		this->renderShadowMaps(meshData);
 	}
 
 	// Forward pass
-	RendererUtils::beginRenderPass(cmdBuff, this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
+	RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
 
-	vkCmdBindPipeline(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("forward")->getHandle());
+	vkCmdBindPipeline(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("forward")->getHandle());
 	vkCmdBindDescriptorSets(
-		cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, 
+		this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
 		this->pipelineLayouts.at("forward")->getHandle(), 0, 1, 
 		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
 
 	if (this->shadowsEnabled) {
-		vkCmdBindDescriptorSets(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			this->pipelineLayouts.at("forward")->getHandle(), 2, 1,
 			&this->descriptorSets.at("depthMVP")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
-			&this->descriptorSets.at("shadowCubemap")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			&this->descriptorSets.at("pointLightShadows")->getHandle(), 0, nullptr);
+		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			this->pipelineLayouts.at("forward")->getHandle(), 4, 1,
 			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
+		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			this->pipelineLayouts.at("forward")->getHandle(), 5, 1,
+			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
+		vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
 	}
 
-	vkCmdSetCullMode(cmdBuff, VK_CULL_MODE_BACK_BIT);
+	vkCmdSetCullMode(this->cmdBuff, VK_CULL_MODE_BACK_BIT);
 
-	auto perMeshCallback = [this](VkCommandBuffer cmdBuff, MeshData& meshData) {
+	auto perMeshCallback = [this](MeshData& meshData) {
 		vkCmdBindDescriptorSets(
-			cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
 			this->pipelineLayouts.at("forward")->getHandle(), 1, 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
 	};
@@ -382,33 +397,115 @@ void Renderer::render() {
 	for (std::size_t i = 0; i < meshData.size(); i++) {
 		if (meshData[i].hasAlphaMask) continue;
 
-		this->drawMesh(cmdBuff, meshData[i], perMeshCallback);
+		this->drawMesh(meshData[i], perMeshCallback);
 	}
 
-	vkCmdSetCullMode(cmdBuff, VK_CULL_MODE_NONE);
+	vkCmdSetCullMode(this->cmdBuff, VK_CULL_MODE_NONE);
 
 	// Draw alpha masked meshes
 	for (std::uint32_t i = 0; i < meshData.size(); i++) {
 		if (!meshData[i].hasAlphaMask) continue;
 
-		this->drawMesh(cmdBuff, meshData[i], perMeshCallback);
+		this->drawMesh(meshData[i], perMeshCallback);
 	}
 
-	RendererUtils::endRenderPass(cmdBuff);
+	RendererUtils::endRenderPass(this->cmdBuff);
 
-	RendererUtils::beginRenderPass(cmdBuff, this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
+	RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
 
 	if (ImGui::GetDrawData() != nullptr)
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdBuff);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), this->cmdBuff);
 
-	RendererUtils::endRenderPass(cmdBuff);
+	RendererUtils::endRenderPass(this->cmdBuff);
 
-	endCommandBuffer(*this->context.window, cmdBuff);
+	endCommandBuffer(*this->context.window, this->cmdBuff);
 }
 
-void Renderer::drawMesh(VkCommandBuffer cmdBuff, MeshData& meshData, const std::function<void(VkCommandBuffer, MeshData&)>& perMeshCallback) {
+void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
+	// Some light-specific counters
+	std::uint32_t pointLightIndex = 0;
+
+	// For each light
+	for (std::size_t i = 0; i < this->lights->size(); i++) {
+		Light light = this->lights->at(i);
+
+		switch (light.getLightType()) {
+		case LightType::POINT: 
+		{
+			constexpr glm::vec3 directions[6] = {
+				glm::vec3(1.0f, 0.0f, 0.0f),
+				glm::vec3(-1.0f, 0.0f, 0.0f),
+				glm::vec3(0.0f, 1.0f, 0.0f),
+				glm::vec3(0.0f, -1.0f, 0.0f),
+				glm::vec3(0.0f, 0.0f, 1.0f),
+				glm::vec3(0.0f, 0.0f, -1.0f),
+			};
+
+			constexpr glm::vec3 upVectors[6] = {
+				glm::vec3(0.0f, -1.0f, 0.0f),
+				glm::vec3(0.0f, -1.0f, 0.0f),
+				glm::vec3(0.0f, 0.0f, 1.0f),
+				glm::vec3(0.0f, 0.0f, -1.0f),
+				glm::vec3(0.0f, -1.0f, 0.0f),
+				glm::vec3(0.0f, -1.0f, 0.0f),
+			};
+			
+			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 1024.0f);
+
+			// Render to each face of the cube map
+			for (std::size_t face = 0; face < 6; face++) {
+				// Calculate layer index
+				std::uint32_t layer = (pointLightIndex * 6) + face;
+
+				RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("cubemapShadow").get(), this->framebuffers.at("cubeArrayShadows").get(), layer);
+
+				vkCmdBindPipeline(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("cubemapShadow")->getHandle());
+				
+				glm::mat4 cubeView = glm::lookAt(light.getPosition(), light.getPosition() + directions[face], upVectors[face]);
+				glm::mat4 cubeMatrix = cubePerspective * cubeView;
+
+				struct cubemapFragmentPC {
+					glm::vec4 lightPos;
+					float farPlane;
+				};
+
+				cubemapFragmentPC fragPC = {
+					.lightPos = glm::vec4(light.getPosition(), 1.0f),
+					.farPlane = 1024.0f
+				};
+
+				vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("cubemapShadow")->getHandle(), 
+					VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &cubeMatrix);
+				vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("cubemapShadow")->getHandle(), 
+					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(glm::vec4) + sizeof(float), &fragPC);
+
+				vkCmdSetDepthBias(this->cmdBuff, this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
+
+				for (std::size_t i = 0; i < meshData.size(); i++)
+					this->drawMeshGeometry(meshData[i]);
+
+				RendererUtils::endRenderPass(this->cmdBuff);
+			}
+
+			pointLightIndex++;
+			break;
+		}
+		case LightType::DIRECTIONAL:
+		{
+			break;
+		}
+		case LightType::SPOT:
+		{
+			break;
+		}
+		}
+
+	}
+}
+
+void Renderer::drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {
 	if (perMeshCallback)
-		perMeshCallback(cmdBuff, meshData);
+		perMeshCallback(meshData);
 	
 	VkBuffer vBuffers[3] = { 
 		meshData.posBuffer.buffer,
@@ -419,25 +516,25 @@ void Renderer::drawMesh(VkCommandBuffer cmdBuff, MeshData& meshData, const std::
 	VkDeviceSize vOffsets[3]{};
 	VkDeviceSize iOffset{};
 
-	vkCmdBindVertexBuffers(cmdBuff, 0, 3, vBuffers, vOffsets);
-	vkCmdBindIndexBuffer(cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
+	vkCmdBindVertexBuffers(this->cmdBuff, 0, 3, vBuffers, vOffsets);
+	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(cmdBuff, meshData.indicesCount, 1, 0, 0, 0);
+	vkCmdDrawIndexed(this->cmdBuff, meshData.indicesCount, 1, 0, 0, 0);
 }
 
-void Renderer::drawMeshGeometry(VkCommandBuffer cmdBuff, MeshData& meshData, const std::function<void(VkCommandBuffer, MeshData&)>& perMeshCallback) {
+void Renderer::drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {
 	if (perMeshCallback)
-		perMeshCallback(cmdBuff, meshData);
+		perMeshCallback(meshData);
 
 	VkBuffer vBuffer = meshData.posBuffer.buffer;
 	VkBuffer iBuffer = meshData.indicesBuffer.buffer;
 	VkDeviceSize vOffset{};
 	VkDeviceSize iOffset{};
 
-	vkCmdBindVertexBuffers(cmdBuff, 0, 1, &vBuffer, &vOffset);
-	vkCmdBindIndexBuffer(cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
+	vkCmdBindVertexBuffers(this->cmdBuff, 0, 1, &vBuffer, &vOffset);
+	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(cmdBuff, meshData.indicesCount, 1, 0, 0, 0);
+	vkCmdDrawIndexed(this->cmdBuff, meshData.indicesCount, 1, 0, 0, 0);
 }
 
 void Renderer::submitRender() {

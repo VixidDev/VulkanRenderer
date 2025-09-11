@@ -56,6 +56,8 @@ void GUI::prepare() {
 void GUI::draw() {
 	Renderer& renderer = this->driver->getRenderer();
 
+	//ImGui::ShowDemoWindow();
+
 	ImGui::Begin("Debug Menu");
 
 	// Shadow Settings
@@ -65,6 +67,7 @@ void GUI::draw() {
 	}
 
 	ImGui::Checkbox("Shadow Map Texture", &this->showShadowMapTexture);
+	ImGui::InputInt("Num of lights", &renderer.numLights);
 
 	// Depth Bias Settings
 	ImGui::Text("Depth bias settings:");
@@ -76,6 +79,7 @@ void GUI::draw() {
 	Camera& camera = renderer.getCamera();
 
 	ImGui::Text("Camera vars:");
+	ImGui::Text("Pos: %f %f %f", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 	ImGui::Text("Yaw: %f - Pitch %f", camera.getYaw(), camera.getPitch());
 
 	ImGui::End();

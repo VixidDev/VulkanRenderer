@@ -233,7 +233,7 @@ VkDescriptorSet createBufferDescriptor(const VulkanWindow& window, VkDescriptorS
 
 		for (std::size_t i = 0; i < buffers.size(); i++) {
 			VkDescriptorBufferInfo descBufferInfo{};
-			descBufferInfo.buffer = buffers[i].buffer->getHandle();
+			descBufferInfo.buffer = buffers[i].bufferHandle;
 			descBufferInfo.range = buffers[i].range;
 			descBufferInfos.push_back(descBufferInfo);
 		}

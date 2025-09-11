@@ -53,9 +53,7 @@ int Driver::loadScene() {
 		std::fprintf(stderr, "Failed to parse lights for file '%s'\n", lightsFile.c_str());
 	}
 
-	//for (_Light& light : this->lights) {
-	//	light->toString();
-	//}
+	this->renderer.setLights(&this->lights);
 
 	return SUCCESS;
 }

@@ -1,4 +1,4 @@
-#include "CubemapDepthTextureBuffer.hpp"
+#include "CubemapArrayDepthTextureBuffer.hpp"
 
 #include "ShadowDepthTextureBuffer.hpp"
 
@@ -10,12 +10,11 @@
 #include "Error.hpp"
 #include "toString.hpp"
 
-CubemapDepthTextureBuffer::CubemapDepthTextureBuffer(
+CubemapArrayDepthTextureBuffer::CubemapArrayDepthTextureBuffer(
 	VulkanContext* context,
-	VkSampleCountFlagBits* sampleCount,
-	VkExtent2D* renderExtent) : TextureBuffer(context) {
-	this->sampleCount = sampleCount;
-
+	std::uint32_t arraySize,
+	VkExtent2D* renderExtent) : arraySize(arraySize), TextureBuffer(context) 
+{
 	if (!renderExtent)
 		this->renderExtent = &this->context->window->swapchainExtent;
 	else
@@ -24,21 +23,18 @@ CubemapDepthTextureBuffer::CubemapDepthTextureBuffer(
 	this->recreate();
 }
 
-void CubemapDepthTextureBuffer::recreate() {
-	// Since cube maps require a different setup to usual Image-ImageView texture creation
-	// I manually create the image and image views in this function
-
+void CubemapArrayDepthTextureBuffer::recreate() {
 	// Create VkImage
 	VkImageCreateInfo imageInfo{};
 	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	imageInfo.imageType = VK_IMAGE_TYPE_2D;
+	imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	imageInfo.format = VK_FORMAT_D32_SFLOAT;
 	imageInfo.extent.width = this->renderExtent->width;
 	imageInfo.extent.height = this->renderExtent->height;
 	imageInfo.extent.depth = 1;
 	imageInfo.mipLevels = 1;
-	imageInfo.arrayLayers = 6;
+	imageInfo.arrayLayers = 6 * this->arraySize;
 	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
@@ -56,17 +52,16 @@ void CubemapDepthTextureBuffer::recreate() {
 		throw Utils::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s\n", Utils::toString(res).c_str());
 	}
 
-	vk::Image Image(this->context->allocator->allocator, image, allocation);
-	this->image = std::move(Image);
+	this->image = vk::Image(this->context->allocator->allocator, image, allocation);
 
-	// Create the image view info initially with CUBE view type and 6 layerCount for the samplerCubeShadow descriptor
+	// Create the image view info initially with CUBE_ARRAY view type and 6 * arraySize layerCount for the samplerCubeArray descriptor
 	VkImageViewCreateInfo viewInfo{};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	viewInfo.image = this->image.image;
-	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 	viewInfo.format = VK_FORMAT_D32_SFLOAT;
 	viewInfo.components = VkComponentMapping{};
-	viewInfo.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 };
+	viewInfo.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 * this->arraySize };
 
 	VkImageView view = VK_NULL_HANDLE;
 	if (const auto res = vkCreateImageView(this->context->window->device->device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
@@ -79,34 +74,29 @@ void CubemapDepthTextureBuffer::recreate() {
 	viewInfo.subresourceRange.layerCount = 1;
 
 	this->framebufferViews.clear();
-	for (std::size_t i = 0; i < 6; i++) {
-		viewInfo.subresourceRange.baseArrayLayer = i;
 
-		VkImageView framebufferView = VK_NULL_HANDLE;
-		if (const auto res = vkCreateImageView(this->context->window->device->device, &viewInfo, nullptr, &framebufferView); VK_SUCCESS != res)
-			throw Utils::Error("Unable to create image view.\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
+	// For each element in array create 6 image views (6 faces per cubemap)
+	for (std::uint32_t element = 0; element < this->arraySize; element++) {
+		for (std::uint32_t face = 0; face < 6; face++) {
+			std::uint32_t layer = (element * 6) + face;
 
-		this->framebufferViews.emplace_back(vk::ImageView(this->context->window->device->device, framebufferView));
+			viewInfo.subresourceRange.baseArrayLayer = layer;
+
+			VkImageView framebufferView = VK_NULL_HANDLE;
+			if (const auto res = vkCreateImageView(this->context->window->device->device, &viewInfo, nullptr, &framebufferView); VK_SUCCESS != res)
+				throw Utils::Error("Unable to create image view.\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
+
+			this->framebufferViews.emplace_back(vk::ImageView(this->context->window->device->device, framebufferView));
+		}
 	}
 
 	TextureBuffer::recreate();
 }
 
-vk::ImageView& CubemapDepthTextureBuffer::getImageView() {
-	if (!this->issuedWarning) {
-		std::fprintf(stderr, "Shouldn't be calling 'getImageView()' on a cubemap texture! Returning result of 'getDescriptorView()'!");
-		this->issuedWarning = true;
-	}
-
-	return this->getDescriptorView();
-}
-
-// Downcasting will be required to access this method!
-vk::ImageView& CubemapDepthTextureBuffer::getDescriptorView() {
+vk::ImageView& CubemapArrayDepthTextureBuffer::getImageView() {
 	return this->descriptorView;
 }
 
-// Downcasting will be required to access this method!
-std::vector<vk::ImageView>& CubemapDepthTextureBuffer::getFramebufferViews() {
+std::vector<vk::ImageView>& CubemapArrayDepthTextureBuffer::getFramebufferViews() {
 	return this->framebufferViews;
 }

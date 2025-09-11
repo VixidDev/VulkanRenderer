@@ -167,7 +167,7 @@ std::unique_ptr<VulkanWindow> initialiseVulkanWindow() {
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-	window->window = glfwCreateWindow(2048, 2048, "Vulkan Renderer", nullptr, nullptr);
+	window->window = glfwCreateWindow(2560, 1440, "Vulkan Renderer", nullptr, nullptr);
 	if (!window->window) {
 		const char* errMsg = nullptr;
 		glfwGetError(&errMsg);
@@ -372,6 +372,10 @@ std::unique_ptr<VulkanDevice> createDevice(VulkanWindow& window, VkPhysicalDevic
 	if (deviceFeatures.samplerAnisotropy) {
 		enabledFeatures.samplerAnisotropy = VK_TRUE;
 		std::fprintf(stderr, "Enabling device feature: samplerAnisotropy\n");
+	}
+	if (deviceFeatures.imageCubeArray) {
+		enabledFeatures.imageCubeArray = VK_TRUE;
+		std::fprintf(stderr, "Enabling device feature: imageCubeArray\n");
 	}
 
 	window.deviceFeatures = enabledFeatures;

@@ -24,8 +24,15 @@ void ForwardPipelineLayout::recreate() {
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("uboV").handle); // Depth matrix
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Shadow map
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes
+	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("ssboF").handle); // Lights SSBO
 
-	std::vector<VkPushConstantRange> emptyPushConstant;
+	VkPushConstantRange lightCount = {
+		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		.size = sizeof(int)
+	};
 
-	this->pipelineLayout = createPipelineLayout(*this->window, *this->shadowsEnabled ? forwardShadowLayouts : forwardLayouts, emptyPushConstant);
+	std::vector<VkPushConstantRange> pushConstants;
+	pushConstants.emplace_back(lightCount);
+
+	this->pipelineLayout = createPipelineLayout(*this->window, *this->shadowsEnabled ? forwardShadowLayouts : forwardLayouts, pushConstants);
 }

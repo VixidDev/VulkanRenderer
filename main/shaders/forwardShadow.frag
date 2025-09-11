@@ -1,6 +1,7 @@
 #version 450
 
 #define PI 3.14159265359
+#define SHADOW_BIAS 0.0001
 
 layout(location = 0) in vec3 v2fPosition;
 layout(location = 1) in vec2 v2fTexCoord;
@@ -18,19 +19,35 @@ layout(set = 1, binding = 2) uniform sampler2D uRoughness;
 layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
 
-layout(set = 3, binding = 0) uniform samplerCubeShadow shadowMap;
+layout(set = 3, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
 
 layout(set = 4, binding = 0) uniform ClipPlanes {
 	float far;
 	float near;
-	float bias;
 } planes;
+
+struct ShaderLight {
+	vec3 position;
+	vec3 direction;
+	vec3 colour;
+	ivec2 metadata;
+	// metadata.x = lightType // 0 - Point Light, 1 - Directional Light, 2 - Spot light
+	// metadata.y = shadowMapIndex
+};
+
+layout(set = 5, binding = 0) readonly buffer Lights {
+	ShaderLight lights[];
+};
+
+layout(push_constant) uniform PushConstants {
+	int lightCount;
+} pConsts;
 
 layout(location = 0) out vec4 oColour;
 
 float distributionFunction(vec3 normal, vec3 halfwayVector, float roughness) {
 	// Normal distribution function
-    float nDotH = max(dot(normal, halfwayVector), 0.0001f);
+    float nDotH = max(dot(normal, halfwayVector), 0.0001);
     float nDotH2 = nDotH * nDotH;
     float nDotH4 = nDotH2 * nDotH2;
     float roughness2 = roughness * roughness;
@@ -38,7 +55,7 @@ float distributionFunction(vec3 normal, vec3 halfwayVector, float roughness) {
     float ndf_numerator = exp((nDotH2 - 1) / (roughness2 * nDotH2));
     float ndf_denom = PI * roughness2 * nDotH4;
 
-    float ndf = ndf_numerator / (0.0001f + ndf_denom); // Add an epsilon to denom to prevent / by 0
+    float ndf = ndf_numerator / (0.0001 + ndf_denom); // Add an epsilon to denom to prevent / by 0
     return ndf;
 }
 
@@ -46,8 +63,8 @@ vec3 fresnel(float metalness, vec3 halfwayVector, vec3 viewDir) {
 	// Fresnel
     // Specular base reflectivity
     vec3 f0 = (1 - metalness) * vec3(0.04f) + (metalness * texture(uTexColor, v2fTexCoord).rgb);
-	float base = max(1 - dot(halfwayVector, viewDir), 0.001f);
-    vec3 fresnel = f0 + (1 - f0) * pow(base, 5.0f);
+	float base = max(1 - dot(halfwayVector, viewDir), 0.001);
+    vec3 fresnel = f0 + (1 - f0) * pow(base, 5.0);
     return fresnel;
 }
 
@@ -71,13 +88,16 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal, float shadow) {
 	vec3 fresnel = fresnel(metalness, halfwayVector, viewDir);
 	float geometry = geometryFunction(normal, halfwayVector, viewDir, lightDir);
 
-	float specular_denom = 4 * max(dot(normal, viewDir), 0.0f) * max(dot(normal, lightDir), 0.0f);
+	float specular_denom = 4 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0);
 
-	vec3 diffuse = (texture(uTexColor, v2fTexCoord).rgb / PI) * (vec3(1.0f) - fresnel) * (1 - metalness);
-	vec3 specular = (ndf * fresnel * geometry) / (0.0001f + specular_denom);
+	vec3 diffuse = (texture(uTexColor, v2fTexCoord).rgb / PI) * (vec3(1.0) - fresnel) * (1 - metalness);
+	vec3 specular = (ndf * fresnel * geometry) / (0.0001 + specular_denom);
 
 	vec3 ret;
-	if (shadow < 1.0f) {
+	// If shadow is not 1.0 then the fragment is in shadow and has no
+	// direction line of sight to the light and should not contribute any
+	// specular to final colour
+	if (shadow < 1.0) {
 		ret = diffuse * shadow;
 	} else {
 		ret = diffuse + specular;
@@ -86,45 +106,56 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal, float shadow) {
 	return ret;
 }
 
+float calculateShadow(ShaderLight light) {
+	float shadow = 0.0;
+
+	int lightType = light.metadata.x;
+	int shadowMapIndex = light.metadata.y;
+
+	switch (lightType) {
+	case 0: // Point light
+		vec3 lightToFrag = v2fPosition - light.position;
+		float currentDepth = length(lightToFrag) / planes.far;
+		vec3 dir = normalize(lightToFrag);
+		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - SHADOW_BIAS);
+		break;
+	case 1: // Directional light
+		break;
+	case 2: // Spot light
+		break;
+	}
+
+	return shadow;
+}
+
 void main() {
-	vec3 normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0f - 1.0f);
+	vec3 normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
 
-	vec3 lightPos = vec3(-0.2972f, 7.3100f, -11.9532f);
+	vec3 ambient = vec3(0.03) * texture(uTexColor, v2fTexCoord).rgb;
 
-	vec3 lightDir = normalize(lightPos - v2fPosition);
-	vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
-
-	vec3 ambient = vec3(0.03f) * texture(uTexColor, v2fTexCoord).rgb;
-
+	// Discard fragments that fail alpha test
 	float alphaValue = texture(uAlphaMask, v2fTexCoord).a;
-	if (alphaValue < 0.5f) discard;
+	if (alphaValue < 0.5) discard;
 
-	//float shadow = max(texture(shadowMap, v2fLightSpacePosition.xyz / v2fLightSpacePosition.w), 0.1f);
-	vec3 lightToFrag = v2fPosition - lightPos;
-	float currentDepth = length(lightToFrag) / planes.far;
-	vec3 dir = normalize(lightToFrag);
-	//float bias = 0.00005f;
-	float shadow = texture(shadowMap, vec4(dir, currentDepth - planes.bias));
+	vec3 totalLight = ambient;
 
-	vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * 100;
-	vec3 lightCol = vec3(1.0f);
-	float NdotL = max(dot(normal, lightDir), 0.0001f);
-	float attenuation = 1 / pow(length(lightPos - v2fPosition), 2);
+	// Iterate over all lights
+	for (int i = 0; i < pConsts.lightCount; i++) {
 
-	vec3 colour = ambient + (brdfVal * lightCol * NdotL) * attenuation;
+		vec3 lightPos = lights[i].position;
+		float distToLight = length(lightPos - v2fPosition);
 
-	oColour = vec4(colour, 1.0f);
-	//oColour = vec4(vec3(length(v2fPosition - lightPos) / planes.far), 1.0);
-	//oColour = vec4(v2fPosition * 0.1 + 0.5, 1.0);
-	//if (shadow == 0.0) {
-	//	oColour = vec4(vec3(1.0f, 0.0f, 0.0f), 1.0f);
-	//} else if (shadow == 0.25) {
-	//	oColour = vec4(vec3(0.0f, 1.0f, 0.0f), 1.0f);
-	//} else if (shadow == 0.5) {
-	//	oColour = vec4(vec3(0.0f, 0.0f, 1.0f), 1.0f);
-	//} else if (shadow == 1.0) {
-	//	oColour = vec4(vec3(1.0f, 1.0f, 1.0f), 1.0f);
-	//} else {
-	//	oColour = vec4(vec3(1.0f, 0.0f, 1.0f), 1.0f);
-	//}
+		vec3 lightDir = normalize(lightPos - v2fPosition);
+		vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
+
+		float shadow = calculateShadow(lights[i]);
+
+		vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * 100;
+		float NdotL = max(dot(normal, lightDir), 0.0001);
+		float attenuation = 1 / (distToLight * distToLight);
+
+		totalLight += (brdfVal * lights[i].colour * NdotL) * attenuation;
+	}	
+
+	oColour = vec4(totalLight, 1.0);
 }

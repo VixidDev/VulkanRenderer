@@ -5,6 +5,7 @@
 #include <cstdio>
 
 #include "Uniforms.hpp"
+#include "lights/Light.hpp"
 #include "../baked/BakedModel.hpp"
 #include "../camera/Camera.hpp"
 #include "../vulkan/VulkanContext.hpp"
@@ -14,12 +15,17 @@
 #include "objects/base/Framebuffer.hpp"
 #include "objects/base/TextureBuffer.hpp"
 #include "objects/base/UniformBuffer.hpp"
+#include "objects/base/ShaderStorageBuffer.hpp"
 #include "objects/base/DescriptorSet.hpp"
 
 struct Uniforms {
 	glsl::MVPUniform mvpUniform;
 	glsl::DepthMVPUniform depthMVPUniform;
 	glsl::CameraPlanesUniform cameraPlanesUniform;
+};
+
+struct SSBOs {
+	std::vector<glsl::Light> lights;
 };
 
 class Driver;
@@ -30,6 +36,7 @@ using _Pipeline = std::unique_ptr<Pipeline>;
 using _Framebuffer = std::unique_ptr<Framebuffer>;
 using _TextureBuffer = std::unique_ptr<TextureBuffer>;
 using _UniformBuffer = std::unique_ptr<UniformBuffer>;
+using _ShaderStorageBuffer = std::unique_ptr<ShaderStorageBuffer>;
 using _DescriptorSet = std::unique_ptr<DescriptorSet>;
 
 class Renderer {
@@ -42,6 +49,8 @@ public:
 	Renderer(Renderer&&) = delete;
 	Renderer& operator=(Renderer&&) = delete;
 
+	void setLights(std::vector<Light>* lights);
+
 	// Swapchain
 	bool checkSwapchain();
 	bool acquireSwapchainImage();
@@ -50,8 +59,8 @@ public:
 	void update(float timeDelta);
 
 	void render();
-	void drawMesh(VkCommandBuffer cmdBuff, MeshData& meshData, const std::function<void(VkCommandBuffer, MeshData&)>& perMeshCallback = nullptr);
-	void drawMeshGeometry(VkCommandBuffer cmdBuff, MeshData& meshData, const std::function<void(VkCommandBuffer, MeshData&)>& perMeshCallback = nullptr);
+	void drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
+	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
 
 	void submitRender();
 	void finishRendering();
@@ -75,7 +84,11 @@ public:
 	void setRecreateSwapchain(bool value, bool force = false);
 
 	float shadowBias = 0.0001f;
+
+	int numLights = 0;
 private:
+	void renderShadowMaps(std::vector<MeshData>& meshData);
+
 	Driver* driver;
 	VulkanContext context;
 
@@ -89,6 +102,7 @@ private:
 	std::map<std::string, _Framebuffer> framebuffers;
 	std::map<std::string, _TextureBuffer> textureBuffers;
 	std::map<std::string, _UniformBuffer> uniformBuffers;
+	std::map<std::string, _ShaderStorageBuffer> shaderStorageBuffers;
 	std::map<std::string, _DescriptorSet> descriptorSets;
 
 	// Synchronisation variables
@@ -103,26 +117,28 @@ private:
 	vk::Sampler defaultSampler;
 	vk::Sampler shadowMapSampler;
 
-	// Uniforms
+	// Lights pointer
+	std::vector<Light>* lights;
+
+	// Shader objects
 	Uniforms uniforms;
+	SSBOs ssbos;
 
 	// Renderer settings
 	VkSampleCountFlagBits sampleCountSetting = VK_SAMPLE_COUNT_1_BIT;
 	bool shadowsEnabled = true;
 	VkExtent2D currentShadowResolution = VkExtent2D{ 2048, 2048 };
 	std::vector<VkExtent2D> shadowResolutions = {
-		VkExtent2D{1024, 1024},
-		VkExtent2D{2048, 2048},
-		VkExtent2D{4096, 4096},
-		VkExtent2D{8192, 8192}
+		VkExtent2D{ 1024, 1024 },
+		VkExtent2D{ 2048, 2048 },
+		VkExtent2D{ 4096, 4096 },
+		VkExtent2D{ 8192, 8192 }
 	};
 	float depthBiasConstant = 7.0f;
 	float depthBiasSlopeFactor = 8.0f;
 
 	// Internal
+	VkCommandBuffer cmdBuff = VK_NULL_HANDLE;
 	bool recreateSwapchain = false;
 	bool forceRecreate = false;
-
-	// TEMP
-	std::vector<glm::mat4> cubeProjections;
 };

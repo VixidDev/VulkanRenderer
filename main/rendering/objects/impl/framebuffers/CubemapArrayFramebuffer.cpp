@@ -1,18 +1,20 @@
-#include "CubemapFramebuffer.hpp"
+#include "CubemapArrayFramebuffer.hpp"
 
 #include "../../../PipelineCreation.hpp"
 
-#include "../textureBuffers/CubemapDepthTextureBuffer.hpp"
+#include "../textureBuffers/CubemapArrayDepthTextureBuffer.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
 
-CubemapFramebuffer::CubemapFramebuffer(
+CubemapArrayFramebuffer::CubemapArrayFramebuffer(
 	VulkanWindow* window,
 	_TextureBuffer* textureBuffer,
 	_RenderPass* renderPass,
-	VkExtent2D* shadowMapResolution) : Framebuffer(window) {
+	std::uint32_t arraySize,
+	VkExtent2D* shadowMapResolution) : arraySize(arraySize), Framebuffer(window) 
+{
 	this->textureBuffer = textureBuffer;
 	this->renderPass = renderPass;
 
@@ -21,7 +23,7 @@ CubemapFramebuffer::CubemapFramebuffer(
 	this->recreate();
 }
 
-void CubemapFramebuffer::recreate() {
+void CubemapArrayFramebuffer::recreate() {
 	this->framebuffers.clear();
 
 	// Due to different setup I manaully create the framebuffers instead.
@@ -37,16 +39,15 @@ void CubemapFramebuffer::recreate() {
 	fbInfo.height = this->renderExtent->height;
 	fbInfo.layers = 1;
 
-	for (std::size_t i = 0; i < 6; i++) {
-		imageView[0] = dynamic_cast<CubemapDepthTextureBuffer*>(this->textureBuffer->get())->getFramebufferViews()[i].handle;
+	for (std::size_t i = 0; i < 6 * this->arraySize; i++) {
+		imageView[0] = dynamic_cast<CubemapArrayDepthTextureBuffer*>(this->textureBuffer->get())->getFramebufferViews()[i].handle;
 
 		VkFramebuffer fb = VK_NULL_HANDLE;
 		if (const auto res = vkCreateFramebuffer(this->window->device->device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create framebuffer for swap chain image %zu\n vkCreateFramebuffer() returned %s", i, Utils::toString(res).c_str());
-		
-		// NOTE: This must not be indexed via the imageIndex, rather indexed by the face being rendered to.
-		// While this is counter-intuitive to how framebuffers are indexed in the Renderer.cpp I elected to do this
-		// to avoid complicating specific objects and requiring downcasting just to correctly use the object.
+
+		// NOTE: Similarly to CubemapFrambuffer.cpp, this must not be indexed via the imageIndex, rather indexed by the face being rendered to.
+		// Specifically, indexed via the calculation (arrayIndex * 6) + face.
 		this->framebuffers.emplace_back(vk::Framebuffer(this->window->device->device, fb));
 	}
 }
