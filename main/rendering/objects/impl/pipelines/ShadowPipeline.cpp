@@ -10,7 +10,8 @@ ShadowPipeline::ShadowPipeline(
 	_PipelineLayout* pipelineLayout,
 	_RenderPass* renderPass,
 	VkSampleCountFlagBits* sampleCount,
-	VkExtent2D* shadowMapResolution) : Pipeline(window) 
+	VkExtent2D* shadowMapResolution
+) : Pipeline(window) 
 {
 	this->sampleCount = sampleCount;
 
@@ -23,18 +24,26 @@ ShadowPipeline::ShadowPipeline(
 }
 
 void ShadowPipeline::recreate() {
-	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/shadowOffscreen.vert.spv");
-	vk::ShaderModule frag = loadShaderModule(*this->window, "assets/main/shaders/shadowOffscreen.frag.spv");
+	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/standardShadow.vert.spv");
+#if !defined(NDEBUG)
+	vk::ShaderModule frag = loadShaderModule(*this->window, "assets/main/shaders/standardShadow.frag.spv");
 
-	VkPipelineShaderStageCreateInfo stages[2]{};
+	const int STAGES = 2;
+#else
+	const int STAGES = 1;
+#endif
+
+	VkPipelineShaderStageCreateInfo stages[STAGES]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	stages[0].module = vert.handle;
 	stages[0].pName = "main";
+#if !defined(NDEBUG)
 	stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
+#endif
 
 	VkVertexInputBindingDescription vertexInputs[1]{};
 	// Positions
@@ -122,7 +131,7 @@ void ShadowPipeline::recreate() {
 
 	VkGraphicsPipelineCreateInfo pipeInfo{};
 	pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipeInfo.stageCount = 2;
+	pipeInfo.stageCount = STAGES;
 	pipeInfo.pStages = stages;
 	pipeInfo.pVertexInputState = &inputInfo;
 	pipeInfo.pInputAssemblyState = &assemblyInfo;

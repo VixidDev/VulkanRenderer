@@ -93,11 +93,6 @@ void CubemapDepthTextureBuffer::recreate() {
 }
 
 vk::ImageView& CubemapDepthTextureBuffer::getImageView() {
-	if (!this->issuedWarning) {
-		std::fprintf(stderr, "Shouldn't be calling 'getImageView()' on a cubemap texture! Returning result of 'getDescriptorView()'!");
-		this->issuedWarning = true;
-	}
-
 	return this->getDescriptorView();
 }
 

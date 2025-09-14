@@ -1,5 +1,7 @@
 #include "ImGUI.hpp"
 
+#include <algorithm>
+
 #include "../imgui/imgui.h"
 #include "../imgui/backends/imgui_impl_glfw.h"
 #include "../imgui/backends/imgui_impl_vulkan.h"
@@ -7,6 +9,8 @@
 #include "../Driver.hpp"
 #include "../rendering/Renderer.hpp"
 #include "../vulkan/VulkanDevice.hpp"
+
+#include "../rendering/objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
 
 GUI::GUI(Driver* driver) : driver(driver) {}
 
@@ -56,7 +60,7 @@ void GUI::prepare() {
 void GUI::draw() {
 	Renderer& renderer = this->driver->getRenderer();
 
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 
 	ImGui::Begin("Debug Menu");
 
@@ -87,9 +91,50 @@ void GUI::draw() {
 	// Debug Shadow Map Texture
 	if (this->showShadowMapTexture) {
 		ImGui::Begin("Shadow Map Texture");
+
 		ImGui::InputInt2("Shadow Map Texture Size", this->shadowMapSize);
-		//ImGui::Checkbox("Control Shadow Casting Light", );
-		ImGui::Image((ImTextureID)renderer.getDescriptorSet("debugLinearDepth")->getHandle(), ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
+
+		if (ImGui::BeginTabBar("Shadow Map Tetxtures")) {
+			if (ImGui::BeginTabItem("Point Lights")) {
+				if (ImGui::InputInt("Point Light Shadow Map Index", &this->pointLightShadowIndex)) {
+					this->pointLightShadowIndex = std::clamp(this->pointLightShadowIndex, 0, ((int)renderer.numPointLights * 6) - 1);
+				}
+
+				ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("pointLightShadowsDebug"));
+				if (descriptorSet) {
+					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->pointLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
+				}
+
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("Directional Lights")) {
+				if (ImGui::InputInt("Directional Light Shadow Map Index", &this->dirLightShadowIndex)) {
+					this->dirLightShadowIndex = std::clamp(this->dirLightShadowIndex, 0, (int)renderer.numDirectionalLights - 1);
+				}
+
+				ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("directionalLightShadowsDebug"));
+				if (descriptorSet) {
+					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->dirLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
+				}
+
+				ImGui::EndTabItem();
+			}
+			if (ImGui::BeginTabItem("Spot Lights")) {
+				if (ImGui::InputInt("Spot Light Shadow Map Index", &this->spotLightShadowIndex)) {
+					this->spotLightShadowIndex = std::clamp(this->spotLightShadowIndex, 0, (int)renderer.numSpotLights - 1);
+				}
+
+				//ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("spotLightShadowsDebug"));
+				//if (descriptorSet) {
+				//	ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->spotLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
+				//}
+
+				ImGui::EndTabItem();
+			}
+
+			ImGui::EndTabBar();
+		}
+
 		ImGui::End();
 	}
 }

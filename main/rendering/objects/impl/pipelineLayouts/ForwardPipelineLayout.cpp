@@ -21,10 +21,11 @@ void ForwardPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> forwardShadowLayouts;
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("uboVF").handle); // MV matrices
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("materials").handle); // Material textures
-	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("uboV").handle); // Depth matrix
-	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Shadow map
+	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Point shadow maps
+	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Directional shadow maps
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("ssboF").handle); // Lights SSBO
+	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("ssboF").handle); // Light matrices SSBO
 
 	VkPushConstantRange lightCount = {
 		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,

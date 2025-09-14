@@ -19,5 +19,9 @@ private:
 	bool showShadowMapTexture = false;
 	int shadowMapSize[2] = { 1500, 1500 };
 
+	int pointLightShadowIndex = 0;
+	int dirLightShadowIndex = 0;
+	int spotLightShadowIndex = 0;
+
 	void draw();
 };

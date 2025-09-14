@@ -12,7 +12,12 @@ ShadowPass::ShadowPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount)
 }
 
 void ShadowPass::recreate() {
-	VkAttachmentDescription attachments[2]{};
+#if !defined(NDEBUG)
+	const int ATTACHMENTS = 2;
+#else
+	const int ATTACHMENTS = 1;
+#endif
+	VkAttachmentDescription attachments[ATTACHMENTS]{};
 	attachments[0].format = VK_FORMAT_D32_SFLOAT;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -20,25 +25,34 @@ void ShadowPass::recreate() {
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
+#if !defined(NDEBUG)
+	// Attachment for writing linear depth to so we can visualise it with ImGUI
 	attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[1].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+#endif
 
 	VkAttachmentReference depthAttachment{};
 	depthAttachment.attachment = 0;
 	depthAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+#if !defined(NDEBUG)
 	VkAttachmentReference linearDepthAttachment{};
 	linearDepthAttachment.attachment = 1;
 	linearDepthAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+#endif
 
 	VkSubpassDescription subpasses[1]{};
 	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+#if !defined(NDEBUG)
 	subpasses[0].colorAttachmentCount = 1;
 	subpasses[0].pColorAttachments = &linearDepthAttachment;
+#else
+	subpasses[0].colorAttachmentCount = 0;
+#endif
 	subpasses[0].pDepthStencilAttachment = &depthAttachment;
 
 	VkSubpassDependency deps[2]{};
@@ -60,7 +74,7 @@ void ShadowPass::recreate() {
 
 	VkRenderPassCreateInfo passInfo{};
 	passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	passInfo.attachmentCount = 2;
+	passInfo.attachmentCount = ATTACHMENTS;
 	passInfo.pAttachments = attachments;
 	passInfo.subpassCount = 1;
 	passInfo.pSubpasses = subpasses;
@@ -76,10 +90,14 @@ void ShadowPass::recreate() {
 
 	VkClearValue depthClearValue{};
 	depthClearValue.depthStencil.depth = 1.0f;
+#if !defined(NDEBUG)
 	VkClearValue colourClearValue{};
 	colourClearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
+#endif
 
 	this->clearValues.clear();
 	this->clearValues.emplace_back(depthClearValue);
+#if !defined(NDEBUG)
 	this->clearValues.emplace_back(colourClearValue);
+#endif
 }

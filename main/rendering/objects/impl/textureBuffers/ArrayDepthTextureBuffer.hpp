@@ -2,9 +2,9 @@
 
 #include "../../base/ArrayTextureBuffer.hpp"
 
-class CubemapArrayDepthTextureBuffer : public ArrayTextureBuffer {
+class ArrayDepthTextureBuffer : public ArrayTextureBuffer {
 public:
-	CubemapArrayDepthTextureBuffer(VulkanContext* context, std::uint32_t arraySize, VkExtent2D* renderExtent = nullptr);
+	ArrayDepthTextureBuffer(VulkanContext* context, std::uint32_t arraySize, VkExtent2D* renderExtent = nullptr);
 
 	void recreate();
 

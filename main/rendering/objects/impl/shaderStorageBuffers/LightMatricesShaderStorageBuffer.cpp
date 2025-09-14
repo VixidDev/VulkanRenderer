@@ -1,4 +1,4 @@
-#include "LightShaderStorageBuffer.hpp"
+#include "LightMatricesShaderStorageBuffer.hpp"
 
 #include "../../../../vulkan/VkUtils.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
@@ -6,12 +6,12 @@
 #include "Error.hpp"
 #include "toString.hpp"
 
-LightShaderStorageBuffer::LightShaderStorageBuffer(
+LightMatricesShaderStorageBuffer::LightMatricesShaderStorageBuffer(
 	VulkanContext* context,
-	std::vector<glsl::Light>* lights) : ssboData(lights), ShaderStorageBuffer(context)
+	std::vector<glm::mat4>* lightMatrices) : ssboData(lightMatrices), ShaderStorageBuffer(context) 
 {
-	this->bufferSize = this->ssboData->size() * sizeof(glsl::Light);
-	
+	this->bufferSize = this->ssboData->size() * sizeof(glm::mat4);
+
 	// GPU-sided buffer
 	this->gpuBuffer = vk::createBuffer(
 		*this->context->allocator,
@@ -32,7 +32,7 @@ LightShaderStorageBuffer::LightShaderStorageBuffer(
 	this->update();
 }
 
-void LightShaderStorageBuffer::update() {
+void LightMatricesShaderStorageBuffer::update() {
 	// Map ptr to GPU and copy to it
 	void* ptr;
 	if (const auto res = vmaMapMemory(this->context->allocator->allocator, stagingBuffer.allocation, &ptr); VK_SUCCESS != res)

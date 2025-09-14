@@ -10,10 +10,6 @@ layout(set = 0, binding = 0) uniform MVP {
 	vec4 camPos;
 } mvp;
 
-layout(set = 2, binding = 0) uniform Depth {
-    mat4 depthMVP;
-} depth;
-
 layout(location = 0) out vec3 v2fPosition;
 layout(location = 1) out vec2 v2fTexCoord;
 layout(location = 2) out mat3 v2fTBN;
@@ -46,7 +42,6 @@ const mat4 biasMat = mat4(
 void main() {
     v2fPosition = iPosition;
     v2fTexCoord = iTexCoord;
-    //v2fLightSpacePosition = (biasMat * depth.depthMVP) * vec4(iPosition, 1.0f);
 
     // Decode TBN
 

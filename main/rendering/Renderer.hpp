@@ -26,6 +26,7 @@ struct Uniforms {
 
 struct SSBOs {
 	std::vector<glsl::Light> lights;
+	std::vector<glm::mat4> lightMatrices;
 };
 
 class Driver;
@@ -86,6 +87,9 @@ public:
 	float shadowBias = 0.0001f;
 
 	int numLights = 0;
+	std::uint32_t numPointLights = 0;
+	std::uint32_t numDirectionalLights = 0;
+	std::uint32_t numSpotLights = 0;
 private:
 	void renderShadowMaps(std::vector<MeshData>& meshData);
 
@@ -118,7 +122,7 @@ private:
 	vk::Sampler shadowMapSampler;
 
 	// Lights pointer
-	std::vector<Light>* lights;
+	std::vector<Light>* lights = nullptr;
 
 	// Shader objects
 	Uniforms uniforms;
@@ -127,7 +131,7 @@ private:
 	// Renderer settings
 	VkSampleCountFlagBits sampleCountSetting = VK_SAMPLE_COUNT_1_BIT;
 	bool shadowsEnabled = true;
-	VkExtent2D currentShadowResolution = VkExtent2D{ 2048, 2048 };
+	VkExtent2D shadowRes = VkExtent2D{ 2048, 2048 };
 	std::vector<VkExtent2D> shadowResolutions = {
 		VkExtent2D{ 1024, 1024 },
 		VkExtent2D{ 2048, 2048 },

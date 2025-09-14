@@ -12,7 +12,7 @@ public:
 
 	virtual ~DescriptorSet() = default;
 
-	void recreate();
+	virtual void recreate();
 
 	VkDescriptorSet& getHandle();
 protected:

@@ -2,6 +2,8 @@
 
 #include "../../../PipelineCreation.hpp"
 
+#include <glm/mat4x4.hpp>
+
 ShadowPipelineLayout::ShadowPipelineLayout(
 	VulkanWindow* window,
 	std::map<std::string, vk::DescriptorSetLayout>* descriptorLayouts) : PipelineLayout(window) 
@@ -13,10 +15,27 @@ ShadowPipelineLayout::ShadowPipelineLayout(
 
 void ShadowPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> shadowLayouts;
-	shadowLayouts.emplace_back(this->descriptorLayouts->at("uboV").handle); // Depth matrix
+#if !defined(NDEBUG)
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes
+#endif
 
-	std::vector<VkPushConstantRange> emptyPushConstants;
+	VkPushConstantRange depthProjectionMatrix = {
+		.stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+		.size = sizeof(glm::mat4)
+	};
 
-	this->pipelineLayout = createPipelineLayout(*this->window, shadowLayouts, emptyPushConstants);
+	std::vector<VkPushConstantRange> pushConstants;
+	pushConstants.emplace_back(depthProjectionMatrix);
+
+#if !defined(NDEBUG)
+	VkPushConstantRange projectionType = {
+	.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+	.offset = depthProjectionMatrix.size,
+	.size = sizeof(int)
+	};
+
+	pushConstants.emplace_back(projectionType);
+#endif
+
+	this->pipelineLayout = createPipelineLayout(*this->window, shadowLayouts, pushConstants);
 }

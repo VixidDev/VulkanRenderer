@@ -13,6 +13,7 @@ includedirs("zstd/include");
 defines("GLM_FORCE_RADIANS=1")
 defines("GLM_FORCE_SIZE_T_LENGTH=1")
 defines("GLM_ENABLE_EXPERIMENTAL=1")
+defines("GLM_FORCE_DEPTH_ZERO_TO_ONE=1")
 
 defines("ZSTD_DISABLE_ASM=1") -- this makes the build simpler
 

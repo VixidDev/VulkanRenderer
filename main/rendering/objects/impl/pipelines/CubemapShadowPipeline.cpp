@@ -10,7 +10,8 @@ CubemapShadowPipeline::CubemapShadowPipeline(
 	_PipelineLayout* pipelineLayout,
 	_RenderPass* renderPass,
 	VkSampleCountFlagBits* sampleCount,
-	VkExtent2D* shadowMapResolution) : Pipeline(window) {
+	VkExtent2D* shadowMapResolution) : Pipeline(window) 
+{
 	this->sampleCount = sampleCount;
 
 	this->pipelineLayout = pipelineLayout;

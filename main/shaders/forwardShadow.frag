@@ -19,7 +19,9 @@ layout(set = 1, binding = 2) uniform sampler2D uRoughness;
 layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
 
-layout(set = 3, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
+layout(set = 2, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
+layout(set = 3, binding = 0) uniform sampler2DArrayShadow directionalLightShadows;
+//layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
 
 layout(set = 4, binding = 0) uniform ClipPlanes {
 	float far;
@@ -37,6 +39,9 @@ struct ShaderLight {
 
 layout(set = 5, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
+};
+layout(set = 6, binding = 0) readonly buffer LightSpaceMatrices {
+	mat4 lightSpaceMatrices[];
 };
 
 layout(push_constant) uniform PushConstants {
@@ -115,11 +120,21 @@ float calculateShadow(ShaderLight light) {
 	switch (lightType) {
 	case 0: // Point light
 		vec3 lightToFrag = v2fPosition - light.position;
+
 		float currentDepth = length(lightToFrag) / planes.far;
 		vec3 dir = normalize(lightToFrag);
+
 		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - SHADOW_BIAS);
 		break;
 	case 1: // Directional light
+		mat4 lightSpaceMatrix = lightSpaceMatrices[shadowMapIndex];
+
+		vec4 lightSpacePos = lightSpaceMatrix * vec4(v2fPosition, 1.0f);
+		lightSpacePos /= lightSpacePos.w;
+
+		vec3 shadowCoord = lightSpacePos.xyz * 0.5 + 0.5;
+
+		shadow = texture(directionalLightShadows, vec4(shadowCoord.xy, shadowMapIndex, shadowCoord.z));
 		break;
 	case 2: // Spot light
 		break;

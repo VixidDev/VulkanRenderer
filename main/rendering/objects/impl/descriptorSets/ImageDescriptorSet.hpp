@@ -16,7 +16,7 @@ public:
 
 	void onTextureBufferRecreated() override;
 
-	void recreate();
-private:
+	void recreate() override;
+protected:
 	std::vector<DescriptorImageSetting> descImageSettings;
 };

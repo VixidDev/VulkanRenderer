@@ -5,7 +5,7 @@
 
 class LightShaderStorageBuffer : public ShaderStorageBuffer {
 public:
-	LightShaderStorageBuffer(VulkanContext* context, std::vector<glsl::Light>* lightsUniform);
+	LightShaderStorageBuffer(VulkanContext* context, std::vector<glsl::Light>* lights);
 
 	void update();
 private:

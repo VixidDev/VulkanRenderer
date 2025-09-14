@@ -1,16 +1,13 @@
-#include "CubemapArrayDepthTextureBuffer.hpp"
+#include "ArrayColourTextureBuffer.hpp"
 
-#include "ShadowDepthTextureBuffer.hpp"
-
-#include "../../../../vulkan/VulkanContext.hpp"
 #include "../../../PipelineCreation.hpp"
-
+#include "../../../../vulkan/VulkanContext.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
 
-CubemapArrayDepthTextureBuffer::CubemapArrayDepthTextureBuffer(
+ArrayColourTextureBuffer::ArrayColourTextureBuffer(
 	VulkanContext* context,
 	std::uint32_t arraySize,
 	VkExtent2D* renderExtent) : ArrayTextureBuffer(context) 
@@ -25,19 +22,18 @@ CubemapArrayDepthTextureBuffer::CubemapArrayDepthTextureBuffer(
 	this->recreate();
 }
 
-void CubemapArrayDepthTextureBuffer::recreate() {
+void ArrayColourTextureBuffer::recreate() {
 	// Create VkImage
 	VkImageCreateInfo imageInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
-		.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
 		.imageType = VK_IMAGE_TYPE_2D,
-		.format = VK_FORMAT_D32_SFLOAT,
+		.format = VK_FORMAT_R16G16B16A16_SFLOAT,
 		.extent = { this->renderExtent->width, this->renderExtent->height, 1 },
 		.mipLevels = 1,
-		.arrayLayers = 6 * this->arraySize,
+		.arrayLayers = this->arraySize,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.tiling = VK_IMAGE_TILING_OPTIMAL,
-		.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
 	};
@@ -55,14 +51,13 @@ void CubemapArrayDepthTextureBuffer::recreate() {
 
 	this->image = vk::Image(this->context->allocator->allocator, image, allocation);
 
-	// Create the image view info initially with CUBE_ARRAY view type and 6 * arraySize layerCount for the samplerCubeArray descriptor
 	VkImageViewCreateInfo viewInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.image = this->image.image,
-		.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY,
-		.format = VK_FORMAT_D32_SFLOAT,
+		.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+		.format = VK_FORMAT_R16G16B16A16_SFLOAT,
 		.components = VkComponentMapping{},
-		.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 * this->arraySize }
+		.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, this->arraySize }
 	};
 
 	VkImageView view = VK_NULL_HANDLE;
@@ -77,24 +72,20 @@ void CubemapArrayDepthTextureBuffer::recreate() {
 
 	this->framebufferViews.clear();
 
-	// For each element in array create 6 image views (6 faces per cubemap)
+	// For each element in array create an image view
 	for (std::uint32_t element = 0; element < this->arraySize; element++) {
-		for (std::uint32_t face = 0; face < 6; face++) {
-			std::uint32_t layer = (element * 6) + face;
+		viewInfo.subresourceRange.baseArrayLayer = element;
 
-			viewInfo.subresourceRange.baseArrayLayer = layer;
+		VkImageView framebufferView = VK_NULL_HANDLE;
+		if (const auto res = vkCreateImageView(this->context->window->device->device, &viewInfo, nullptr, &framebufferView); VK_SUCCESS != res)
+			throw Utils::Error("Unable to create image view.\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
 
-			VkImageView framebufferView = VK_NULL_HANDLE;
-			if (const auto res = vkCreateImageView(this->context->window->device->device, &viewInfo, nullptr, &framebufferView); VK_SUCCESS != res)
-				throw Utils::Error("Unable to create image view.\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
-
-			this->framebufferViews.emplace_back(vk::ImageView(this->context->window->device->device, framebufferView));
-		}
+		this->framebufferViews.emplace_back(vk::ImageView(this->context->window->device->device, framebufferView));
 	}
 
 	TextureBuffer::recreate();
 }
 
-vk::ImageView& CubemapArrayDepthTextureBuffer::getImageView() {
+vk::ImageView& ArrayColourTextureBuffer::getImageView() {
 	return this->descriptorView;
 }
