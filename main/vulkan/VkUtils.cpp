@@ -9,6 +9,7 @@
 #include "toString.hpp"
 #include "VulkanDevice.hpp"
 
+// TODO: Delete the duplicate functions from either here or from VulkanDevice.cpp, no idea how I ended up with the same functions in both these places
 namespace Utils {
 
 	vk::CommandPool createCommandPool(const VulkanWindow& window, VkCommandPoolCreateFlags createFlags) {

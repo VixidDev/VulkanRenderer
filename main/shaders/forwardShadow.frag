@@ -32,9 +32,10 @@ struct ShaderLight {
 	vec3 position;
 	vec3 direction;
 	vec3 colour;
-	ivec2 metadata;
+	ivec3 metadata;
 	// metadata.x = lightType // 0 - Point Light, 1 - Directional Light, 2 - Spot light
 	// metadata.y = shadowMapIndex
+	// metadata.z = intensity
 };
 
 layout(set = 5, binding = 0) readonly buffer Lights {
@@ -111,6 +112,12 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal, float shadow) {
 	return ret;
 }
 
+const mat4 biasMat = mat4( 
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0);
+
 float calculateShadow(ShaderLight light) {
 	float shadow = 0.0;
 
@@ -127,12 +134,10 @@ float calculateShadow(ShaderLight light) {
 		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - SHADOW_BIAS);
 		break;
 	case 1: // Directional light
-		mat4 lightSpaceMatrix = lightSpaceMatrices[shadowMapIndex];
+		mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[shadowMapIndex];
 
 		vec4 lightSpacePos = lightSpaceMatrix * vec4(v2fPosition, 1.0f);
-		lightSpacePos /= lightSpacePos.w;
-
-		vec3 shadowCoord = lightSpacePos.xyz * 0.5 + 0.5;
+		vec3 shadowCoord = lightSpacePos.xyz / lightSpacePos.w;
 
 		shadow = texture(directionalLightShadows, vec4(shadowCoord.xy, shadowMapIndex, shadowCoord.z));
 		break;
@@ -167,7 +172,15 @@ void main() {
 
 		vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * 100;
 		float NdotL = max(dot(normal, lightDir), 0.0001);
-		float attenuation = 1 / (distToLight * distToLight);
+
+		float attenuation;
+		if (lights[i].metadata.x == 1) {
+			// Give directional lights linear attenuation
+			attenuation = 1 / distToLight;
+		} else {
+			// Keep point and spot lights with squared attenuation
+			attenuation = 1 / (distToLight * distToLight);
+		}
 
 		totalLight += (brdfVal * lights[i].colour * NdotL) * attenuation;
 	}	

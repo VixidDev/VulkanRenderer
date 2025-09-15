@@ -25,9 +25,10 @@ namespace glsl {
 		glm::vec3 position{};  float pad0;
 		glm::vec3 direction{}; float pad1;
 		glm::vec3 colour{};    float pad2 = 1.f;
-		alignas(16) glm::ivec2 metadata{};
+		alignas(16) glm::ivec3 metadata{};
 		// metadata.x = lightType // 0 - Point, 1 - Directional, 2 - Spot
 		// metadata.y = shadowMapIndex
+		// metadata.z = intensity
 	};
 
 	static_assert(sizeof(Light) == 64, "Light stuct must be 64 bytes!");

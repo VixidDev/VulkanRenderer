@@ -38,6 +38,12 @@ void ArrayColourTextureBuffer::recreate() {
 		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
 	};
 
+	// Check if array size is 0 and instead create a dummy texture
+	if (this->arraySize == 0) {
+		imageInfo.arrayLayers = 1;
+		imageInfo.extent = { 1, 1, 1 };
+	}
+
 	VmaAllocationCreateInfo allocInfo{};
 	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 
@@ -60,11 +66,21 @@ void ArrayColourTextureBuffer::recreate() {
 		.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, this->arraySize }
 	};
 
+	if (this->arraySize == 0) {
+		viewInfo.subresourceRange.layerCount = 1;
+	}
+
 	VkImageView view = VK_NULL_HANDLE;
 	if (const auto res = vkCreateImageView(this->context->window->device->device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
 		throw Utils::Error("Unable to create image view.\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
 
 	this->descriptorView = vk::ImageView(this->context->window->device->device, view);
+
+	// If array size is 0, we most likely are not writing to this texture via a framebuffer
+	if (this->arraySize == 0) {
+		TextureBuffer::recreate();
+		return;
+	}
 
 	// Alter image view info with 2D view type and layerCount 1 for framebuffer views
 	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;

@@ -145,4 +145,6 @@ private:
 	VkCommandBuffer cmdBuff = VK_NULL_HANDLE;
 	bool recreateSwapchain = false;
 	bool forceRecreate = false;
+
+	VkExtent2D dummyExtent{ 1, 1 };
 };
