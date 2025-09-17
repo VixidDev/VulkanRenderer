@@ -83,12 +83,19 @@ void GUI::draw() {
 	ImGui::SliderFloat("Depth Bias Slope Factor", &renderer.getDepthBiasSlopeFactor(), 0.0f, 10.0f);
 	ImGui::SliderFloat("Shadow Bias", &renderer.shadowBias, 0.0f, 0.1f);
 
+	ImGui::Separator();
+
 	// Camera debug
 	Camera& camera = renderer.getCamera();
 
-	ImGui::Text("Camera vars:");
+	ImGui::Text("Camera Debug");
 	ImGui::Text("Pos: %f %f %f", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
 	ImGui::Text("Yaw: %f - Pitch %f", camera.getYaw(), camera.getPitch());
+	ImGui::SliderFloat("Camera FOV", &camera.getFov(), 1.0f, 145.0f);
+	ImGui::SliderFloat("Camera Near Plane", &camera.getNearPlane(), 0.0001f, 1.0f, "%.5f");
+	ImGui::SliderFloat("Camera Far Plane", &camera.getFarPlane(), 1.0f, 1024.0f);
+
+	ImGui::SliderFloat("zMult", &renderer.zMult, 0.1f, 100.0f);
 
 	ImGui::End();
 

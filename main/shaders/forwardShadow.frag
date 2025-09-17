@@ -166,21 +166,24 @@ void main() {
 		float distToLight = length(lightPos - v2fPosition);
 
 		vec3 lightDir = normalize(lightPos - v2fPosition);
+
+		float attenuation;
+		if (lights[i].metadata.x == 1) {
+			// Give directional lights linear attenuation
+			attenuation = 1 / distToLight;
+			// Light dir should be parallel for every fragment for directional lights
+			lightDir = -lights[i].direction;
+		} else {
+			// Keep point and spot lights with squared attenuation
+			attenuation = 1 / (distToLight * distToLight);
+		}
+
 		vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
 
 		float shadow = calculateShadow(lights[i]);
 
 		vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * 100;
 		float NdotL = max(dot(normal, lightDir), 0.0001);
-
-		float attenuation;
-		if (lights[i].metadata.x == 1) {
-			// Give directional lights linear attenuation
-			attenuation = 1 / distToLight;
-		} else {
-			// Keep point and spot lights with squared attenuation
-			attenuation = 1 / (distToLight * distToLight);
-		}
 
 		totalLight += (brdfVal * lights[i].colour * NdotL) * attenuation;
 	}	

@@ -33,9 +33,6 @@ Camera::Camera(VulkanWindow* window, float fov, float nearPlane, float farPlane,
 }
 
 void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
-	if (glfwGetInputMode(glfwWindow, GLFW_CURSOR) != GLFW_CURSOR_DISABLED)
-		return;
-
 	float width = static_cast<float>(window->swapchainExtent.width);
 	float height = static_cast<float>(window->swapchainExtent.height);
 	const float aspectRatio = width / height;
@@ -52,6 +49,9 @@ void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
 		this->position + this->frontDir,
 		glm::vec3(0.0f, 1.0f, 0.0f)
 	);
+
+	if (glfwGetInputMode(glfwWindow, GLFW_CURSOR) != GLFW_CURSOR_DISABLED)
+		return;
 
 	UserState* state = static_cast<UserState*>(glfwGetWindowUserPointer(glfwWindow));
 
@@ -118,15 +118,15 @@ void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
 	this->frontDir = glm::normalize(newDir);
  }
 
-float Camera::getFov() {
+float& Camera::getFov() {
 	return this->fov;
 }
 
-float Camera::getNearPlane() {
+float& Camera::getNearPlane() {
 	return this->nearPlane;
 }
 
-float Camera::getFarPlane() {
+float& Camera::getFarPlane() {
 	return this->farPlane;
 }
 

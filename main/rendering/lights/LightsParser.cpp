@@ -30,6 +30,9 @@ namespace LightsParser {
 		// Parse lines
 		std::string line;
 		while (std::getline(file, line)) {
+			// Skip comments
+			if (line.starts_with("//")) continue;
+
 			glm::vec3 pos;
 			glm::vec3 lookAt;
 

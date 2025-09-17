@@ -226,8 +226,6 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	int directionalLightIndex = 0;
 	int spotLightIndex = 0;
 
-	//glm::mat4 lightOrtho = glm::ortho(-30.0f, 30.0f, 30.0f, -30.0f, 0.01f, 1024.0f);
-
 	// Populate ssbos
 	for (std::size_t i = 0; i < lights->size(); i++) {
 		Light light = lights->at(i);
@@ -868,7 +866,7 @@ LightMatrices Renderer::getLightMatricesForCameraFrustum(glsl::Light& lightStruc
 	frustumCenter /= static_cast<float>(frustumCorners.size());
 
 	// Calc light pos
-	lightStruct.position = frustumCenter - lightStruct.direction * 10.0f;
+	lightStruct.position = frustumCenter - lightStruct.direction * 50.0f;
 
 	// Construct light view matrix
 	glm::mat4 lightView = glm::lookAt(lightStruct.position, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -883,7 +881,6 @@ LightMatrices Renderer::getLightMatricesForCameraFrustum(glsl::Light& lightStruc
 	}
 
 	// Add padding to depth
-	float zMult = 10.0f;
 	if (min.z < 0)
 		min.z *= zMult;
 	else

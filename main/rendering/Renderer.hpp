@@ -100,6 +100,7 @@ public:
 	std::uint32_t numSpotLights = 0;
 
 	bool renderCameraFrustumBounds = false;
+	float zMult = 10.0f;
 private:
 	void renderShadowMaps(std::vector<MeshData>& meshData);
 	LightMatrices getLightMatricesForCameraFrustum(glsl::Light& lightStruct);

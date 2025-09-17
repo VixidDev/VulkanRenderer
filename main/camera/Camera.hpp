@@ -15,9 +15,9 @@ public:
 
 	void update(GLFWwindow* window, float timeDelta);
 
-	float getFov();
-	float getNearPlane();
-	float getFarPlane();
+	float& getFov();
+	float& getNearPlane();
+	float& getFarPlane();
 	glm::vec3 getPosition();
 	glm::vec3 getFrontDir();
 
