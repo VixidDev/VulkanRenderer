@@ -724,7 +724,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 				glm::vec3(0.0f, -1.0f, 0.0f),
 			};
 			
-			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 128.0f);
+			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera.getNearPlane(), this->camera.getFarPlane());
 
 			// Render to each face of the cube map
 			for (std::size_t face = 0; face < 6; face++) {
@@ -745,7 +745,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 
 				cubemapFragmentPC fragPC = {
 					.lightPos = glm::vec4(light.getPosition(), 1.0f),
-					.farPlane = 128.0f
+					.farPlane = this->camera.getFarPlane()
 				};
 
 				vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("cubemapShadow")->getHandle(), 
