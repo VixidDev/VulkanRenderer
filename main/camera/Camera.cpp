@@ -13,8 +13,8 @@
 Camera::Camera(VulkanWindow* window, float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir) :
 	window(window), fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(position), frontDir(frontDir) 
 {
-	float width = this->window->swapchainExtent.width;
-	float height = this->window->swapchainExtent.height;
+	float width = static_cast<float>(this->window->swapchainExtent.width);
+	float height = static_cast<float>(this->window->swapchainExtent.height);
 	const float aspectRatio = width / height;
 
 	// Initialise the transformation matrices for the first time
@@ -36,8 +36,8 @@ void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
 	if (glfwGetInputMode(glfwWindow, GLFW_CURSOR) != GLFW_CURSOR_DISABLED)
 		return;
 
-	float width = window->swapchainExtent.width;
-	float height = window->swapchainExtent.height;
+	float width = static_cast<float>(window->swapchainExtent.width);
+	float height = static_cast<float>(window->swapchainExtent.height);
 	const float aspectRatio = width / height;
 
 	this->projection = glm::perspective(
@@ -147,8 +147,8 @@ glm::mat4 Camera::getViewMat() {
 }
 
 std::array<glm::vec4, 8> Camera::getFrustumCorners() {
-	assert(this->projection != glm::mat4{}, "Camera projection matrix must be initialised before getting frustum corners!");
-	assert(this->view != glm::mat4{}, "Camera view matrix must be initialised before getting frustum corners!");
+	assert(this->projection != glm::mat4{} && "Camera projection matrix must be initialised before getting frustum corners!");
+	assert(this->view != glm::mat4{} && "Camera view matrix must be initialised before getting frustum corners!");
 
 	glm::mat4 inverseViewProj = glm::inverse(this->projection * this->view);
 

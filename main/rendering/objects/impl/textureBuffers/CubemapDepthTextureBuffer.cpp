@@ -79,7 +79,7 @@ void CubemapDepthTextureBuffer::recreate() {
 	viewInfo.subresourceRange.layerCount = 1;
 
 	this->framebufferViews.clear();
-	for (std::size_t i = 0; i < 6; i++) {
+	for (std::uint32_t i = 0; i < 6; i++) {
 		viewInfo.subresourceRange.baseArrayLayer = i;
 
 		VkImageView framebufferView = VK_NULL_HANDLE;

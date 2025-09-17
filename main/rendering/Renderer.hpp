@@ -9,6 +9,7 @@
 #include "../baked/BakedModel.hpp"
 #include "../camera/Camera.hpp"
 #include "../vulkan/VulkanContext.hpp"
+#include "objects/base/interfaces/IShaderStorageBuffer.hpp"
 #include "objects/base/RenderPass.hpp"
 #include "objects/base/PipelineLayout.hpp"
 #include "objects/base/Pipeline.hpp"
@@ -42,7 +43,7 @@ using _Pipeline = std::unique_ptr<Pipeline>;
 using _Framebuffer = std::unique_ptr<Framebuffer>;
 using _TextureBuffer = std::unique_ptr<TextureBuffer>;
 using _UniformBuffer = std::unique_ptr<UniformBuffer>;
-using _ShaderStorageBuffer = std::unique_ptr<ShaderStorageBuffer>;
+using _ShaderStorageBuffer = std::unique_ptr<IShaderStorageBuffer>;
 using _DescriptorSet = std::unique_ptr<DescriptorSet>;
 
 class Renderer {

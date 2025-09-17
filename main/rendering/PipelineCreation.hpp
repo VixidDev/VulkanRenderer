@@ -8,7 +8,6 @@ class VulkanWindow;
 class VulkanAllocator;
 class TextureBuffer;
 class UniformBuffer;
-class ShaderStorageBuffer;
 
 struct DescriptorSetting {
 	VkDescriptorType descriptorType;

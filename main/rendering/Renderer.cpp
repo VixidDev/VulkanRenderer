@@ -49,9 +49,6 @@
 #include "objects/impl/uniformBuffers/DepthMVPUniformBuffer.hpp"
 #include "objects/impl/uniformBuffers/CameraPlanesUniformBuffer.hpp"
 
-#include "objects/impl/shaderStorageBuffers/LightShaderStorageBuffer.hpp"
-#include "objects/impl/shaderStorageBuffers/LightMatricesShaderStorageBuffer.hpp"
-
 #include "objects/impl/descriptorSets/BufferDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ImageDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
@@ -115,14 +112,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Texture Buffers
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context, &this->sampleCountSetting));
 	this->textureBuffers.emplace("sunView", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
-	//this->textureBuffers.emplace("shadowDepth", std::make_unique<ShadowDepthTextureBuffer>(&this->context, &this->sampleCountSetting, &this->shadowRes));
-	//this->textureBuffers.emplace("debugLinearDepth", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting, &this->shadowRes));
 
 	// Framebuffers
 	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("forward").get(), &this->sampleCountSetting));
 	this->framebuffers.emplace("sun", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
-	//this->framebuffers.emplace("shadow", std::make_unique<ShadowFramebuffer>(window, &this->textureBuffers, &this->renderPasses.at("shadow"), &this->shadowRes));
-	//this->framebuffers.emplace("cubemapShadow", std::make_unique<CubemapFramebuffer>(window, &this->textureBuffers.at("cubemapDepth"), &this->renderPasses.at("shadow"), &this->shadowRes));
 	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->renderPasses.at("gui").get()));
 
 	// Uniform Buffers
@@ -166,18 +159,12 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->uniformBuffers.at("depthMVP")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER}};
 	std::vector<DescriptorBufferSetting> cameraPlanesDescriptorSettings = {
 		{ this->uniformBuffers.at("cameraPlanes")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER }};
-	/*std::vector<DescriptorImageSetting> shadowMapDescriptorSettings = { 
-		{ this->textureBuffers.at("shadowDepth").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle }};*/
-	/*std::vector<DescriptorImageSetting> debugLinearDepthDescriptorSettings = { 
-		{ this->textureBuffers.at("debugLinearDepth").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle }};*/
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
 		{ this->textureBuffers.at("sunView").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle}};
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("depthMVP", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboV").handle, depthDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
-	//this->descriptorSets.emplace("shadowMap", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, shadowMapDescriptorSettings));
-	//this->descriptorSets.emplace("debugLinearDepth", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, debugLinearDepthDescriptorSettings));
 	this->descriptorSets.emplace("sunView", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, sunViewDescriptorSettings));
 }
 
@@ -287,8 +274,8 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	}
 
 	// Create SSBOs
-	this->shaderStorageBuffers.emplace("lights", std::make_unique<LightShaderStorageBuffer>(&this->context, &this->ssbos.lights));
-	this->shaderStorageBuffers.emplace("lightMatrices", std::make_unique<LightMatricesShaderStorageBuffer>(&this->context, &this->ssbos.lightMatrices));
+	this->shaderStorageBuffers.emplace("lights", std::make_unique<ShaderStorageBuffer<glsl::Light>>(&this->context, &this->ssbos.lights));
+	this->shaderStorageBuffers.emplace("lightMatrices", std::make_unique<ShaderStorageBuffer<glm::mat4>>(&this->context, &this->ssbos.lightMatrices));
 
 	// Create descriptor sets
 	std::vector<DescriptorImageSetting> pointLightShadowsDescriptorSettings = {
@@ -723,7 +710,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 		switch (light.getLightType()) {
 		case LightType::POINT: 
 		{
-			assert(this->numPointLights != 0, "Trying to render a point light shadow map but numPointLights is 0?");
+			assert(this->numPointLights != 0 && "Trying to render a point light shadow map but numPointLights is 0?");
 
 			constexpr glm::vec3 directions[6] = {
 				glm::vec3(1.0f, 0.0f, 0.0f),
@@ -785,7 +772,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 		}
 		case LightType::DIRECTIONAL:
 		{
-			assert(this->numDirectionalLights != 0, "Trying to render a directional light shadow map but numDirectionalLights is 0?");
+			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
 
 			RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("shadow").get(), this->framebuffers.at("directionalArrayShadows").get(), directionalLightIndex);
 
@@ -817,7 +804,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 		}
 		case LightType::SPOT:
 		{
-			assert(this->numSpotLights != 0, "Trying to render a spot light shadow map but numSpotLights is 0?");
+			assert(this->numSpotLights != 0 && "Trying to render a spot light shadow map but numSpotLights is 0?");
 
 			break;
 		}
@@ -842,7 +829,7 @@ void Renderer::drawMesh(MeshData& meshData, const std::function<void(MeshData&)>
 	vkCmdBindVertexBuffers(this->cmdBuff, 0, 3, vBuffers, vOffsets);
 	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(this->cmdBuff, meshData.indicesCount, 1, 0, 0, 0);
+	vkCmdDrawIndexed(this->cmdBuff, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);
 }
 
 void Renderer::drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {
@@ -857,7 +844,7 @@ void Renderer::drawMeshGeometry(MeshData& meshData, const std::function<void(Mes
 	vkCmdBindVertexBuffers(this->cmdBuff, 0, 1, &vBuffer, &vOffset);
 	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(this->cmdBuff, meshData.indicesCount, 1, 0, 0, 0);
+	vkCmdDrawIndexed(this->cmdBuff, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);
 }
 
 void Renderer::drawLineMesh(LineMeshData& lineMeshData) {
@@ -872,7 +859,7 @@ void Renderer::drawLineMesh(LineMeshData& lineMeshData) {
 	vkCmdBindVertexBuffers(this->cmdBuff, 0, 2, vBuffers, vOffsets);
 	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(this->cmdBuff, lineMeshData.indicesCount, 1, 0, 0, 0);
+	vkCmdDrawIndexed(this->cmdBuff, static_cast<std::uint32_t>(lineMeshData.indicesCount), 1, 0, 0, 0);
 }
 
 LightMatrices Renderer::getLightMatricesForCameraFrustum(glsl::Light& lightStruct) {
@@ -983,7 +970,7 @@ TextureBuffer* Renderer::getTextureBuffer(const std::string& textureBuffer) {
 	
 	try {
 		ret = this->textureBuffers.at(textureBuffer).get();
-	} catch (const std::out_of_range& ex) {
+	} catch (const std::out_of_range&) {
 		std::printf("Could not find: %s in 'textureBuffers'\n", textureBuffer.c_str());
 	}
 
@@ -995,7 +982,7 @@ DescriptorSet* Renderer::getDescriptorSet(const std::string& descriptorSet) {
 
 	try {
 		ret = this->descriptorSets.at(descriptorSet).get();
-	} catch (const std::out_of_range& ex) {
+	} catch (const std::out_of_range&) {
 		std::printf("Could not find: %s in 'descriptorSets'\n", descriptorSet.c_str());
 	}
 

@@ -1,23 +1,86 @@
 #pragma once
 
+#include "interfaces/IShaderStorageBuffer.hpp"
 #include "../../../vulkan/objects/VkObjects.hpp"
 #include "../../../vulkan/objects/VkBuffer.hpp"
+#include "../../../vulkan/VkUtils.hpp"
+#include "../../../vulkan/VulkanContext.hpp"
+#include "../../../vulkan/VulkanDevice.hpp"
 
-struct VulkanContext;
+#include "Error.hpp"
+#include "toString.hpp"
 
-class ShaderStorageBuffer {
+template <class T>
+class ShaderStorageBuffer : public IShaderStorageBuffer {
 public:
 	ShaderStorageBuffer() = default;
-	ShaderStorageBuffer(VulkanContext* context);
+	~ShaderStorageBuffer() = default;
 
-	virtual ~ShaderStorageBuffer() = default;
+	ShaderStorageBuffer(VulkanContext* context, std::vector<T>* data) : context(context), ssboData(data) {
+		this->bufferSize = this->ssboData->size() * sizeof(T);
 
-	virtual void update(VkCommandBuffer cmdBuff = VK_NULL_HANDLE);
+		// GPU-sided buffer
+		this->gpuBuffer = vk::createBuffer(
+			*this->context->allocator,
+			this->bufferSize,
+			VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+			0,
+			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE
+		);
 
-	std::uint32_t getBufferSize();
-	VkBuffer getHandle();
-protected:
+		// Staging buffer
+		this->stagingBuffer = vk::createBuffer(
+			*this->context->allocator,
+			this->bufferSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
+		);
+
+		this->update();
+	}
+
+	void update(VkCommandBuffer cmdBuff = VK_NULL_HANDLE) override {
+		// Map ptr to GPU and copy to it
+		void* ptr;
+		if (const auto res = vmaMapMemory(this->context->allocator->allocator, stagingBuffer.allocation, &ptr); VK_SUCCESS != res)
+			throw Utils::Error("Mapping memory for writing to Lights SSBO\nvmaMapMemory() returned: %s\n", Utils::toString(res).c_str());
+
+		std::memcpy(ptr, this->ssboData->data(), this->bufferSize);
+		vmaUnmapMemory(this->context->allocator->allocator, stagingBuffer.allocation);
+
+		auto copyCommand = [this](VkCommandBuffer cmdBuff) {
+			VkBufferCopy copyRegion = {
+				.size = this->bufferSize
+			};
+
+			vkCmdCopyBuffer(cmdBuff, this->stagingBuffer.buffer, this->gpuBuffer.buffer, 1, &copyRegion);
+		};
+
+		// Upload to GPU
+		VkCommandBuffer uploadCmdBuff = cmdBuff;
+		if (uploadCmdBuff == VK_NULL_HANDLE) {
+			uploadCmdBuff = createCommandBuffer(*this->context->window);
+			beginCommandBuffer(uploadCmdBuff);
+
+			copyCommand(uploadCmdBuff);
+
+			endAndSubmitCommandBuffer(*this->context->window, uploadCmdBuff);
+		} else {
+			copyCommand(cmdBuff);
+		}
+	}
+
+	std::uint32_t getBufferSize() const override {
+		return static_cast<std::uint32_t>(this->bufferSize);
+	}
+
+	VkBuffer getHandle() const override {
+		return this->gpuBuffer.buffer;
+	}
+
+private:
 	VulkanContext* context;
+	std::vector<T>* ssboData;
 
 	std::size_t bufferSize = 0;
 

@@ -106,7 +106,7 @@ void GUI::draw() {
 
 				ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("pointLightShadowsDebug"));
 				if (renderer.numPointLights > 0 && descriptorSet) {
-					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->pointLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
+					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->pointLightShadowIndex], ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
 				}
 
 				ImGui::EndTabItem();
@@ -118,7 +118,7 @@ void GUI::draw() {
 
 				ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("directionalLightShadowsDebug"));
 				if (renderer.numDirectionalLights > 0 && descriptorSet) {
-					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->dirLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
+					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->dirLightShadowIndex], ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
 				}
 
 				ImGui::EndTabItem();
@@ -149,7 +149,7 @@ void GUI::draw() {
 		ImGui::Checkbox("Show Camera Frustum Bounds", &renderer.renderCameraFrustumBounds);
 		ImGui::InputInt2("Sun View Texture Size", this->sunViewSize);
 
-		ImGui::Image((ImTextureID)renderer.getDescriptorSet("sunView")->getHandle(), ImVec2(this->sunViewSize[0], this->sunViewSize[1]));
+		ImGui::Image((ImTextureID)renderer.getDescriptorSet("sunView")->getHandle(), ImVec2(static_cast<float>(this->sunViewSize[0]), static_cast<float>(this->sunViewSize[1])));
 
 		ImGui::End();
 	}
