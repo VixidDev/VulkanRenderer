@@ -5,7 +5,7 @@
 ForwardFramebuffer::ForwardFramebuffer(
 	VulkanWindow* window,
 	std::map<std::string, _TextureBuffer>* textureBuffers,
-	_RenderPass* renderPass,
+	RenderPass* renderPass,
 	VkSampleCountFlagBits* sampleCount) : Framebuffer(window)
 {
 	this->textureBuffers = textureBuffers;
@@ -32,7 +32,7 @@ void ForwardFramebuffer::recreate() {
 	createFramebuffers(
 		*this->window,
 		this->framebuffers,
-		this->renderPass->get()->getRenderPassHandle(),
+		this->renderPass->getRenderPassHandle(),
 		usingMSAA ? forwardMSAAViews : forwardViews,
 		*this->renderExtent);
 }

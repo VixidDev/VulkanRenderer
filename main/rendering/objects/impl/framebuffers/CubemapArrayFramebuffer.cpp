@@ -10,8 +10,8 @@
 
 CubemapArrayFramebuffer::CubemapArrayFramebuffer(
 	VulkanWindow* window,
-	_TextureBuffer* textureBuffer,
-	_RenderPass* renderPass,
+	TextureBuffer* textureBuffer,
+	RenderPass* renderPass,
 	std::uint32_t arraySize,
 	VkExtent2D* shadowMapResolution) : arraySize(arraySize), Framebuffer(window) 
 {
@@ -32,7 +32,7 @@ void CubemapArrayFramebuffer::recreate() {
 
 	VkFramebufferCreateInfo fbInfo{};
 	fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	fbInfo.renderPass = this->renderPass->get()->getRenderPassHandle();
+	fbInfo.renderPass = this->renderPass->getRenderPassHandle();
 	fbInfo.attachmentCount = 1;
 	fbInfo.pAttachments = imageView;
 	fbInfo.width = this->renderExtent->width;
@@ -42,7 +42,7 @@ void CubemapArrayFramebuffer::recreate() {
 	for (std::size_t i = 0; i < 6 * this->arraySize; i++) {
 		// This line does make it so this class always depends on using a CubemapArrayDepthTextureBuffer, this should probably be changed
 		// to be a type that is templated on this class and not hardcoded.
-		imageView[0] = dynamic_cast<CubemapArrayDepthTextureBuffer*>(this->textureBuffer->get())->getFramebufferViews()[i].handle;
+		imageView[0] = dynamic_cast<CubemapArrayDepthTextureBuffer*>(this->textureBuffer)->getFramebufferViews()[i].handle;
 
 		VkFramebuffer fb = VK_NULL_HANDLE;
 		if (const auto res = vkCreateFramebuffer(this->window->device->device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)

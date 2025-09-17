@@ -5,7 +5,7 @@
 ShadowFramebuffer::ShadowFramebuffer(
 	VulkanWindow* window,
 	std::map<std::string, _TextureBuffer>* textureBuffers,
-	_RenderPass* renderPass,
+	RenderPass* renderPass,
 	VkExtent2D* shadowMapResolution) : Framebuffer(window) {
 	this->textureBuffers = textureBuffers;
 	this->renderPass = renderPass;
@@ -22,5 +22,5 @@ void ShadowFramebuffer::recreate() {
 	shadowViews.emplace_back(this->textureBuffers->at("shadowDepth")->getImageView().handle);
 	shadowViews.emplace_back(this->textureBuffers->at("debugLinearDepth")->getImageView().handle);
 
-	createFramebuffers(*this->window, this->framebuffers, this->renderPass->get()->getRenderPassHandle(), shadowViews, *this->renderExtent, true);
+	createFramebuffers(*this->window, this->framebuffers, this->renderPass->getRenderPassHandle(), shadowViews, *this->renderExtent, true);
 }

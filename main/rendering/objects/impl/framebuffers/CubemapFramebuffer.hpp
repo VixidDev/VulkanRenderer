@@ -8,19 +8,16 @@
 #include "../../base/TextureBuffer.hpp"
 #include "../../base/RenderPass.hpp"
 
-using _TextureBuffer = std::unique_ptr<TextureBuffer>;
-using _RenderPass = std::unique_ptr<RenderPass>;
-
 class CubemapFramebuffer : public Framebuffer {
 public:
 	CubemapFramebuffer(
 		VulkanWindow* window,
-		_TextureBuffer* textureBuffer,
-		_RenderPass* renderPass,
+		TextureBuffer* textureBuffer,
+		RenderPass* renderPass,
 		VkExtent2D* shadowMapResolution);
 
 	void recreate();
 private:
-	_TextureBuffer* textureBuffer = nullptr;
-	_RenderPass* renderPass = nullptr;
+	TextureBuffer* textureBuffer = nullptr;
+	RenderPass* renderPass = nullptr;
 };

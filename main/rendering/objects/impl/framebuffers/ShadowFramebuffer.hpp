@@ -9,18 +9,17 @@
 #include "../../base/RenderPass.hpp"
 
 using _TextureBuffer = std::unique_ptr<TextureBuffer>;
-using _RenderPass = std::unique_ptr<RenderPass>;
 
 class ShadowFramebuffer : public Framebuffer {
 public:
 	ShadowFramebuffer(
 	VulkanWindow* window,
 	std::map<std::string, _TextureBuffer>* textureBuffers,
-	_RenderPass* renderPass,
+	RenderPass* renderPass,
 	VkExtent2D* shadowMapResolution);
 
 	void recreate();
 private:
 	std::map<std::string, _TextureBuffer>* textureBuffers = nullptr;
-	_RenderPass* renderPass = nullptr;
+	RenderPass* renderPass = nullptr;
 };

@@ -7,8 +7,8 @@
 
 LineDebugPipeline::LineDebugPipeline(
 	VulkanWindow* window,
-	_PipelineLayout* pipelineLayout,
-	_RenderPass* renderPass,
+	PipelineLayout* pipelineLayout,
+	RenderPass* renderPass,
 	VkSampleCountFlagBits* sampleCount) : Pipeline(window) {
 	this->sampleCount = sampleCount;
 
@@ -137,8 +137,8 @@ void LineDebugPipeline::recreate() {
 	pipeInfo.pDepthStencilState = &depthInfo;
 	pipeInfo.pColorBlendState = &blendInfo;
 	pipeInfo.pDynamicState = nullptr;
-	pipeInfo.layout = this->pipelineLayout->get()->getHandle();
-	pipeInfo.renderPass = this->renderPass->get()->getRenderPassHandle();
+	pipeInfo.layout = this->pipelineLayout->getHandle();
+	pipeInfo.renderPass = this->renderPass->getRenderPassHandle();
 	pipeInfo.subpass = 0;
 
 	VkPipeline pipe = VK_NULL_HANDLE;

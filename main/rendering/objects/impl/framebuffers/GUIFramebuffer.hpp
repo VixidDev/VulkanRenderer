@@ -5,14 +5,12 @@
 #include "../../base/Framebuffer.hpp"
 #include "../../base/RenderPass.hpp"
 
-using _RenderPass = std::unique_ptr<RenderPass>;
-
 class GUIFramebuffer : public Framebuffer {
 public:
-	GUIFramebuffer(VulkanWindow* window, _RenderPass* renderPass);
+	GUIFramebuffer(VulkanWindow* window, RenderPass* renderPass);
 
 	void recreate();
 
 private:
-	_RenderPass* renderPass = nullptr;
+	RenderPass* renderPass = nullptr;
 };

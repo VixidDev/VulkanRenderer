@@ -10,8 +10,8 @@
 
 CubemapFramebuffer::CubemapFramebuffer(
 	VulkanWindow* window,
-	_TextureBuffer* textureBuffer,
-	_RenderPass* renderPass,
+	TextureBuffer* textureBuffer,
+	RenderPass* renderPass,
 	VkExtent2D* shadowMapResolution) : Framebuffer(window) {
 	this->textureBuffer = textureBuffer;
 	this->renderPass = renderPass;
@@ -30,7 +30,7 @@ void CubemapFramebuffer::recreate() {
 
 	VkFramebufferCreateInfo fbInfo{};
 	fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-	fbInfo.renderPass = this->renderPass->get()->getRenderPassHandle();
+	fbInfo.renderPass = this->renderPass->getRenderPassHandle();
 	fbInfo.attachmentCount = 1;
 	fbInfo.pAttachments = imageView;
 	fbInfo.width = this->renderExtent->width;
@@ -38,7 +38,7 @@ void CubemapFramebuffer::recreate() {
 	fbInfo.layers = 1;
 
 	for (std::size_t i = 0; i < 6; i++) {
-		imageView[0] = dynamic_cast<CubemapDepthTextureBuffer*>(this->textureBuffer->get())->getFramebufferViews()[i].handle;
+		imageView[0] = dynamic_cast<CubemapDepthTextureBuffer*>(this->textureBuffer)->getFramebufferViews()[i].handle;
 
 		VkFramebuffer fb = VK_NULL_HANDLE;
 		if (const auto res = vkCreateFramebuffer(this->window->device->device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)

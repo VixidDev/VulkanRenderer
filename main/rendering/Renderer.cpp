@@ -106,11 +106,11 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("lineDebug", std::make_unique<LineDebugPipelineLayout>(window, &this->descriptorSetLayouts));
 
 	// Pipelines
-	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, &this->pipelineLayouts.at("forward"), &this->renderPasses.at("forward"), &this->sampleCountSetting, &this->shadowsEnabled));
-	this->pipelines.emplace("forwardSun", std::make_unique<ForwardPipeline>(window, &this->pipelineLayouts.at("forward"), &this->renderPasses.at("sunView"), &this->sampleCountSetting, &this->shadowsEnabled));
-	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, &this->pipelineLayouts.at("shadow"), &this->renderPasses.at("shadow"), &this->sampleCountSetting, &this->shadowRes));
-	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, &this->pipelineLayouts.at("cubemapShadow"), &this->renderPasses.at("shadow"), &this->sampleCountSetting, &this->shadowRes));
-	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, &this->pipelineLayouts.at("lineDebug"), &this->renderPasses.at("sunView"), &this->sampleCountSetting));
+	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
+	this->pipelines.emplace("forwardSun", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting, &this->shadowsEnabled));
+	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->pipelineLayouts.at("shadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
+	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->pipelineLayouts.at("cubemapShadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
+	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 
 	// Texture Buffers
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context, &this->sampleCountSetting));
@@ -119,11 +119,11 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	//this->textureBuffers.emplace("debugLinearDepth", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting, &this->shadowRes));
 
 	// Framebuffers
-	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, &this->renderPasses.at("forward"), &this->sampleCountSetting));
-	this->framebuffers.emplace("sun", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, &this->renderPasses.at("sunView"), &this->sampleCountSetting));
+	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("forward").get(), &this->sampleCountSetting));
+	this->framebuffers.emplace("sun", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 	//this->framebuffers.emplace("shadow", std::make_unique<ShadowFramebuffer>(window, &this->textureBuffers, &this->renderPasses.at("shadow"), &this->shadowRes));
 	//this->framebuffers.emplace("cubemapShadow", std::make_unique<CubemapFramebuffer>(window, &this->textureBuffers.at("cubemapDepth"), &this->renderPasses.at("shadow"), &this->shadowRes));
-	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, &this->renderPasses.at("gui")));
+	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->renderPasses.at("gui").get()));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -418,6 +418,9 @@ void Renderer::update(float timeDelta) {
 		}
 		case LightType::DIRECTIONAL:
 		{
+			// Sun light needs cascaded shadow mapping since it encompasses the entire
+			// camera frustum, and so the area covered by a single pixel of the shadow map is
+			// large and results in pixelated shadows close to the camera
 			LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
 
 			// Update light matrix

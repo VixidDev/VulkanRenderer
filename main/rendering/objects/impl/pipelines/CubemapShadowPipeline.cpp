@@ -7,8 +7,8 @@
 
 CubemapShadowPipeline::CubemapShadowPipeline(
 	VulkanWindow* window,
-	_PipelineLayout* pipelineLayout,
-	_RenderPass* renderPass,
+	PipelineLayout* pipelineLayout,
+	RenderPass* renderPass,
 	VkSampleCountFlagBits* sampleCount,
 	VkExtent2D* shadowMapResolution) : Pipeline(window) 
 {
@@ -133,8 +133,8 @@ void CubemapShadowPipeline::recreate() {
 	pipeInfo.pDepthStencilState = &depthInfo;
 	pipeInfo.pColorBlendState = &blendInfo;
 	pipeInfo.pDynamicState = &dynamicInfo;
-	pipeInfo.layout = this->pipelineLayout->get()->getHandle();
-	pipeInfo.renderPass = this->renderPass->get()->getRenderPassHandle();
+	pipeInfo.layout = this->pipelineLayout->getHandle();
+	pipeInfo.renderPass = this->renderPass->getRenderPassHandle();
 	pipeInfo.subpass = 0;
 
 	VkPipeline pipe = VK_NULL_HANDLE;

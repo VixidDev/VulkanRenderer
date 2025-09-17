@@ -2,7 +2,7 @@
 
 #include "../../../PipelineCreation.hpp"
 
-GUIFramebuffer::GUIFramebuffer(VulkanWindow* window, _RenderPass* renderPass) : Framebuffer(window) {
+GUIFramebuffer::GUIFramebuffer(VulkanWindow* window, RenderPass* renderPass) : Framebuffer(window) {
 	this->renderPass = renderPass;
 
 	this->renderExtent = &this->window->swapchainExtent;
@@ -15,5 +15,5 @@ void GUIFramebuffer::recreate() {
 
 	std::vector<VkImageView> guiViews;
 
-	createFramebuffers(*this->window, this->framebuffers, this->renderPass->get()->getRenderPassHandle(), guiViews, *this->renderExtent);
+	createFramebuffers(*this->window, this->framebuffers, this->renderPass->getRenderPassHandle(), guiViews, *this->renderExtent);
 }

@@ -5,7 +5,8 @@
 CameraPlanesUniformBuffer::CameraPlanesUniformBuffer(
 	VulkanAllocator* allocator,
 	VkPipelineStageFlags stageFlags,
-	glsl::CameraPlanesUniform* cameraPlanesUniform) : UniformBuffer(allocator, stageFlags) {
+	glsl::CameraPlanesUniform* cameraPlanesUniform) : UniformBuffer(allocator, stageFlags) 
+{
 	this->buffer = vk::createBuffer(
 		*this->allocator,
 		sizeof(glsl::DepthMVPUniform),

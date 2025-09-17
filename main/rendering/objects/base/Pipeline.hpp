@@ -21,8 +21,8 @@ protected:
 
 	vk::Pipeline pipeline;
 
-	std::unique_ptr<PipelineLayout>* pipelineLayout = nullptr;
-	std::unique_ptr<RenderPass>* renderPass = nullptr;
+	PipelineLayout* pipelineLayout = nullptr;
+	RenderPass* renderPass = nullptr;
 
 	VkExtent2D* renderExtent = nullptr;
 	VkSampleCountFlagBits* sampleCount = nullptr;
