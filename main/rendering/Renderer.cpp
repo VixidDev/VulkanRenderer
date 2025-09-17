@@ -45,10 +45,6 @@
 #include "objects/impl/framebuffers/GUIFramebuffer.hpp"
 #include "objects/impl/framebuffers/SunFramebuffer.hpp"
 
-#include "objects/impl/uniformBuffers/MVPUniformBuffer.hpp"
-#include "objects/impl/uniformBuffers/DepthMVPUniformBuffer.hpp"
-#include "objects/impl/uniformBuffers/CameraPlanesUniformBuffer.hpp"
-
 #include "objects/impl/descriptorSets/BufferDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ImageDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
@@ -123,9 +119,9 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	VkPipelineStageFlags VstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
 	VkPipelineStageFlags FstageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
-	this->uniformBuffers.emplace("mvp", std::make_unique<MVPUniformBuffer>(allocator, VFstageFlags, &this->uniforms.mvpUniform));
-	this->uniformBuffers.emplace("depthMVP", std::make_unique<DepthMVPUniformBuffer>(allocator, VstageFlags, &this->uniforms.depthMVPUniform));
-	this->uniformBuffers.emplace("cameraPlanes", std::make_unique<CameraPlanesUniformBuffer>(allocator, FstageFlags, &this->uniforms.cameraPlanesUniform));
+	this->uniformBuffers.emplace("mvp", std::make_unique<UniformBuffer<glsl::MVPUniform>>(allocator, VFstageFlags, &this->uniforms.mvpUniform));
+	this->uniformBuffers.emplace("depthMVP", std::make_unique<UniformBuffer<glsl::DepthMVPUniform>>(allocator, VstageFlags, &this->uniforms.depthMVPUniform));
+	this->uniformBuffers.emplace("cameraPlanes", std::make_unique<UniformBuffer<glsl::CameraPlanesUniform>>(allocator, FstageFlags, &this->uniforms.cameraPlanesUniform));
 
 	// Synchronisation
 	for (std::size_t i = 0; i < window->swapViews.size(); i++) {

@@ -30,7 +30,7 @@ namespace {
 	 */
 	constexpr char kFileMagic[16] = "\0\0VixidVkMesh";
 
-	// Note: change the file variant if you change the file format!
+	// Note: change the file variant if file format changes!
 	constexpr char kFileVariant[16] = "25-tan";
 
 	// Fallback texture for RGBA 1111 and Grayscale 1

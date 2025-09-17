@@ -14,7 +14,7 @@
 /* Baked file format:
  *
  *  1. Header:
- *    - 16*char: file magic = "\0\0COMP5892Mmesh"
+ *    - 16*char: file magic = "\0\0VixidVkMesh"
  *    - 16*char: variant = "default" (changes later)
  *
  *  2. Textures
@@ -49,26 +49,6 @@
  *   - 1*uint32_t: N = length of string in chars, including terminating \0
  *   - repeat N times: char in string
  *
- * See cw2-bake/main.cpp (specifically write_model_data_()) for additional
- * information.
- *
- *
- * My suggestion for loading the data into Vulkan is as follows:
- *
- * - Create and load textures. This gives a list of Images (which includes a
- *   VkImage + VmaAllocation) and VkImageViews. We only need to keep these
- *   around -- place them in a vector.
- *
- * - Create a Descriptor Set Layout for material information only. Initially,
- *   this would include three textures (base color, metalness, roughness).
- *
- * - Create a Descriptor Set for each material. You can easily get the
- *   VkImageViews from the list in the first step by the index in the
- *   BaseMaterialInfo. This also avoids loading duplicates of textures if they
- *   are reused across multiple materials.
- *
- * - Upload mesh data. In my reference solution, I created separate VkBuffers
- *   for each mesh (one for each attribute and one for the indices).
  */
 
 enum class ETextureSpace : std::uint8_t {
