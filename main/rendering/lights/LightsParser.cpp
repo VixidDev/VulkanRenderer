@@ -45,14 +45,14 @@ namespace LightsParser {
 				lightsOut.emplace_back(Light(LightType::POINT, pos, glm::vec3(0.0f)));
 			} else if (line.starts_with("directional:")) {
 				if (int res = 
-					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f", &pos.x, &pos.y, &pos.z, &lookAt.x, &lookAt.y, &lookAt.z); 
-					res != 6) 
+					std::sscanf(line.c_str(), "%*s %f %f %f", &lookAt.x, &lookAt.y, &lookAt.z);
+					res != 3) 
 				{
 					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
 					continue;
 				}
 
-				lightsOut.emplace_back(Light(LightType::DIRECTIONAL, pos, lookAt));
+				lightsOut.emplace_back(Light(LightType::DIRECTIONAL, glm::vec3(0.0f), lookAt));
 			} else if (line.starts_with("spot:")) {
 				if (int res =
 					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f", &pos.x, &pos.y, &pos.z, &lookAt.x, &lookAt.y, &lookAt.z);

@@ -6,6 +6,8 @@
 #include "Error.hpp"
 #include "toString.hpp"
 
+// This is near identical to LightShaderStorageBuffer, I could probably just use a general shader storage
+// buffer class rather than individual implementations and just template the type for the buffer size
 LightMatricesShaderStorageBuffer::LightMatricesShaderStorageBuffer(
 	VulkanContext* context,
 	std::vector<glm::mat4>* lightMatrices) : ssboData(lightMatrices), ShaderStorageBuffer(context) 
@@ -32,7 +34,7 @@ LightMatricesShaderStorageBuffer::LightMatricesShaderStorageBuffer(
 	this->update();
 }
 
-void LightMatricesShaderStorageBuffer::update() {
+void LightMatricesShaderStorageBuffer::update(VkCommandBuffer cmdBuff) {
 	// Map ptr to GPU and copy to it
 	void* ptr;
 	if (const auto res = vmaMapMemory(this->context->allocator->allocator, stagingBuffer.allocation, &ptr); VK_SUCCESS != res)
@@ -41,16 +43,24 @@ void LightMatricesShaderStorageBuffer::update() {
 	std::memcpy(ptr, this->ssboData->data(), this->bufferSize);
 	vmaUnmapMemory(this->context->allocator->allocator, stagingBuffer.allocation);
 
-	// Upload to GPU
-	VkCommandBuffer uploadCmdBuff = createCommandBuffer(*this->context->window);
+	auto copyCommand = [this](VkCommandBuffer cmdBuff) {
+		VkBufferCopy copyRegion = {
+			.size = this->bufferSize
+		};
 
-	beginCommandBuffer(uploadCmdBuff);
-
-	VkBufferCopy copyRegion = {
-		.size = this->bufferSize
+		vkCmdCopyBuffer(cmdBuff, this->stagingBuffer.buffer, this->gpuBuffer.buffer, 1, &copyRegion);
 	};
 
-	vkCmdCopyBuffer(uploadCmdBuff, this->stagingBuffer.buffer, this->gpuBuffer.buffer, 1, &copyRegion);
+	// Upload to GPU
+	VkCommandBuffer uploadCmdBuff = cmdBuff;
+	if (uploadCmdBuff == VK_NULL_HANDLE) {
+		uploadCmdBuff = createCommandBuffer(*this->context->window);
+		beginCommandBuffer(uploadCmdBuff);
 
-	endAndSubmitCommandBuffer(*this->context->window, uploadCmdBuff);
+		copyCommand(uploadCmdBuff);
+
+		endAndSubmitCommandBuffer(*this->context->window, uploadCmdBuff);
+	} else {
+		copyCommand(cmdBuff);
+	}
 }

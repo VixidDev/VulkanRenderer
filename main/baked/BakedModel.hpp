@@ -119,5 +119,15 @@ struct MeshData {
 	bool hasAlphaMask;
 };
 
+struct LineMeshData {
+	vk::Buffer posBuffer;
+	vk::Buffer colBuffer;
+	vk::Buffer indicesBuffer;
+	vk::Buffer posBufferStaging;
+	vk::Buffer colBufferStaging;
+	vk::Buffer indicesBufferStaging;
+	std::size_t indicesCount;
+};
+
 BakedModel loadBakedModel(const char* modelPath);
 

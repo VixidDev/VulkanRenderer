@@ -73,6 +73,10 @@ void GUI::draw() {
 	ImGui::Checkbox("Shadow Map Texture", &this->showShadowMapTexture);
 	ImGui::InputInt("Num of lights", &renderer.numLights);
 
+	ImGui::Separator();
+
+	ImGui::Checkbox("Sun View Debug", &this->showSunView);
+
 	// Depth Bias Settings
 	ImGui::Text("Depth bias settings:");
 	ImGui::SliderFloat("Depth Bias Constant", &renderer.getDepthBiasConstant(), 0.0f, 10.0f);
@@ -134,6 +138,18 @@ void GUI::draw() {
 
 			ImGui::EndTabBar();
 		}
+
+		ImGui::End();
+	}
+
+	// Debug Sun View Texture
+	if (this->showSunView) {
+		ImGui::Begin("Sun View Texture");
+
+		ImGui::Checkbox("Show Camera Frustum Bounds", &renderer.renderCameraFrustumBounds);
+		ImGui::InputInt2("Sun View Texture Size", this->sunViewSize);
+
+		ImGui::Image((ImTextureID)renderer.getDescriptorSet("sunView")->getHandle(), ImVec2(this->sunViewSize[0], this->sunViewSize[1]));
 
 		ImGui::End();
 	}

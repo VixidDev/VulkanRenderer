@@ -1,17 +1,15 @@
-#include "ForwardPipeline.hpp"
+#include "LineDebugPipeline.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 #include "../../../PipelineCreation.hpp"
 
-ForwardPipeline::ForwardPipeline(
+LineDebugPipeline::LineDebugPipeline(
 	VulkanWindow* window,
 	_PipelineLayout* pipelineLayout,
 	_RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount,
-	bool* shadowsEnabled) : Pipeline(window) 
-{
+	VkSampleCountFlagBits* sampleCount) : Pipeline(window) {
 	this->sampleCount = sampleCount;
 
 	this->pipelineLayout = pipelineLayout;
@@ -19,22 +17,12 @@ ForwardPipeline::ForwardPipeline(
 
 	this->renderExtent = &this->window->swapchainExtent;
 
-	this->shadowsEnabled = shadowsEnabled;
-
 	this->recreate();
 }
 
-void ForwardPipeline::recreate() {
-	vk::ShaderModule vert;
-	vk::ShaderModule frag;
-
-	if (*this->shadowsEnabled) {
-		vert = loadShaderModule(*this->window, "assets/main/shaders/forwardShadow.vert.spv");
-		frag = loadShaderModule(*this->window, "assets/main/shaders/forwardShadow.frag.spv");
-	} else {
-		vert = loadShaderModule(*this->window, "assets/main/shaders/forward.vert.spv");
-		frag = loadShaderModule(*this->window, "assets/main/shaders/forward.frag.spv");
-	}
+void LineDebugPipeline::recreate() {
+	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/lineDebug.vert.spv");
+	vk::ShaderModule frag = loadShaderModule(*this->window, "assets/main/shaders/lineDebug.frag.spv");
 
 	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -47,44 +35,36 @@ void ForwardPipeline::recreate() {
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
 
-	VkVertexInputBindingDescription vertexInputs[3]{};
+	VkVertexInputBindingDescription vertexInputs[2]{};
 	// Positions
 	vertexInputs[0].binding = 0;
-	vertexInputs[0].stride = sizeof(float) * 3;
+	vertexInputs[0].stride = sizeof(float) * 4;
 	vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	// UV
+	// Colours
 	vertexInputs[1].binding = 1;
-	vertexInputs[1].stride = sizeof(float) * 2;
+	vertexInputs[1].stride = sizeof(float) * 3;
 	vertexInputs[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	// TBN frame
-	vertexInputs[2].binding = 2;
-	vertexInputs[2].stride = sizeof(std::uint32_t);
-	vertexInputs[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	VkVertexInputAttributeDescription vertexAttributes[3]{};
+	VkVertexInputAttributeDescription vertexAttributes[2]{};
 	vertexAttributes[0].binding = 0;
 	vertexAttributes[0].location = 0;
-	vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	vertexAttributes[0].format = VK_FORMAT_R32G32B32A32_SFLOAT;
 	vertexAttributes[0].offset = 0;
 	vertexAttributes[1].binding = 1;
 	vertexAttributes[1].location = 1;
-	vertexAttributes[1].format = VK_FORMAT_R32G32_SFLOAT;
+	vertexAttributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
 	vertexAttributes[1].offset = 0;
-	vertexAttributes[2].binding = 2;
-	vertexAttributes[2].location = 2;
-	vertexAttributes[2].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-	vertexAttributes[2].offset = 0;
 
 	VkPipelineVertexInputStateCreateInfo inputInfo{};
 	inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	inputInfo.vertexBindingDescriptionCount = 3;
+	inputInfo.vertexBindingDescriptionCount = 2;
 	inputInfo.pVertexBindingDescriptions = vertexInputs;
-	inputInfo.vertexAttributeDescriptionCount = 3;
+	inputInfo.vertexAttributeDescriptionCount = 2;
 	inputInfo.pVertexAttributeDescriptions = vertexAttributes;
 
 	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
 	assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-	assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+	assemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
 	assemblyInfo.primitiveRestartEnable = VK_FALSE;
 
 	VkViewport viewport{};
@@ -111,7 +91,7 @@ void ForwardPipeline::recreate() {
 	rasterInfo.depthBiasEnable = VK_FALSE;
 	rasterInfo.rasterizerDiscardEnable = VK_FALSE;
 	rasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterInfo.cullMode = VK_CULL_MODE_NONE;
 	rasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterInfo.depthBiasEnable = VK_FALSE;
 	rasterInfo.lineWidth = 1.0f;
@@ -138,20 +118,11 @@ void ForwardPipeline::recreate() {
 
 	VkPipelineDepthStencilStateCreateInfo depthInfo{};
 	depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-	depthInfo.depthTestEnable = VK_TRUE;
-	depthInfo.depthWriteEnable = VK_TRUE;
+	depthInfo.depthTestEnable = VK_FALSE;
+	depthInfo.depthWriteEnable = VK_FALSE;
 	depthInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	depthInfo.minDepthBounds = 0.0f;
 	depthInfo.maxDepthBounds = 1.0f;
-
-	VkDynamicState dynamicStates[1] = {
-		VK_DYNAMIC_STATE_CULL_MODE
-	};
-
-	VkPipelineDynamicStateCreateInfo dynamicInfo{};
-	dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicInfo.dynamicStateCount = 1;
-	dynamicInfo.pDynamicStates = dynamicStates;
 
 	VkGraphicsPipelineCreateInfo pipeInfo{};
 	pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -165,7 +136,7 @@ void ForwardPipeline::recreate() {
 	pipeInfo.pMultisampleState = &multisampleInfo;
 	pipeInfo.pDepthStencilState = &depthInfo;
 	pipeInfo.pColorBlendState = &blendInfo;
-	pipeInfo.pDynamicState = &dynamicInfo;
+	pipeInfo.pDynamicState = nullptr;
 	pipeInfo.layout = this->pipelineLayout->get()->getHandle();
 	pipeInfo.renderPass = this->renderPass->get()->getRenderPassHandle();
 	pipeInfo.subpass = 0;

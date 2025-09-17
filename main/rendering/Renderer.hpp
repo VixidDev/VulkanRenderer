@@ -29,6 +29,11 @@ struct SSBOs {
 	std::vector<glm::mat4> lightMatrices;
 };
 
+struct LightMatrices {
+	glm::mat4 projection;
+	glm::mat4 view;
+};
+
 class Driver;
 
 using _RenderPass = std::unique_ptr<RenderPass>;
@@ -62,6 +67,7 @@ public:
 	void render();
 	void drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
 	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
+	void drawLineMesh(LineMeshData& lineMeshData);
 
 	void submitRender();
 	void finishRendering();
@@ -90,8 +96,11 @@ public:
 	std::uint32_t numPointLights = 0;
 	std::uint32_t numDirectionalLights = 0;
 	std::uint32_t numSpotLights = 0;
+
+	bool renderCameraFrustumBounds = false;
 private:
 	void renderShadowMaps(std::vector<MeshData>& meshData);
+	LightMatrices getLightMatricesForCameraFrustum(glsl::Light& lightStruct);
 
 	Driver* driver;
 	VulkanContext context;
@@ -146,5 +155,6 @@ private:
 	bool recreateSwapchain = false;
 	bool forceRecreate = false;
 
-	VkExtent2D dummyExtent{ 1, 1 };
+	LineMeshData lineMeshData;
+	bool lineMeshDataInit = false;
 };

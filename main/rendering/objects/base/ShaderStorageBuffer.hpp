@@ -12,14 +12,14 @@ public:
 
 	virtual ~ShaderStorageBuffer() = default;
 
-	virtual void update();
+	virtual void update(VkCommandBuffer cmdBuff = VK_NULL_HANDLE);
 
 	std::uint32_t getBufferSize();
 	VkBuffer getHandle();
 protected:
 	VulkanContext* context;
 
-	std::size_t bufferSize;
+	std::size_t bufferSize = 0;
 
 	vk::Buffer gpuBuffer;
 	vk::Buffer stagingBuffer;

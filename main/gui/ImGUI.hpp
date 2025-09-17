@@ -17,7 +17,9 @@ private:
 	Driver* driver = nullptr;
 
 	bool showShadowMapTexture = false;
+	bool showSunView = false;
 	int shadowMapSize[2] = { 1500, 1500 };
+	int sunViewSize[2] = { 1500, 1500 };
 
 	int pointLightShadowIndex = 0;
 	int dirLightShadowIndex = 0;

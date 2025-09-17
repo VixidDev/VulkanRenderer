@@ -1,13 +1,15 @@
 #pragma once
 
-#include <glm/vec3.hpp>
+#include <array>
+#include <glm/glm.hpp>
 
+class VulkanWindow;
 struct GLFWwindow;
 
 class Camera {
 public:
 	Camera() = default;
-	Camera(float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir);
+	Camera(VulkanWindow* window, float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir);
 
 	~Camera() = default;
 
@@ -19,14 +21,24 @@ public:
 	glm::vec3 getPosition();
 	glm::vec3 getFrontDir();
 
+	glm::mat4 getProjectionMat();
+	glm::mat4 getViewMat();
+
+	std::array<glm::vec4, 8> getFrustumCorners();
+
 	float getYaw();
 	float getPitch();
 private:
+	VulkanWindow* window;
+
 	float fov;
 	float nearPlane;
 	float farPlane;
 	glm::vec3 position;
 	glm::vec3 frontDir;
+
+	glm::mat4 projection{};
+	glm::mat4 view{};
 
 	float sensitivity = 0.25f;
 

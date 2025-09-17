@@ -5,19 +5,55 @@
 
 #include "../Driver.hpp"
 #include "../input/Mouse.hpp"
+#include "../vulkan/VulkanWindow.hpp"
 
 #include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
-Camera::Camera(float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir) :
-	fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(position), frontDir(frontDir) 
-{}
+Camera::Camera(VulkanWindow* window, float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir) :
+	window(window), fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(position), frontDir(frontDir) 
+{
+	float width = this->window->swapchainExtent.width;
+	float height = this->window->swapchainExtent.height;
+	const float aspectRatio = width / height;
 
-void Camera::update(GLFWwindow* window, float timeDelta) {
-	if (glfwGetInputMode(window, GLFW_CURSOR) != GLFW_CURSOR_DISABLED)
+	// Initialise the transformation matrices for the first time
+	this->projection = glm::perspective(
+		glm::radians(this->fov),
+		aspectRatio,
+		this->nearPlane,
+		this->farPlane
+	);
+	this->projection[1][1] *= -1.0f;
+	this->view = glm::lookAt(
+		this->position,
+		this->position + this->frontDir,
+		glm::vec3(0.0f, 1.0f, 0.0f)
+	);
+}
+
+void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
+	if (glfwGetInputMode(glfwWindow, GLFW_CURSOR) != GLFW_CURSOR_DISABLED)
 		return;
 
-	UserState* state = static_cast<UserState*>(glfwGetWindowUserPointer(window));
+	float width = window->swapchainExtent.width;
+	float height = window->swapchainExtent.height;
+	const float aspectRatio = width / height;
+
+	this->projection = glm::perspective(
+		glm::radians(this->fov),
+		aspectRatio,
+		this->nearPlane,
+		this->farPlane
+	);
+	this->projection[1][1] *= -1.0f;
+	this->view = glm::lookAt(
+		this->position,
+		this->position + this->frontDir,
+		glm::vec3(0.0f, 1.0f, 0.0f)
+	);
+
+	UserState* state = static_cast<UserState*>(glfwGetWindowUserPointer(glfwWindow));
 
 	for (const auto& [key, buttonState] : state->keyState) {
 		if (buttonState == ButtonState::PRESSED || buttonState == ButtonState::HELD) {
@@ -44,8 +80,8 @@ void Camera::update(GLFWwindow* window, float timeDelta) {
 
 	if (state->firstClick) {
 		int width, height;
-		glfwGetFramebufferSize(window, &width, &height);
-		glfwSetCursorPos(window, width / 2.0f, height / 2.0f);
+		glfwGetFramebufferSize(glfwWindow, &width, &height);
+		glfwSetCursorPos(glfwWindow, width / 2.0f, height / 2.0f);
 		Mouse::setX(width / 2.0f);
 		Mouse::setY(height / 2.0f);
 		this->lastX = width / 2.0f;
@@ -55,10 +91,6 @@ void Camera::update(GLFWwindow* window, float timeDelta) {
 
 	xOffset = Mouse::getX() - this->lastX;
 	yOffset = this->lastY - Mouse::getY();
-
-	if (xOffset != 0.0f || yOffset != 0.0f) {
-		int a = 1.0f;
-	}
 
 	this->lastX = Mouse::getX();
 	this->lastY = Mouse::getY();
@@ -104,6 +136,38 @@ glm::vec3 Camera::getPosition() {
 
 glm::vec3 Camera::getFrontDir() {
 	return this->frontDir;
+}
+
+glm::mat4 Camera::getProjectionMat() {
+	return this->projection;
+}
+
+glm::mat4 Camera::getViewMat() {
+	return this->view;
+}
+
+std::array<glm::vec4, 8> Camera::getFrustumCorners() {
+	assert(this->projection != glm::mat4{}, "Camera projection matrix must be initialised before getting frustum corners!");
+	assert(this->view != glm::mat4{}, "Camera view matrix must be initialised before getting frustum corners!");
+
+	glm::mat4 inverseViewProj = glm::inverse(this->projection * this->view);
+
+	std::vector<glm::vec3> ndcCorners = {
+		// Near plane corners
+		{-1, -1, -1}, {1, -1, -1}, {1,  1, -1}, {-1,  1, -1},
+		// Far plane corners
+		{-1, -1,  1}, {1, -1,  1}, {1,  1,  1}, {-1,  1,  1}
+	};
+
+	std::array<glm::vec4, 8> frustumCorners{};
+	for (std::size_t i = 0; i < ndcCorners.size(); i++) {
+		glm::vec4 worldSpaceCorner = inverseViewProj * glm::vec4(ndcCorners[i], 1.0f);
+		worldSpaceCorner /= worldSpaceCorner.w;
+
+		frustumCorners[i] = worldSpaceCorner;
+	}
+
+	return frustumCorners;
 }
 
 float Camera::getYaw() {
