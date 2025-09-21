@@ -109,6 +109,18 @@ void GUI::draw() {
 			ImGui::SliderFloat("Far plane", &renderer.sunShadowFar, 1.0f, 1024.0f);
 			ImGui::SliderFloat("Sun distance", &renderer.sunDistance, 1.0f, 100.0f);
 
+			ImGui::Separator();
+
+			ImGui::Text("Light Editor");
+			if (ImGui::InputInt("Light index", &this->selectedLight)) {
+				this->selectedLight = std::clamp(this->selectedLight, 0, std::max(0, renderer.numLights - 1));
+			}
+
+			SSBOs& ssbos = renderer.getSSBOs();
+			glsl::Light& light = ssbos.lights.at(this->selectedLight);
+			ImGui::ColorEdit3("Colour", &light.colour[0]);
+			ImGui::SliderInt("Intensity", &light.metadata.z, 1, 500);
+
 			ImGui::EndTabItem();
 		}
 		ImGui::EndTabBar();

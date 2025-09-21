@@ -967,6 +967,14 @@ vk::Sampler& Renderer::getDefaultSampler() {
 	return this->defaultSampler;
 }
 
+Uniforms& Renderer::getUniforms() {
+	return this->uniforms;
+}
+
+SSBOs& Renderer::getSSBOs() {
+	return this->ssbos;
+}
+
 bool& Renderer::getShadowsEnabled() {
 	return this->shadowsEnabled;
 }

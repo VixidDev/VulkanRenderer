@@ -86,6 +86,10 @@ public:
 	TextureBuffer* getTextureBuffer(const std::string& textureBuffer);
 	DescriptorSet* getDescriptorSet(const std::string& descriptorSet);
 	vk::Sampler& getDefaultSampler();
+
+	Uniforms& getUniforms();
+	SSBOs& getSSBOs();
+
 	bool& getShadowsEnabled();
 	float& getDepthBiasConstant();
 	float& getDepthBiasSlopeFactor();
