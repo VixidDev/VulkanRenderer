@@ -59,6 +59,8 @@ void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
 		if (buttonState == ButtonState::PRESSED || buttonState == ButtonState::HELD) {
 			float distance = 5.0f * timeDelta;
 
+			if (state->modifiers & GLFW_MOD_SHIFT) distance *= 3.0f;
+
 			switch (key) {
 			case GLFW_KEY_W:
 				this->position += distance * this->frontDir;
@@ -71,6 +73,12 @@ void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
 				break;
 			case GLFW_KEY_A:
 				this->position -= glm::normalize(glm::cross(this->frontDir, glm::vec3(0.0f, 1.0f, 0.0f))) * distance;
+				break;
+			case GLFW_KEY_LEFT_CONTROL:
+				this->position -= distance * glm::vec3(0.0f, 1.0f, 0.0f);
+				break;
+			case GLFW_KEY_SPACE:
+				this->position += distance * glm::vec3(0.0f, 1.0f, 0.0f);
 				break;
 			}
 		}

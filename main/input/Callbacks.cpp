@@ -26,6 +26,8 @@ void Callbacks::onKey(GLFWwindow* window, int key, int scanCode, int action, int
 		break;
 	}
 	}
+
+	state->modifiers = modifiers;
 }
 
 void Callbacks::onMouseButton(GLFWwindow* window, int button, int action, int modifiers) {
@@ -51,6 +53,8 @@ void Callbacks::onMouseButton(GLFWwindow* window, int button, int action, int mo
 		state->mouseState[button] = ButtonState::HELD;
 		break;
 	}
+
+	state->modifiers = modifiers;
 }
 
 void Callbacks::onMouseMove(GLFWwindow* window, double x, double y) {

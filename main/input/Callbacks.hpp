@@ -15,6 +15,7 @@ enum class ButtonState {
 struct UserState {
 	std::map<int, ButtonState> keyState;
 	std::map<int, ButtonState> mouseState;
+	int modifiers = 0;
 	bool firstClick = true;
 };
 
