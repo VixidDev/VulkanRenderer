@@ -64,7 +64,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	VulkanWindow* window = this->context.window.get();
 	VulkanAllocator* allocator = this->context.allocator.get();
 
-	this->camera = Camera(window, 45.0f, 0.01f, 128.0f, glm::vec3(-0.2972f, 7.3100f, -11.9532f), glm::vec3(0.0f, 0.0f, -1.0f));
+	this->camera = Camera(window, 90.0f, 0.01f, 256.0f, glm::vec3(0.0f, 7.0f, -12.0f), glm::vec3(0.0f, 0.0f, -1.0f));
 
 	// Render passes
 	this->renderPasses.emplace("forward", std::make_unique<ForwardPass>(window, &this->sampleCountSetting));
@@ -106,7 +106,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 
 	// Texture Buffers
-	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context, &this->sampleCountSetting));
+	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
 	this->textureBuffers.emplace("sunView", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
 
 	// Framebuffers
@@ -193,10 +193,10 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 	// Create a texture buffers and framebuffers for array shadow maps for non-zero light types
 	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<CubemapArrayDepthTextureBuffer>(&this->context, this->numPointLights, &this->shadowRes));
-	this->textureBuffers.emplace("directionalArrayShadows", std::make_unique<ArrayDepthTextureBuffer>(&this->context, this->numDirectionalLights, &this->shadowRes));
+	this->textureBuffers.emplace("directionalShadow", std::make_unique<DepthTextureBuffer>(&this->context, &this->shadowRes));
 #ifndef NDEBUG
 	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numPointLights * 6, &this->shadowRes));
-	this->textureBuffers.emplace("directionalArrayShadowsDebug", std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numDirectionalLights, &this->shadowRes));
+	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting, &this->shadowRes));
 #endif
 
 	if (this->numPointLights != 0) {
@@ -212,18 +212,17 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 	if (this->numDirectionalLights != 0) {
 		std::initializer_list<TextureBuffer*> directionalShadowTextures = {
-			this->textureBuffers.at("directionalArrayShadows").get(),
+			this->textureBuffers.at("directionalShadow").get(),
 #ifndef NDEBUG
-			this->textureBuffers.at("directionalArrayShadowsDebug").get()
+			this->textureBuffers.at("directionalShadowDebug").get()
 #endif
 		};
 
-		this->framebuffers.emplace("directionalArrayShadows", std::make_unique<ArrayFramebuffer>(window, directionalShadowTextures, this->renderPasses.at("shadow").get(), numDirectionalLights, &this->shadowRes));
+		this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, directionalShadowTextures, this->renderPasses.at("shadow").get(), &this->shadowRes));
 	}
 
 	// Light type counters (surely I can make a better system than this)
 	int pointLightIndex = 0;
-	int directionalLightIndex = 0;
 	int spotLightIndex = 0;
 
 	// Populate ssbos
@@ -234,7 +233,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			.position = light.getPosition(),
 			.direction = light.getDirection(),
 			.colour = light.getColour(),
-			.metadata = glm::ivec3(static_cast<int>(light.getLightType()), 0, 100)
+			.metadata = glm::ivec3(static_cast<int>(light.getLightType()), 0, light.getIntensity())
 		};
 
 		switch (light.getLightType()) {
@@ -246,14 +245,10 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		}
 		case LightType::DIRECTIONAL:
 		{
-			lightStruct.metadata.y = directionalLightIndex; // Shadow map index
-			directionalLightIndex++;
-
-			lightStruct.metadata.z = 1000; // Intensity
-
-			LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
-
-			this->ssbos.lightMatrices.emplace_back(lightMatrices.projection * lightMatrices.view);
+			//LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
+			this->sunMatrices = this->getSunViewMatrices(lightStruct);
+			this->sunLightIndex = i;
+			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection * this->sunMatrices.view);
 			break;
 		}
 		case LightType::SPOT:
@@ -274,20 +269,20 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	// Create descriptor sets
 	std::vector<DescriptorImageSetting> pointLightShadowsDescriptorSettings = {
 		{ this->textureBuffers.at("pointArrayShadows").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
-	std::vector<DescriptorImageSetting> directionalLightShadowsDescriptorSettings = {
-		{ this->textureBuffers.at("directionalArrayShadows").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
+	std::vector<DescriptorImageSetting> directionalLightShadowDescriptorSettings = {
+		{ this->textureBuffers.at("directionalShadow").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
 
 	this->descriptorSets.emplace("pointLightShadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDescriptorSettings));
-	this->descriptorSets.emplace("directionalLightShadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowsDescriptorSettings));
+	this->descriptorSets.emplace("directionalLightShadow", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowDescriptorSettings));
 
 #ifndef NDEBUG
 	std::vector<DescriptorImageSetting> pointLightShadowsDebugDescriptorSettings = {
 		{ this->textureBuffers.at("pointArrayShadowsDebug").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
-	std::vector<DescriptorImageSetting> directionalLightShadowsDebugDescriptorSettings = {
-		{ this->textureBuffers.at("directionalArrayShadowsDebug").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
+	std::vector<DescriptorImageSetting> directionalLightShadowDebugDescriptorSettings = {
+		{ this->textureBuffers.at("directionalShadowDebug").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
 
 	this->descriptorSets.emplace("pointLightShadowsDebug", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDebugDescriptorSettings));
-	this->descriptorSets.emplace("directionalLightShadowsDebug", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowsDebugDescriptorSettings));
+	this->descriptorSets.emplace("directionalLightShadowDebug", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowDebugDescriptorSettings));
 #endif
 
 	std::vector<DescriptorBufferSetting> lightSSBODescriptorSettings = {
@@ -371,16 +366,6 @@ void Renderer::update(float timeDelta) {
 	this->uniforms.mvpUniform.projection = this->camera.getProjectionMat();
 	this->uniforms.mvpUniform.view = this->camera.getViewMat();
 	this->uniforms.mvpUniform.camPos = glm::vec4(this->camera.getPosition(), 1.0f);
-
-	//glm::mat4 depthProjection = glm::ortho(-10.0f, 10.0f, 10.0f, -10.0f, 0.1f, 1000.0f);
-	//glm::mat4 depthProjection = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 256.0f);
-	//depthProjection[1][1] *= -1.0f;
-	//glm::mat4 depthView = glm::lookAt(
-	//	glm::vec3(-0.2972f, 7.3100f, -11.9532f),
-	//	glm::vec3(0.0f, 0.0f, -48.0f),
-	//	glm::vec3(0.0f, 1.0f, 0.0f));
-
-	//this->uniforms.depthMVPUniform.depthMVP = depthProjection * depthView;
 	this->uniforms.cameraPlanesUniform._far = this->camera.getFarPlane();
 	this->uniforms.cameraPlanesUniform._near = this->camera.getNearPlane();
 
@@ -402,10 +387,12 @@ void Renderer::update(float timeDelta) {
 			// Sun light needs cascaded shadow mapping since it encompasses the entire
 			// camera frustum, and so the area covered by a single pixel of the shadow map is
 			// large and results in pixelated shadows close to the camera
-			LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
+			//LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
+
+			this->sunMatrices = this->getSunViewMatrices(lightStruct);
 
 			// Update light matrix
-			this->ssbos.lightMatrices.at(directionalLightIndex) = lightMatrices.projection * lightMatrices.view;
+			this->ssbos.lightMatrices.at(directionalLightIndex) = this->sunMatrices.projection * this->sunMatrices.view;
 
 			directionalLightIndex++;
 			break;
@@ -557,7 +544,7 @@ void Renderer::render() {
 			&this->descriptorSets.at("pointLightShadows")->getHandle(), 0, nullptr);
 		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
-			&this->descriptorSets.at("directionalLightShadows")->getHandle(), 0, nullptr);
+			&this->descriptorSets.at("directionalLightShadow")->getHandle(), 0, nullptr);
 		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 4, 1,
 			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
@@ -596,20 +583,11 @@ void Renderer::render() {
 
 	RendererUtils::endRenderPass();
 
-	// This is stupid extra processing, we already process the matrices this frame
-	// ...but im lazy (i should really cache stuff)
-	for (std::size_t i = 0; i < this->lights->size(); i++) {
-		Light light = this->lights->at(i);
-
-		if (light.getLightType() == LightType::DIRECTIONAL) {
-			glsl::Light lightStruct = this->ssbos.lights.at(i);
-
-			LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
-			this->uniforms.mvpUniform.projection = lightMatrices.projection;
-			this->uniforms.mvpUniform.view = lightMatrices.view;
-			this->uniforms.mvpUniform.camPos = glm::vec4(lightStruct.position, 1.0f);
-		}
-	}
+	// Update MVP uniform for sun debug view
+	glsl::Light lightStruct = this->ssbos.lights.at(this->sunLightIndex);
+	this->uniforms.mvpUniform.projection = this->sunMatrices.projection;
+	this->uniforms.mvpUniform.view = this->sunMatrices.view;
+	this->uniforms.mvpUniform.camPos = glm::vec4(lightStruct.position, 1.0f);
 
 	this->uniformBuffers.at("mvp")->update(this->cmdBuff);
 
@@ -628,7 +606,7 @@ void Renderer::render() {
 			&this->descriptorSets.at("pointLightShadows")->getHandle(), 0, nullptr);
 		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
-			&this->descriptorSets.at("directionalLightShadows")->getHandle(), 0, nullptr);
+			&this->descriptorSets.at("directionalLightShadow")->getHandle(), 0, nullptr);
 		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 4, 1,
 			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
@@ -747,7 +725,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 				RendererUtils::bindPushConstant(this->pipelineLayouts.at("cubemapShadow")->getHandle(),
 					VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &cubeMatrix);
 				RendererUtils::bindPushConstant(this->pipelineLayouts.at("cubemapShadow")->getHandle(),
-					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(glm::vec4) + sizeof(float), &fragPC);
+					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(cubemapFragmentPC), &fragPC);
 
 				vkCmdSetDepthBias(this->cmdBuff, this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
@@ -764,7 +742,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 		{
 			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
 
-			RendererUtils::beginRenderPass(this->renderPasses.at("shadow").get(), this->framebuffers.at("directionalArrayShadows").get(), directionalLightIndex);
+			RendererUtils::beginRenderPass(this->renderPasses.at("shadow").get(), this->framebuffers.at("directionalShadow").get(), directionalLightIndex);
 
 			RendererUtils::bindGraphicPipeline(this->pipelines.at("shadow")->getHandle());
 
@@ -891,6 +869,13 @@ LightMatrices Renderer::getLightMatricesForCameraFrustum(glsl::Light& lightStruc
 	glm::mat4 lightOrtho = glm::ortho(min.x, max.x, max.y, min.y, min.z, max.z);
 
 	return { lightOrtho, lightView };
+}
+
+LightMatrices Renderer::getSunViewMatrices(glsl::Light& lightStruct) {
+	glm::mat4 sunOrtho = glm::ortho(-this->sunOrthoBounds, this->sunOrthoBounds, this->sunOrthoBounds, -this->sunOrthoBounds, this->sunShadowNear, this->sunShadowFar);
+	glm::mat4 sunView = glm::lookAt(-lightStruct.direction * this->sunDistance, glm::vec3(0.0f, 0.0f, -20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+
+	return { sunOrtho, sunView };
 }
 
 void Renderer::submitRender() {

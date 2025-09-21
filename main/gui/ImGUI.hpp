@@ -25,5 +25,7 @@ private:
 	int dirLightShadowIndex = 0;
 	int spotLightShadowIndex = 0;
 
+	int selectedLight = 0;
+
 	void draw();
 };

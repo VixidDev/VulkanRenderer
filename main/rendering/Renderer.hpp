@@ -92,18 +92,22 @@ public:
 
 	void setRecreateSwapchain(bool value, bool force = false);
 
-	float shadowBias = 0.0001f;
-
 	int numLights = 0;
 	std::uint32_t numPointLights = 0;
 	std::uint32_t numDirectionalLights = 0;
 	std::uint32_t numSpotLights = 0;
+
+	float sunOrthoBounds = 20.0f;
+	float sunShadowNear = 0.1f;
+	float sunShadowFar = 256.0f;
+	float sunDistance = 50.0f;
 
 	bool renderCameraFrustumBounds = false;
 	float zMult = 10.0f;
 private:
 	void renderShadowMaps(std::vector<MeshData>& meshData);
 	LightMatrices getLightMatricesForCameraFrustum(glsl::Light& lightStruct);
+	LightMatrices getSunViewMatrices(glsl::Light& lightStruct);
 
 	Driver* driver;
 	VulkanContext context;
@@ -157,6 +161,9 @@ private:
 	VkCommandBuffer cmdBuff = VK_NULL_HANDLE;
 	bool recreateSwapchain = false;
 	bool forceRecreate = false;
+
+	LightMatrices sunMatrices;
+	std::size_t sunLightIndex = -1;
 
 	LineMeshData lineMeshData;
 	bool lineMeshDataInit = false;

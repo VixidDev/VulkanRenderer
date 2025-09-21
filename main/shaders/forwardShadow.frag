@@ -20,7 +20,7 @@ layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
 
 layout(set = 2, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
-layout(set = 3, binding = 0) uniform sampler2DArrayShadow directionalLightShadows;
+layout(set = 3, binding = 0) uniform sampler2DShadow sunShadow;
 //layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
 
 layout(set = 4, binding = 0) uniform ClipPlanes {
@@ -139,7 +139,7 @@ float calculateShadow(ShaderLight light) {
 		vec4 lightSpacePos = lightSpaceMatrix * vec4(v2fPosition, 1.0f);
 		vec3 shadowCoord = lightSpacePos.xyz / lightSpacePos.w;
 
-		shadow = texture(directionalLightShadows, vec4(shadowCoord.xy, shadowMapIndex, shadowCoord.z));
+		shadow = texture(sunShadow, shadowCoord);
 		break;
 	case 2: // Spot light
 		break;
@@ -149,14 +149,13 @@ float calculateShadow(ShaderLight light) {
 }
 
 void main() {
-	vec3 normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
-
-	vec3 ambient = vec3(0.03) * texture(uTexColor, v2fTexCoord).rgb;
-
 	// Discard fragments that fail alpha test
 	float alphaValue = texture(uAlphaMask, v2fTexCoord).a;
 	if (alphaValue < 0.5) discard;
 
+	vec3 normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
+
+	vec3 ambient = vec3(0.03) * texture(uTexColor, v2fTexCoord).rgb;
 	vec3 totalLight = ambient;
 
 	// Iterate over all lights
@@ -169,8 +168,8 @@ void main() {
 
 		float attenuation;
 		if (lights[i].metadata.x == 1) {
-			// Give directional lights linear attenuation
-			attenuation = 1 / distToLight;
+			// Directional lights have no attenuation
+			attenuation = 1;
 			// Light dir should be parallel for every fragment for directional lights
 			lightDir = -lights[i].direction;
 		} else {
@@ -182,10 +181,10 @@ void main() {
 
 		float shadow = calculateShadow(lights[i]);
 
-		vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * 100;
+		vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * lights[i].metadata.z;
 		float NdotL = max(dot(normal, lightDir), 0.0001);
 
-		totalLight += (brdfVal * lights[i].colour * NdotL) * attenuation;
+		totalLight += (brdfVal * NdotL) * lights[i].colour * attenuation;
 	}	
 
 	oColour = vec4(totalLight, 1.0);

@@ -28,48 +28,53 @@ namespace LightsParser {
 		}
 
 		// Parse lines
+		int directionalLights = 0; // Counter to issue warning if multiple directional lights are defined
 		std::string line;
 		while (std::getline(file, line)) {
 			// Skip comments
 			if (line.starts_with("//")) continue;
 
 			glm::vec3 pos;
-			glm::vec3 lookAt;
+			glm::vec3 direction;
+			glm::vec3 colour;
+			int intensity;
 
 			if (line.starts_with("point:")) {
-				if (int res = 
-					std::sscanf(line.c_str(), "%*s %f %f %f", &pos.x, &pos.y, &pos.z); 
-					res != 3) 
+				if (int res =
+					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %d", &pos.x, &pos.y, &pos.z, &colour.x, &colour.y, &colour.z, &intensity);
+					res != 7) 
 				{
 					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
 					continue;
 				}
-
-				lightsOut.emplace_back(Light(LightType::POINT, pos, glm::vec3(0.0f)));
+					lightsOut.emplace_back(Light(LightType::POINT, pos, glm::vec3(0.0f), colour, intensity));
 			} else if (line.starts_with("directional:")) {
-				if (int res = 
-					std::sscanf(line.c_str(), "%*s %f %f %f", &lookAt.x, &lookAt.y, &lookAt.z);
-					res != 3) 
+				int temp = 0;
+				if (int res =
+					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %d", &direction.x, &direction.y, &direction.z, &colour.x, &colour.y, &colour.z, &intensity);
+					res != 7) 
 				{
 					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
 					continue;
 				}
-
-				lightsOut.emplace_back(Light(LightType::DIRECTIONAL, glm::vec3(0.0f), lookAt));
+					lightsOut.emplace_back(Light(LightType::DIRECTIONAL, glm::vec3(0.0f), direction, colour, intensity));
+					directionalLights++;
 			} else if (line.starts_with("spot:")) {
 				if (int res =
-					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f", &pos.x, &pos.y, &pos.z, &lookAt.x, &lookAt.y, &lookAt.z);
-					res != 6) 
+					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %f %f %f %d", &pos.x, &pos.y, &pos.z, &direction.x, &direction.y, &direction.z, &colour.x, &colour.y, &colour.z, &intensity);
+					res != 10) 
 				{
 					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
 					continue;
 				}
-
-				lightsOut.emplace_back(Light(LightType::SPOT, pos, lookAt));
+					lightsOut.emplace_back(Light(LightType::SPOT, pos, direction, colour, intensity));
 			}
 		}
 
 		file.close();
+
+		if (directionalLights > 1)
+			std::fprintf(stderr, "parseLights(): Multiple directional lights parsed! Having more than one directional light is undefined and will most likely break lighting!\n");
 
 		return 1;
 	}

@@ -10,12 +10,13 @@ enum LightType {
 
 class Light {
 public:
-	Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour = glm::vec3(1.0f));
+	Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour, int intensity);
 
 	LightType getLightType();
 	glm::vec3 getPosition();
 	glm::vec3 getDirection();
 	glm::vec3 getColour();
+	int getIntensity();
 
 	void toString();
 
@@ -24,4 +25,5 @@ private:
 	glm::vec3 position;
 	glm::vec3 direction;
 	glm::vec3 colour;
+	int intensity;
 };

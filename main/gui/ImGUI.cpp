@@ -64,38 +64,57 @@ void GUI::draw() {
 
 	ImGui::Begin("Debug Menu");
 
-	// Shadow Settings
-	ImGui::Text("Shadow settings:");
-	if (ImGui::Checkbox("Shadows", &renderer.getShadowsEnabled())) {
-		renderer.setRecreateSwapchain(true, true);
+	if (ImGui::BeginTabBar("Main Debug Menu")) {
+		if (ImGui::BeginTabItem("Misc")) {
+			// Shadow Settings
+			ImGui::Text("Shadow settings:");
+			if (ImGui::Checkbox("Shadows", &renderer.getShadowsEnabled())) {
+				renderer.setRecreateSwapchain(true, true);
+			}
+
+			ImGui::Separator();
+
+			// Depth Bias Settings
+			ImGui::Text("Depth bias settings:");
+			ImGui::SliderFloat("Depth Bias Constant", &renderer.getDepthBiasConstant(), 0.0f, 10.0f);
+			ImGui::SliderFloat("Depth Bias Slope Factor", &renderer.getDepthBiasSlopeFactor(), 0.0f, 10.0f);
+
+			ImGui::Separator();
+
+			// Camera debug
+			Camera& camera = renderer.getCamera();
+
+			ImGui::Text("Camera Debug");
+			ImGui::Text("Pos: %f %f %f", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
+			ImGui::Text("Yaw: %f - Pitch %f", camera.getYaw(), camera.getPitch());
+			ImGui::SliderFloat("Camera FOV", &camera.getFov(), 1.0f, 145.0f);
+			ImGui::SliderFloat("Camera Near Plane", &camera.getNearPlane(), 0.0001f, 1.0f, "%.5f");
+			ImGui::SliderFloat("Camera Far Plane", &camera.getFarPlane(), 1.0f, 1024.0f);
+
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("Lights")) {
+			ImGui::Checkbox("Shadow Map Texture", &this->showShadowMapTexture);
+			ImGui::Checkbox("Sun View Debug", &this->showSunView);
+
+			ImGui::Separator();
+
+			ImGui::InputInt("Num of lights", &renderer.numLights);
+
+			ImGui::Separator();
+
+			ImGui::Text("Sun Light Debug");
+			ImGui::SliderFloat("Ortho bounds", &renderer.sunOrthoBounds, 0.1f, 50.0f);
+			ImGui::SliderFloat("Near plane", &renderer.sunShadowNear, 0.001f, 10.0f);
+			ImGui::SliderFloat("Far plane", &renderer.sunShadowFar, 1.0f, 1024.0f);
+			ImGui::SliderFloat("Sun distance", &renderer.sunDistance, 1.0f, 100.0f);
+
+			ImGui::EndTabItem();
+		}
+		ImGui::EndTabBar();
 	}
 
-	ImGui::Checkbox("Shadow Map Texture", &this->showShadowMapTexture);
-	ImGui::InputInt("Num of lights", &renderer.numLights);
-
-	ImGui::Separator();
-
-	ImGui::Checkbox("Sun View Debug", &this->showSunView);
-
-	// Depth Bias Settings
-	ImGui::Text("Depth bias settings:");
-	ImGui::SliderFloat("Depth Bias Constant", &renderer.getDepthBiasConstant(), 0.0f, 10.0f);
-	ImGui::SliderFloat("Depth Bias Slope Factor", &renderer.getDepthBiasSlopeFactor(), 0.0f, 10.0f);
-	ImGui::SliderFloat("Shadow Bias", &renderer.shadowBias, 0.0f, 0.1f);
-
-	ImGui::Separator();
-
-	// Camera debug
-	Camera& camera = renderer.getCamera();
-
-	ImGui::Text("Camera Debug");
-	ImGui::Text("Pos: %f %f %f", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
-	ImGui::Text("Yaw: %f - Pitch %f", camera.getYaw(), camera.getPitch());
-	ImGui::SliderFloat("Camera FOV", &camera.getFov(), 1.0f, 145.0f);
-	ImGui::SliderFloat("Camera Near Plane", &camera.getNearPlane(), 0.0001f, 1.0f, "%.5f");
-	ImGui::SliderFloat("Camera Far Plane", &camera.getFarPlane(), 1.0f, 1024.0f);
-
-	ImGui::SliderFloat("zMult", &renderer.zMult, 0.1f, 100.0f);
+	//ImGui::SliderFloat("zMult", &renderer.zMult, 0.1f, 100.0f);
 
 	ImGui::End();
 
@@ -118,15 +137,8 @@ void GUI::draw() {
 
 				ImGui::EndTabItem();
 			}
-			if (ImGui::BeginTabItem("Directional Lights")) {
-				if (ImGui::InputInt("Directional Light Shadow Map Index", &this->dirLightShadowIndex)) {
-					this->dirLightShadowIndex = std::clamp(this->dirLightShadowIndex, 0, std::max(0, (int)renderer.numDirectionalLights - 1));
-				}
-
-				ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("directionalLightShadowsDebug"));
-				if (renderer.numDirectionalLights > 0 && descriptorSet) {
-					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->dirLightShadowIndex], ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
-				}
+			if (ImGui::BeginTabItem("Directional Light")) {
+				ImGui::Image((ImTextureID)renderer.getDescriptorSet("directionalLightShadowDebug")->getHandle(), ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
 
 				ImGui::EndTabItem();
 			}
