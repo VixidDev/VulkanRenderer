@@ -94,8 +94,14 @@ void GUI::draw() {
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Lights")) {
+			if (renderer.getDebugView())
+				ImGui::BeginDisabled();
+
 			ImGui::Checkbox("Shadow Map Texture", &this->showShadowMapTexture);
 			ImGui::Checkbox("Sun View Debug", &this->showSunView);
+
+			if (renderer.getDebugView())
+				ImGui::EndDisabled();
 
 			ImGui::Separator();
 
@@ -120,6 +126,22 @@ void GUI::draw() {
 			glsl::Light& light = ssbos.lights.at(this->selectedLight);
 			ImGui::ColorEdit3("Colour", &light.colour[0]);
 			ImGui::SliderInt("Intensity", &light.metadata.z, 1, 500);
+
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("Debug")) {
+			ImGui::Checkbox("Enable Debug View", &renderer.getDebugView());
+
+			if (renderer.getDebugView()) {
+				ImGui::RadioButton("Show Normals", &renderer.getDebugState(), 0);
+				ImGui::RadioButton("Show Mipmap Levels", &renderer.getDebugState(), 1);
+				ImGui::RadioButton("Show Linear Depth", &renderer.getDebugState(), 2);
+				ImGui::RadioButton("Show Partial Derivatives", &renderer.getDebugState(), 3);
+				ImGui::Text("PBR Debug");
+				ImGui::RadioButton("Show Distribution Function", &renderer.getDebugState(), 4);
+				ImGui::RadioButton("Show Geometry Function", &renderer.getDebugState(), 5);
+				ImGui::RadioButton("Show Fresnel Function", &renderer.getDebugState(), 6);
+			}
 
 			ImGui::EndTabItem();
 		}

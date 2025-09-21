@@ -8,9 +8,6 @@
 #include "../Driver.hpp"
 #include "../baked/BakedModel.hpp"
 #include "../baked/BakedModelLoader.hpp"
-#include "../imgui/imgui.h"
-#include "../imgui/backends/imgui_impl_vulkan.h"
-#include "../imgui/backends/imgui_impl_glfw.h"
 
 #include "PipelineCreation.hpp"
 
@@ -23,11 +20,13 @@
 #include "objects/impl/pipelineLayouts/ShadowPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/CubemapShadowPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/LineDebugPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/DebugViewsPipelineLayout.hpp"
 
 #include "objects/impl/pipelines/ForwardPipeline.hpp"
 #include "objects/impl/pipelines/ShadowPipeline.hpp"
 #include "objects/impl/pipelines/CubemapShadowPipeline.hpp"
 #include "objects/impl/pipelines/LineDebugPipeline.hpp"
+#include "objects/impl/pipelines/DebugViewsPipeline.hpp"
 
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/ShadowDepthTextureBuffer.hpp"
@@ -97,6 +96,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("shadow", std::make_unique<ShadowPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("cubemapShadow", std::make_unique<CubemapShadowPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("lineDebug", std::make_unique<LineDebugPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("debugViews", std::make_unique<DebugViewsPipelineLayout>(window, &this->descriptorSetLayouts));
 
 	// Pipelines
 	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
@@ -104,6 +104,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->pipelineLayouts.at("shadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
 	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->pipelineLayouts.at("cubemapShadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
+	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->pipelineLayouts.at("debugViews").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
 
 	// Texture Buffers
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
@@ -499,34 +500,87 @@ void Renderer::update(float timeDelta) {
 }
 
 void Renderer::render() {
-	// Begin command buffer
 	this->cmdBuff = this->cmdBuffers[this->frameIndex];
-	RendererUtils::bindCommandBuffer(this->cmdBuff);
-	VkUtils::beginCommandBuffer(this->cmdBuff, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	// Begin command buffer
+	RendererUtils::bindCommandBuffer(this->cmdBuffers[this->frameIndex]);
+	RendererUtils::beginCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
 	// Update uniform and shader storage buffers
-	this->uniformBuffers.at("mvp")->update(this->cmdBuff);
-	this->shaderStorageBuffers.at("lights")->update(this->cmdBuff);
-	this->shaderStorageBuffers.at("lightMatrices")->update(this->cmdBuff);
+	RendererUtils::updateUniformBuffer(this->uniformBuffers.at("mvp"));
+	RendererUtils::updateShaderStorageBuffer(this->shaderStorageBuffers.at("lights"));
+	RendererUtils::updateShaderStorageBuffer(this->shaderStorageBuffers.at("lightMatrices"));
+
+	if (this->debugView) {
+		RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
+		RendererUtils::bindGraphicPipeline(this->pipelines.at("debugViews")->getHandle());
+
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("debugViews")->getHandle(), 0, 1,
+			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("debugViews")->getHandle(), 2, 1,
+			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("debugViews")->getHandle(), 3, 1,
+			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
+
+		debugStatePC debugState = {
+			.lightCount = this->numLights,
+			.debugState = this->debugState
+		};
+
+		RendererUtils::bindPushConstant(
+			this->pipelineLayouts.at("debugViews")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(debugStatePC), &debugState);
+
+		auto perMeshCallbackDebug = [this](MeshData& meshData) {
+			RendererUtils::bindGraphicDescriptorSets(
+				this->pipelineLayouts.at("debugViews")->getHandle(), 1, 1,
+				&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
+		};
+
+		RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
+
+		// Draw non-alpha masked meshes
+		for (std::size_t i = 0; i < meshData.size(); i++) {
+			if (meshData[i].hasAlphaMask) continue;
+
+			this->drawMesh(meshData[i], perMeshCallbackDebug);
+		}
+
+		RendererUtils::setCullMode(VK_CULL_MODE_NONE);
+
+		// Draw alpha masked meshes
+		for (std::uint32_t i = 0; i < meshData.size(); i++) {
+			if (!meshData[i].hasAlphaMask) continue;
+
+			this->drawMesh(meshData[i], perMeshCallbackDebug);
+		}
+
+		RendererUtils::endRenderPass();
+
+		// Render GUI
+		RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
+		RendererUtils::renderImGUI();
+		RendererUtils::endRenderPass();
+
+		RendererUtils::endCommandBuffer();
+		return;
+	}
 
 	// Shadow pass
 	if (this->shadowsEnabled) {
-		this->uniformBuffers.at("cameraPlanes")->update(this->cmdBuff);
-
+		RendererUtils::updateUniformBuffer(this->uniformBuffers.at("cameraPlanes"));
 		this->renderShadowMaps(meshData);
 	}
 
 	// Transition any dummy light textures to respective layout
 	if (this->numPointLights == 0) {
-		VkUtils::imageBarrier(this->cmdBuff,
-			this->textureBuffers.at("pointArrayShadows")->getImage().image,
+		RendererUtils::imageBarrier(this->textureBuffers.at("pointArrayShadows")->getImage().image,
 			0, 0,
-			VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
 	}
 
@@ -554,16 +608,17 @@ void Renderer::render() {
 		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 6, 1,
 			&this->descriptorSets.at("lightMatrices")->getHandle(), 0, nullptr);
-		RendererUtils::bindPushConstant(this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
+		RendererUtils::bindPushConstant(
+			this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
 	}
 
-	vkCmdSetCullMode(this->cmdBuff, VK_CULL_MODE_BACK_BIT);
+	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
 	auto perMeshCallback = [this](MeshData& meshData) {
 		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 1, 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
-		};
+	};
 
 	// Draw non-alpha masked meshes
 	for (std::size_t i = 0; i < meshData.size(); i++) {
@@ -572,7 +627,7 @@ void Renderer::render() {
 		this->drawMesh(meshData[i], perMeshCallback);
 	}
 
-	vkCmdSetCullMode(this->cmdBuff, VK_CULL_MODE_NONE);
+	RendererUtils::setCullMode(VK_CULL_MODE_NONE);
 
 	// Draw alpha masked meshes
 	for (std::uint32_t i = 0; i < meshData.size(); i++) {
@@ -589,7 +644,7 @@ void Renderer::render() {
 	this->uniforms.mvpUniform.view = this->sunMatrices.view;
 	this->uniforms.mvpUniform.camPos = glm::vec4(lightStruct.position, 1.0f);
 
-	this->uniformBuffers.at("mvp")->update(this->cmdBuff);
+	RendererUtils::updateUniformBuffer(this->uniformBuffers.at("mvp"));
 
 	// Sun position view
 	RendererUtils::beginRenderPass(this->renderPasses.at("sunView").get(), this->framebuffers.at("sun").get(), this->imageIndex);
@@ -619,28 +674,22 @@ void Renderer::render() {
 		RendererUtils::bindPushConstant(this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
 	}
 
-	vkCmdSetCullMode(this->cmdBuff, VK_CULL_MODE_BACK_BIT);
-
-	auto perMeshCallback2 = [this](MeshData& meshData) {
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 1, 1,
-			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
-		};
+	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
 	// Draw non-alpha masked meshes
 	for (std::size_t i = 0; i < meshData.size(); i++) {
 		if (meshData[i].hasAlphaMask) continue;
 
-		this->drawMesh(meshData[i], perMeshCallback2);
+		this->drawMesh(meshData[i], perMeshCallback);
 	}
 
-	vkCmdSetCullMode(this->cmdBuff, VK_CULL_MODE_NONE);
+	RendererUtils::setCullMode(VK_CULL_MODE_NONE);
 
 	// Draw alpha masked meshes
 	for (std::uint32_t i = 0; i < meshData.size(); i++) {
 		if (!meshData[i].hasAlphaMask) continue;
 
-		this->drawMesh(meshData[i], perMeshCallback2);
+		this->drawMesh(meshData[i], perMeshCallback);
 	}
 
 	// Render frustum bounding box
@@ -656,14 +705,12 @@ void Renderer::render() {
 
 	RendererUtils::endRenderPass();
 
+	// Render GUI
 	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
-
-	if (ImGui::GetDrawData() != nullptr)
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), this->cmdBuff);
-
+	RendererUtils::renderImGUI();
 	RendererUtils::endRenderPass();
 
-	VkUtils::endCommandBuffer(this->cmdBuff);
+	RendererUtils::endCommandBuffer();
 }
 
 void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
@@ -727,7 +774,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 				RendererUtils::bindPushConstant(this->pipelineLayouts.at("cubemapShadow")->getHandle(),
 					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(cubemapFragmentPC), &fragPC);
 
-				vkCmdSetDepthBias(this->cmdBuff, this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
+				RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
 				for (std::size_t i = 0; i < meshData.size(); i++)
 					this->drawMeshGeometry(meshData[i]);
@@ -760,7 +807,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 				this->pipelineLayouts.at("shadow")->getHandle(), 0, 1,
 				&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
 #endif
-			vkCmdSetDepthBias(this->cmdBuff, this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
+			RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
 			for (std::size_t i = 0; i < meshData.size(); i++)
 				this->drawMeshGeometry(meshData[i]);
@@ -896,10 +943,7 @@ void Renderer::submitRender() {
 
 void Renderer::finishRendering() {
 	vkDeviceWaitIdle(this->context.window->device->device);
-
-	ImGui_ImplVulkan_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
+	RendererUtils::destroyImGUI();
 }
 
 void Renderer::recreateFormatDependents() {
@@ -932,7 +976,15 @@ Camera& Renderer::getCamera() {
 }
 
 VkRenderPass Renderer::getRenderPassHandle(const std::string& renderPass) {
-	return this->renderPasses.at(renderPass).get()->getRenderPassHandle();
+	VkRenderPass ret = VK_NULL_HANDLE;
+
+	try {
+		ret = this->renderPasses.at(renderPass).get()->getRenderPassHandle();
+	} catch (const std::out_of_range&) {
+		std::printf("Could not find: %s in 'renderPasses'\n", renderPass.c_str());
+	}
+
+	return ret;
 }
 
 std::map<std::string, vk::DescriptorSetLayout>& Renderer::getDescriptorSetLayouts() {
@@ -985,6 +1037,14 @@ float& Renderer::getDepthBiasConstant() {
 
 float& Renderer::getDepthBiasSlopeFactor() {
 	return this->depthBiasSlopeFactor;
+}
+
+bool& Renderer::getDebugView() {
+	return this->debugView;
+}
+
+int& Renderer::getDebugState() {
+	return this->debugState;
 }
 
 void Renderer::setRecreateSwapchain(bool value, bool force) {

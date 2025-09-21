@@ -13,7 +13,7 @@ layout(set = 0, binding = 0) uniform MVP {
 	vec4 camPos;
 } mvp;
 
-layout(set = 1, binding = 0) uniform sampler2D uTexColor;
+layout(set = 1, binding = 0) uniform sampler2D uTexColour;
 layout(set = 1, binding = 1) uniform sampler2D uMetalness;
 layout(set = 1, binding = 2) uniform sampler2D uRoughness;
 layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
@@ -41,6 +41,7 @@ struct ShaderLight {
 layout(set = 5, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
 };
+
 layout(set = 6, binding = 0) readonly buffer LightSpaceMatrices {
 	mat4 lightSpaceMatrices[];
 };
@@ -68,7 +69,7 @@ float distributionFunction(vec3 normal, vec3 halfwayVector, float roughness) {
 vec3 fresnel(float metalness, vec3 halfwayVector, vec3 viewDir) {
 	// Fresnel
     // Specular base reflectivity
-    vec3 f0 = (1 - metalness) * vec3(0.04f) + (metalness * texture(uTexColor, v2fTexCoord).rgb);
+    vec3 f0 = (1 - metalness) * vec3(0.04f) + (metalness * texture(uTexColour, v2fTexCoord).rgb);
 	float base = max(1 - dot(halfwayVector, viewDir), 0.001);
     vec3 fresnel = f0 + (1 - f0) * pow(base, 5.0);
     return fresnel;
@@ -96,7 +97,7 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal, float shadow) {
 
 	float specular_denom = 4 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0);
 
-	vec3 diffuse = (texture(uTexColor, v2fTexCoord).rgb / PI) * (vec3(1.0) - fresnel) * (1 - metalness);
+	vec3 diffuse = (texture(uTexColour, v2fTexCoord).rgb / PI) * (vec3(1.0) - fresnel) * (1 - metalness);
 	vec3 specular = (ndf * fresnel * geometry) / (0.0001 + specular_denom);
 
 	vec3 ret;
@@ -155,7 +156,7 @@ void main() {
 
 	vec3 normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
 
-	vec3 ambient = vec3(0.03) * texture(uTexColor, v2fTexCoord).rgb;
+	vec3 ambient = vec3(0.03) * texture(uTexColour, v2fTexCoord).rgb;
 	vec3 totalLight = ambient;
 
 	// Iterate over all lights

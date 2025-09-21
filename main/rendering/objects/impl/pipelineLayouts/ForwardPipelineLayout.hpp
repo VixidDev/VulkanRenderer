@@ -7,8 +7,7 @@
 
 class ForwardPipelineLayout : public PipelineLayout {
 public:
-	ForwardPipelineLayout(
-		VulkanWindow* window, 
+	ForwardPipelineLayout(VulkanWindow* window, 
 		std::map<std::string, vk::DescriptorSetLayout>* descriptorLayouts, 
 		bool* shadowsEnabled);
 

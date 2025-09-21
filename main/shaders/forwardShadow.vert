@@ -33,12 +33,6 @@ mat3 quaternion_to_rot_matrix(vec4 q) {
     );
 }
 
-const mat4 biasMat = mat4( 
-	0.5, 0.0, 0.0, 0.0,
-	0.0, 0.5, 0.0, 0.0,
-	0.0, 0.0, 1.0, 0.0,
-	0.5, 0.5, 0.0, 1.0);
-
 void main() {
     v2fPosition = iPosition;
     v2fTexCoord = iTexCoord;

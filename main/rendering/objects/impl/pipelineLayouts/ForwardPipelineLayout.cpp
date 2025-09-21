@@ -2,14 +2,13 @@
 
 #include "../../../PipelineCreation.hpp"
 
-ForwardPipelineLayout::ForwardPipelineLayout(
-	VulkanWindow* window,
+ForwardPipelineLayout::ForwardPipelineLayout(VulkanWindow* window,
 	std::map<std::string, vk::DescriptorSetLayout>* descriptorLayouts,
-	bool* shadowsEnabled) : PipelineLayout(window) 
+	bool* shadowsEnabled
+) : descriptorLayouts(descriptorLayouts),
+	shadowsEnabled(shadowsEnabled), 
+	PipelineLayout(window)
 {
-	this->descriptorLayouts = descriptorLayouts;
-	this->shadowsEnabled = shadowsEnabled;
-
 	this->recreate();
 }
 

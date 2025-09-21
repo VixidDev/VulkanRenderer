@@ -93,6 +93,8 @@ public:
 	bool& getShadowsEnabled();
 	float& getDepthBiasConstant();
 	float& getDepthBiasSlopeFactor();
+	bool& getDebugView();
+	int& getDebugState();
 
 	void setRecreateSwapchain(bool value, bool force = false);
 
@@ -160,6 +162,8 @@ private:
 	};
 	float depthBiasConstant = 7.0f;
 	float depthBiasSlopeFactor = 8.0f;
+	bool debugView = false;
+	int debugState = 0;
 
 	// Internal
 	VkCommandBuffer cmdBuff = VK_NULL_HANDLE;

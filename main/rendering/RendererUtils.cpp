@@ -1,11 +1,48 @@
 #include "RendererUtils.hpp"
 
+#include "Error.hpp"
+#include "../vulkan/VkUtils.hpp"
+#include "../imgui/imgui.h"
+#include "../imgui/backends/imgui_impl_vulkan.h"
+#include "../imgui/backends/imgui_impl_glfw.h"
+
 namespace RendererUtils {
 
 	VkCommandBuffer boundCommandBuffer = VK_NULL_HANDLE;
 
+	void checkCommandBuffer() {
+		if (boundCommandBuffer == VK_NULL_HANDLE) {
+			throw Utils::Error("Running Vulkan command without a bound command buffer!\n");
+		}
+	}
+
 	void bindCommandBuffer(VkCommandBuffer cmdBuff) {
+		//std::fprintf(stderr, "Bound command buffer %p\n", cmdBuff);
 		boundCommandBuffer = cmdBuff;
+	}
+
+	void beginCommandBuffer(VkCommandBufferUsageFlags usageFlags) {
+		checkCommandBuffer();
+
+		VkUtils::beginCommandBuffer(boundCommandBuffer, usageFlags);
+	}
+
+	void endCommandBuffer() {
+		checkCommandBuffer();
+
+		VkUtils::endCommandBuffer(boundCommandBuffer);
+	}
+
+	void updateUniformBuffer(_UniformBuffer& uniformBuffer) {
+		checkCommandBuffer();
+
+		uniformBuffer->update(boundCommandBuffer);
+	}
+
+	void updateShaderStorageBuffer(_ShaderStorageBuffer& shaderStorageBuffer) {
+		checkCommandBuffer();
+
+		shaderStorageBuffer->update(boundCommandBuffer);
 	}
 
 	void beginRenderPass(RenderPass* renderPass, Framebuffer* framebuffer, std::uint32_t imageIndex) {
@@ -21,6 +58,10 @@ namespace RendererUtils {
 		passInfo.pClearValues = renderPass->getClearValues().data();
 
 		vkCmdBeginRenderPass(boundCommandBuffer, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
+	}
+
+	void endRenderPass() {
+		vkCmdEndRenderPass(boundCommandBuffer);
 	}
 
 	void bindGraphicPipeline(VkPipeline pipeline) {
@@ -63,14 +104,62 @@ namespace RendererUtils {
 		vkCmdPushConstants(boundCommandBuffer, pipelineLayout, stageFlags, offset, size, pValues);
 	}
 
-	void endRenderPass() {
-		vkCmdEndRenderPass(boundCommandBuffer);
+	void renderImGUI() {
+		checkCommandBuffer();
+
+		if (ImGui::GetDrawData() != nullptr)
+			ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), boundCommandBuffer);
 	}
 
-	void checkCommandBuffer() {
-		if (boundCommandBuffer == VK_NULL_HANDLE) {
-			std::fprintf(stderr, "Running Vulkan command without a bound command buffer!\n");
-		}
+	void setCullMode(VkCullModeFlags cullMode) {
+		checkCommandBuffer();
+
+		vkCmdSetCullMode(boundCommandBuffer, cullMode);
+	}
+
+	void setDepthBias(float depthBiasConstant, float depthBiasClamp, float depthBiasSlopeFactor) {
+		checkCommandBuffer();
+
+		vkCmdSetDepthBias(boundCommandBuffer, depthBiasConstant, depthBiasClamp, depthBiasSlopeFactor);
+	}
+
+	void bufferBarrier(
+		VkBuffer buffer, 
+		VkAccessFlags srcAccessMask, 
+		VkAccessFlags dstAccessMask, 
+		VkPipelineStageFlags srcStageMask, 
+		VkPipelineStageFlags dstStageMask, 
+		VkDeviceSize size, 
+		VkDeviceSize offset,
+		std::uint32_t srcQueueFamilyIndex, 
+		std::uint32_t dstQueueFamilyIndex) 
+	{
+		checkCommandBuffer();
+
+		VkUtils::bufferBarrier(boundCommandBuffer, buffer, srcAccessMask, dstAccessMask, srcStageMask, dstStageMask, size, offset, srcQueueFamilyIndex, dstQueueFamilyIndex);
+	}
+
+	void imageBarrier(
+		VkImage image, 
+		VkAccessFlags srcAccessMask, 
+		VkAccessFlags dstAccessMask, 
+		VkImageLayout srcLayout, 
+		VkImageLayout dstLayout, 
+		VkPipelineStageFlags srcStageMask, 
+		VkPipelineStageFlags dstStageMask, 
+		VkImageSubresourceRange range, 
+		std::uint32_t srcQueueFamilyIndex, 
+		std::uint32_t dstQueueFamilyIndex) 
+	{
+		checkCommandBuffer();
+
+		VkUtils::imageBarrier(boundCommandBuffer, image, srcAccessMask, dstAccessMask, srcLayout, dstLayout, srcStageMask, dstStageMask, range, srcQueueFamilyIndex, dstQueueFamilyIndex);
+	}
+
+	void destroyImGUI() {
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+		ImGui::DestroyContext();
 	}
 
 }
