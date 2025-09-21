@@ -59,12 +59,12 @@ public:
 		// Upload to GPU
 		VkCommandBuffer uploadCmdBuff = cmdBuff;
 		if (uploadCmdBuff == VK_NULL_HANDLE) {
-			uploadCmdBuff = createCommandBuffer(*this->context->window);
-			beginCommandBuffer(uploadCmdBuff);
+			uploadCmdBuff = VkUtils::createCommandBuffer(*this->context->window, this->context->window->device->cmdPool);
+			VkUtils::beginCommandBuffer(uploadCmdBuff);
 
 			copyCommand(uploadCmdBuff);
 
-			endAndSubmitCommandBuffer(*this->context->window, uploadCmdBuff);
+			VkUtils::endAndSubmitCommandBuffer(*this->context->window, uploadCmdBuff);
 		} else {
 			copyCommand(cmdBuff);
 		}

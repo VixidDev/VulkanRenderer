@@ -13,13 +13,9 @@ namespace BakedModelLoader {
 
 			VkFormat format = textureInfo.space == ETextureSpace::srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
 
-			vk::CommandPool texCmdPool = Utils::createCommandPool(*context.window, VK_COMMAND_POOL_CREATE_TRANSIENT_BIT);
-
 			vk::Image image = vk::loadImageTexture(
 				textureInfo.path.c_str(), 
-				context, 
-				texCmdPool.handle, 
-				*context.allocator, 
+				context,
 				format, 
 				textureInfo.channels);
 			vk::ImageView imageView = vk::createImageViewTexture(
@@ -42,7 +38,7 @@ namespace BakedModelLoader {
 		std::vector<std::pair<vk::Image, vk::ImageView>>& textures = driver.getSceneTextures();
 
 		for (std::size_t i = 0; i < bakedModel.materials.size(); i++) {
-			VkDescriptorSet materialDescriptor = allocateDescriptorSet(
+			VkDescriptorSet materialDescriptor = VkUtils::createDescriptorSet(
 				window,
 				window.device->descPool,
 				renderer.getDescriptorSetLayouts().at("materials").handle);
@@ -191,16 +187,16 @@ namespace BakedModelLoader {
 			mapToGPU(allocator, vertexTBNGPU, tbnStaging, bakedModel.meshes[i].tangentsComp);
 			mapToGPU(allocator, vertexIndexGPU, indexStaging, bakedModel.meshes[i].indices);
 
-			VkCommandBuffer uploadCmd = createCommandBuffer(window);
+			VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(window, window.device->cmdPool);
 
-			beginCommandBuffer(uploadCmd);
+			VkUtils::beginCommandBuffer(uploadCmd);
 
 			copyToGPU(uploadCmd, vertexPosGPU, posStaging, bakedModel.meshes[i].positions);
 			copyToGPU(uploadCmd, vertexTexGPU, texStaging, bakedModel.meshes[i].texcoords);
 			copyToGPU(uploadCmd, vertexTBNGPU, tbnStaging, bakedModel.meshes[i].tangentsComp);
 			copyToGPU(uploadCmd, vertexIndexGPU, indexStaging, bakedModel.meshes[i].indices);
 
-			endAndSubmitCommandBuffer(window, uploadCmd);
+			VkUtils::endAndSubmitCommandBuffer(window, uploadCmd);
 
 			bool hasAlphaMask = false;
 			if (bakedModel.materials[bakedModel.meshes[i].materialId].alphaMaskTextureId != 0xffffffff) hasAlphaMask = true;

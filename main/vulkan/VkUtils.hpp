@@ -6,21 +6,41 @@
 #include "VulkanContext.hpp"
 #include "dbgname.hpp"
 
-namespace Utils {
+struct SamplerInfo {
+	VkFilter minFilter;
+	VkFilter magFilter;
+	VkSamplerAddressMode addressModeU;
+	VkSamplerAddressMode addressModeV;
+	VkSamplerAddressMode addressModeW;
+	VkBool32 compareEnable = 0;
+	VkCompareOp compareOp = VK_COMPARE_OP_NEVER;
+};
 
-	vk::CommandPool createCommandPool(const VulkanWindow& window, VkCommandPoolCreateFlags createFlags = 0);
-	VkCommandBuffer allocCommandBuffer(const VulkanWindow& window, VkCommandPool cmdPool);
+namespace VkUtils {
 
+	// Command buffers
+	VkCommandBuffer createCommandBuffer(const VulkanWindow& window, VkCommandPool cmdPool);
+	void beginCommandBuffer(VkCommandBuffer cmdBuff, VkCommandBufferUsageFlags usageFlags = 0);
+	void endCommandBuffer(VkCommandBuffer cmdBuff);
+	void endAndSubmitCommandBuffer(const VulkanWindow& window, VkCommandBuffer cmdBuff);
+
+	// Synchronisations
 	vk::Fence createFence(const VulkanWindow& window, VkFenceCreateFlags createFlags = 0);
 	vk::Semaphore createSemaphore(const VulkanWindow& window);
+	void waitForFences(const VulkanWindow& window, std::vector<vk::Fence>& fences, std::size_t frameIndex);
+	void resetFences(const VulkanWindow& window, std::vector<vk::Fence>& fences, std::size_t frameIndex);
 
-	vk::DescriptorPool createDescriptorPool(const VulkanWindow& window, std::uint32_t maxDescriptors = 2048, std::uint32_t maxSets = 1024);
+	VkResult acquireNextSwapchainImage(const VulkanWindow& window, std::vector<vk::Semaphore>& semaphores, std::size_t frameIndex, std::uint32_t& imageIndex);
 
-	VkDescriptorSet allocDescriptorSet(const VulkanWindow& window, VkDescriptorPool descPool, VkDescriptorSetLayout descSetLayout);
+	// Descriptor sets
+	VkDescriptorSet createDescriptorSet(const VulkanWindow& window, VkDescriptorPool descPool, VkDescriptorSetLayout descSetLayout);
 
+	// Samplers
+	vk::Sampler createTextureSampler(const VulkanWindow& window, SamplerInfo samplerInfo);
 	vk::Sampler createDefaultSampler(const VulkanWindow& window);
 	vk::Sampler createShadowSampler(const VulkanWindow& window);
 
+	// Barriers
 	void bufferBarrier(
 		VkCommandBuffer cmdBuff,
 		VkBuffer buffer,

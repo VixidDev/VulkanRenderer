@@ -194,7 +194,7 @@ void createFramebuffers(
 }
 
 VkDescriptorSet createImageDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorImageSetting>& imageViews) {
-	VkDescriptorSet imageDescriptor = allocateDescriptorSet(window, window.device->descPool, descSetLayout);
+	VkDescriptorSet imageDescriptor = VkUtils::createDescriptorSet(window, window.device->descPool, descSetLayout);
 	{
 		std::vector<VkDescriptorImageInfo> descImageInfos;
 		std::vector<VkWriteDescriptorSet> descs;
@@ -226,7 +226,7 @@ VkDescriptorSet createImageDescriptor(const VulkanWindow& window, VkDescriptorSe
 }
 
 VkDescriptorSet createBufferDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorBufferSetting>& buffers) {
-	VkDescriptorSet bufferDescriptor = allocateDescriptorSet(window, window.device->descPool, descSetLayout);
+	VkDescriptorSet bufferDescriptor = VkUtils::createDescriptorSet(window, window.device->descPool, descSetLayout);
 	{
 		std::vector<VkDescriptorBufferInfo> descBufferInfos;
 		std::vector<VkWriteDescriptorSet> descs;

@@ -48,7 +48,10 @@ namespace vk {
 		return *this;
 	}
 
-	Image loadImageTexture(char const* path, const VulkanContext& context, VkCommandPool cmdPool, const VulkanAllocator& allocator, VkFormat format, std::uint8_t channels) {
+	Image loadImageTexture(char const* path, const VulkanContext& context, VkFormat format, std::uint8_t channels) {
+		const VulkanAllocator& allocator = *context.allocator;
+		VkCommandPool cmdPool = context.window->device->cmdPool;
+
 		stbi_set_flip_vertically_on_load(1);
 
 		int baseWidthi, baseHeighti, baseChannelsi;
@@ -87,7 +90,7 @@ namespace vk {
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
 		);
 		
-		VkCommandBuffer cbuff = Utils::allocCommandBuffer(*context.window, cmdPool);
+		VkCommandBuffer cbuff = VkUtils::createCommandBuffer(*context.window, cmdPool);
 
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -99,7 +102,7 @@ namespace vk {
 
 		const auto mipLevels = computeMipLevelCount(baseWidth, baseHeight);
 
-		Utils::imageBarrier(
+		VkUtils::imageBarrier(
 			cbuff,
 			ret.image,
 			0,
@@ -132,7 +135,7 @@ namespace vk {
 
 		vkCmdCopyBufferToImage(cbuff, staging.buffer, ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
-		Utils::imageBarrier(
+		VkUtils::imageBarrier(
 			cbuff,
 			ret.image,
 			VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -186,7 +189,7 @@ namespace vk {
 				VK_FILTER_LINEAR
 			);
 
-			Utils::imageBarrier(
+			VkUtils::imageBarrier(
 				cbuff,
 				ret.image,
 				VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -205,7 +208,7 @@ namespace vk {
 			);
 		}
 
-		Utils::imageBarrier(
+		VkUtils::imageBarrier(
 			cbuff,
 			ret.image,
 			VK_ACCESS_TRANSFER_READ_BIT,
@@ -226,7 +229,7 @@ namespace vk {
 		if (const auto res = vkEndCommandBuffer(cbuff); VK_SUCCESS != res)
 			throw Utils::Error("Unable to end command buffer\n vkEndCommandBuffer() returned %s", Utils::toString(res).c_str());
 
-		Fence uploadComplete = Utils::createFence(*context.window);
+		Fence uploadComplete = VkUtils::createFence(*context.window);
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -275,7 +278,10 @@ namespace vk {
 		return Image(allocator.allocator, image, allocation);
 	}
 
-	Image createDummyImage(const VulkanContext& context, const VulkanAllocator& allocator, VkCommandPool cmdPool, VkFormat format) {
+	Image createDummyImage(const VulkanContext& context, VkFormat format) {
+		const VulkanAllocator& allocator = *context.allocator;
+		VkCommandPool cmdPool = context.window->device->cmdPool;
+
 		std::uint8_t data[4] = { std::uint8_t(255), std::uint8_t(255), std::uint8_t(255), std::uint8_t(255) };
 
 		auto staging = createBuffer(
@@ -296,7 +302,7 @@ namespace vk {
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
 		);
 
-		VkCommandBuffer cbuff = Utils::allocCommandBuffer(*context.window, cmdPool);
+		VkCommandBuffer cbuff = VkUtils::createCommandBuffer(*context.window, cmdPool);
 
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -306,7 +312,7 @@ namespace vk {
 		if (const auto res = vkBeginCommandBuffer(cbuff, &beginInfo); VK_SUCCESS != res)
 			throw Utils::Error("Unable to begin command buffer\n vkBeginCommandBuffer() returned %s", Utils::toString(res).c_str());
 
-		Utils::imageBarrier(
+		VkUtils::imageBarrier(
 			cbuff,
 			ret.image,
 			0,
@@ -339,7 +345,7 @@ namespace vk {
 
 		vkCmdCopyBufferToImage(cbuff, staging.buffer, ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
-		Utils::imageBarrier(
+		VkUtils::imageBarrier(
 			cbuff,
 			ret.image,
 			VK_ACCESS_TRANSFER_WRITE_BIT,
@@ -357,7 +363,7 @@ namespace vk {
 			}
 		);
 
-		Utils::imageBarrier(
+		VkUtils::imageBarrier(
 			cbuff,
 			ret.image,
 			VK_ACCESS_TRANSFER_READ_BIT,
@@ -378,7 +384,7 @@ namespace vk {
 		if (const auto res = vkEndCommandBuffer(cbuff); VK_SUCCESS != res)
 			throw Utils::Error("Unable to end command buffer\n vkEndCommandBuffer() returned %s", Utils::toString(res).c_str());
 
-		Fence uploadComplete = Utils::createFence(*context.window);
+		Fence uploadComplete = VkUtils::createFence(*context.window);
 
 		VkSubmitInfo submitInfo{};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

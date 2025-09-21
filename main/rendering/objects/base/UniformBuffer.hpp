@@ -24,7 +24,7 @@ public:
 	~UniformBuffer() = default;
 
 	void update(VkCommandBuffer cmdBuff) override {
-		Utils::bufferBarrier(
+		VkUtils::bufferBarrier(
 			cmdBuff,
 			this->buffer.buffer,
 			VK_ACCESS_UNIFORM_READ_BIT,
@@ -34,7 +34,7 @@ public:
 
 		vkCmdUpdateBuffer(cmdBuff, this->buffer.buffer, 0, sizeof(T), this->uniformData);
 
-		Utils::bufferBarrier(
+		VkUtils::bufferBarrier(
 			cmdBuff,
 			this->buffer.buffer,
 			VK_ACCESS_TRANSFER_WRITE_BIT,

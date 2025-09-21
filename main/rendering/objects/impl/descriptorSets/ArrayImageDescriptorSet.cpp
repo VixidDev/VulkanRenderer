@@ -3,6 +3,7 @@
 #include "../../base/ArrayTextureBuffer.hpp"
 
 #include "../../../../vulkan/VulkanDevice.hpp"
+#include "../../../../vulkan/VkUtils.hpp"
 
 ArrayImageDescriptorSet::ArrayImageDescriptorSet(
 	VulkanWindow* window,
@@ -19,7 +20,7 @@ void ArrayImageDescriptorSet::derivedRecreate() {
 		ArrayTextureBuffer* arrayTextureBuffer = dynamic_cast<ArrayTextureBuffer*>(descImageSetting.textureBuffer);
 
 		for (vk::ImageView& imageView : arrayTextureBuffer->getFramebufferViews()) {
-			VkDescriptorSet imageDescriptor = allocateDescriptorSet(*this->window, this->window->device->descPool, *this->descSetLayout);
+			VkDescriptorSet imageDescriptor = VkUtils::createDescriptorSet(*this->window, this->window->device->descPool, *this->descSetLayout);
 			{
 				VkDescriptorImageInfo descImageInfo = {
 					.sampler = descImageSetting.sampler,

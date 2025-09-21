@@ -35,7 +35,7 @@ namespace BakedModelLoader {
 
 		vkCmdCopyBuffer(cmdBuff, stagingBuffer.buffer, gpuBuffer.buffer, 1, &copy);
 
-		Utils::bufferBarrier(
+		VkUtils::bufferBarrier(
 			cmdBuff,
 			gpuBuffer.buffer,
 			VK_ACCESS_TRANSFER_WRITE_BIT,

@@ -125,10 +125,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	// Synchronisation
 	for (std::size_t i = 0; i < window->swapViews.size(); i++) {
-		this->cmdBuffers.emplace_back(createCommandBuffer(*window));
-		this->frameDoneFences.emplace_back(createFence(*window, VK_FENCE_CREATE_SIGNALED_BIT));
-		this->imageAvailableSemaphores.emplace_back(createSemaphore(*window));
-		this->renderFinishedSemaphores.emplace_back(createSemaphore(*window));
+		this->cmdBuffers.emplace_back(VkUtils::createCommandBuffer(*window, window->device->cmdPool));
+		this->frameDoneFences.emplace_back(VkUtils::createFence(*window, VK_FENCE_CREATE_SIGNALED_BIT));
+		this->imageAvailableSemaphores.emplace_back(VkUtils::createSemaphore(*window));
+		this->renderFinishedSemaphores.emplace_back(VkUtils::createSemaphore(*window));
 	}
 
 	// Samplers
@@ -138,7 +138,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		VK_SAMPLER_ADDRESS_MODE_REPEAT,
 		VK_SAMPLER_ADDRESS_MODE_REPEAT,
 		VK_SAMPLER_ADDRESS_MODE_REPEAT };
-	this->defaultSampler = createTextureSampler(*window, defaultSamplerInfo);
+	this->defaultSampler = VkUtils::createTextureSampler(*window, defaultSamplerInfo);
 	SamplerInfo shadowMapSamplerInfo = {
 		VK_FILTER_LINEAR,
 		VK_FILTER_LINEAR,
@@ -146,17 +146,17 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
 		1, VK_COMPARE_OP_LESS_OR_EQUAL };
-	this->shadowMapSampler = createTextureSampler(*window, shadowMapSamplerInfo);
+	this->shadowMapSampler = VkUtils::createTextureSampler(*window, shadowMapSamplerInfo);
 
 	// Descriptor Sets
 	std::vector<DescriptorBufferSetting> mvpDescriptorSettings = {
-		{ this->uniformBuffers.at("mvp")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER }};
+		{ this->uniformBuffers.at("mvp")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorBufferSetting> depthDescriptorSettings = {
-		{ this->uniformBuffers.at("depthMVP")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER}};
+		{ this->uniformBuffers.at("depthMVP")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER} };
 	std::vector<DescriptorBufferSetting> cameraPlanesDescriptorSettings = {
-		{ this->uniformBuffers.at("cameraPlanes")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER }};
+		{ this->uniformBuffers.at("cameraPlanes")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
-		{ this->textureBuffers.at("sunView").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle}};
+		{ this->textureBuffers.at("sunView").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle} };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("depthMVP", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboV").handle, depthDescriptorSettings));
@@ -206,7 +206,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			this->textureBuffers.at("pointArrayShadowsDebug").get()
 #endif
 		};
-		
+
 		this->framebuffers.emplace("pointArrayShadows", std::make_unique<ArrayFramebuffer>(window, pointShadowTextures, this->renderPasses.at("shadow").get(), this->numPointLights * 6, &this->shadowRes));
 	}
 
@@ -220,7 +220,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 		this->framebuffers.emplace("directionalArrayShadows", std::make_unique<ArrayFramebuffer>(window, directionalShadowTextures, this->renderPasses.at("shadow").get(), numDirectionalLights, &this->shadowRes));
 	}
-	
+
 	// Light type counters (surely I can make a better system than this)
 	int pointLightIndex = 0;
 	int directionalLightIndex = 0;
@@ -291,10 +291,10 @@ void Renderer::setLights(std::vector<Light>* lights) {
 #endif
 
 	std::vector<DescriptorBufferSetting> lightSSBODescriptorSettings = {
-		{ this->shaderStorageBuffers.at("lights")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->shaderStorageBuffers.at("lights")->getBufferSize() }};
+		{ this->shaderStorageBuffers.at("lights")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->shaderStorageBuffers.at("lights")->getBufferSize() } };
 
 	std::vector<DescriptorBufferSetting> lightMatricesSSBODescriptorSettings = {
-		{ this->shaderStorageBuffers.at("lightMatrices")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->shaderStorageBuffers.at("lightMatrices")->getBufferSize() }};
+		{ this->shaderStorageBuffers.at("lightMatrices")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->shaderStorageBuffers.at("lightMatrices")->getBufferSize() } };
 
 	this->descriptorSets.emplace("lights", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightSSBODescriptorSettings));
 	this->descriptorSets.emplace("lightMatrices", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightMatricesSSBODescriptorSettings));
@@ -335,9 +335,9 @@ bool Renderer::acquireSwapchainImage() {
 	this->frameIndex++;
 	this->frameIndex %= this->cmdBuffers.size();
 
-	waitForFences(*this->context.window, this->frameDoneFences, this->frameIndex);
+	VkUtils::waitForFences(*this->context.window, this->frameDoneFences, this->frameIndex);
 
-	if (const VkResult res = acquireNextSwapchainImage(*this->context.window, this->imageAvailableSemaphores, this->frameIndex, this->imageIndex); 
+	if (const VkResult res = VkUtils::acquireNextSwapchainImage(*this->context.window, this->imageAvailableSemaphores, this->frameIndex, this->imageIndex);
 		res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR) {
 		this->recreateSwapchain = true;
 
@@ -345,7 +345,7 @@ bool Renderer::acquireSwapchainImage() {
 		// recreate the swapchain before the next frame, this way the signalled semaphore from
 		// vkAcquireNextImageKHR will be waited on during this frame's submission.
 		if (res == VK_SUBOPTIMAL_KHR) {
-			resetFences(*this->context.window, this->frameDoneFences, this->frameIndex);
+			VkUtils::resetFences(*this->context.window, this->frameDoneFences, this->frameIndex);
 
 			return false;
 		}
@@ -360,7 +360,7 @@ bool Renderer::acquireSwapchainImage() {
 		return true;
 	}
 
-	resetFences(*this->context.window, this->frameDoneFences, this->frameIndex);
+	VkUtils::resetFences(*this->context.window, this->frameDoneFences, this->frameIndex);
 
 	return false;
 }
@@ -473,15 +473,15 @@ void Renderer::update(float timeDelta) {
 		BakedModelLoader::mapToGPU(*this->context.allocator, colLineGPU, colStaging, lineColours);
 		BakedModelLoader::mapToGPU(*this->context.allocator, indexLineGPU, indexStaging, lineIndices);
 
-		VkCommandBuffer uploadCmd = createCommandBuffer(*this->context.window);
+		VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(*this->context.window, this->context.window->device->cmdPool);
 
-		beginCommandBuffer(uploadCmd);
+		VkUtils::beginCommandBuffer(uploadCmd);
 
 		BakedModelLoader::copyToGPU(uploadCmd, posLineGPU, posStaging, frustumCorners);
 		BakedModelLoader::copyToGPU(uploadCmd, colLineGPU, colStaging, lineColours);
 		BakedModelLoader::copyToGPU(uploadCmd, indexLineGPU, indexStaging, lineIndices);
 
-		endAndSubmitCommandBuffer(*this->context.window, uploadCmd);
+		VkUtils::endAndSubmitCommandBuffer(*this->context.window, uploadCmd);
 
 		this->lineMeshData = LineMeshData{
 			std::move(posLineGPU),
@@ -499,22 +499,23 @@ void Renderer::update(float timeDelta) {
 		BakedModelLoader::mapToGPU(*this->context.allocator, this->lineMeshData.colBuffer, this->lineMeshData.colBufferStaging, lineColours);
 		BakedModelLoader::mapToGPU(*this->context.allocator, this->lineMeshData.indicesBuffer, this->lineMeshData.indicesBufferStaging, lineIndices);
 
-		VkCommandBuffer uploadCmd = createCommandBuffer(*this->context.window);
+		VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(*this->context.window, this->context.window->device->cmdPool);
 
-		beginCommandBuffer(uploadCmd);
+		VkUtils::beginCommandBuffer(uploadCmd);
 
 		BakedModelLoader::copyToGPU(uploadCmd, this->lineMeshData.posBuffer, this->lineMeshData.posBufferStaging, frustumCorners);
 		BakedModelLoader::copyToGPU(uploadCmd, this->lineMeshData.colBuffer, this->lineMeshData.colBufferStaging, lineColours);
 		BakedModelLoader::copyToGPU(uploadCmd, this->lineMeshData.indicesBuffer, this->lineMeshData.indicesBufferStaging, lineIndices);
 
-		endAndSubmitCommandBuffer(*this->context.window, uploadCmd);
+		VkUtils::endAndSubmitCommandBuffer(*this->context.window, uploadCmd);
 	}
 }
 
 void Renderer::render() {
 	// Begin command buffer
 	this->cmdBuff = this->cmdBuffers[this->frameIndex];
-	beginCommandBuffer(this->cmdBuff, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	RendererUtils::bindCommandBuffer(this->cmdBuff);
+	VkUtils::beginCommandBuffer(this->cmdBuff, VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
@@ -532,52 +533,50 @@ void Renderer::render() {
 
 	// Transition any dummy light textures to respective layout
 	if (this->numPointLights == 0) {
-		Utils::imageBarrier(this->cmdBuff,
+		VkUtils::imageBarrier(this->cmdBuff,
 			this->textureBuffers.at("pointArrayShadows")->getImage().image,
 			0, 0,
 			VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6});
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
 	}
 
 	// Forward pass
-	RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
+	RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
 
-	vkCmdBindPipeline(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("forward")->getHandle());
-	vkCmdBindDescriptorSets(
-		this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
-		this->pipelineLayouts.at("forward")->getHandle(), 0, 1, 
+	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(
+		this->pipelineLayouts.at("forward")->getHandle(), 0, 1,
 		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
 
 	if (this->shadowsEnabled) {
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 2, 1,
 			&this->descriptorSets.at("pointLightShadows")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
 			&this->descriptorSets.at("directionalLightShadows")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 4, 1,
 			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 5, 1,
 			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 6, 1,
 			&this->descriptorSets.at("lightMatrices")->getHandle(), 0, nullptr);
-		vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
+		RendererUtils::bindPushConstant(this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
 	}
 
 	vkCmdSetCullMode(this->cmdBuff, VK_CULL_MODE_BACK_BIT);
 
 	auto perMeshCallback = [this](MeshData& meshData) {
-		vkCmdBindDescriptorSets(
-			this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 1, 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
-	};
+		};
 
 	// Draw non-alpha masked meshes
 	for (std::size_t i = 0; i < meshData.size(); i++) {
@@ -595,7 +594,7 @@ void Renderer::render() {
 		this->drawMesh(meshData[i], perMeshCallback);
 	}
 
-	RendererUtils::endRenderPass(this->cmdBuff);
+	RendererUtils::endRenderPass();
 
 	// This is stupid extra processing, we already process the matrices this frame
 	// ...but im lazy (i should really cache stuff)
@@ -613,41 +612,39 @@ void Renderer::render() {
 	}
 
 	this->uniformBuffers.at("mvp")->update(this->cmdBuff);
-	
+
 	// Sun position view
-	RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("sunView").get(), this->framebuffers.at("sun").get(), this->imageIndex);
+	RendererUtils::beginRenderPass(this->renderPasses.at("sunView").get(), this->framebuffers.at("sun").get(), this->imageIndex);
 
 	// Render scene
-	vkCmdBindPipeline(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("forwardSun")->getHandle());
-	vkCmdBindDescriptorSets(
-		this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+	RendererUtils::bindGraphicPipeline(this->pipelines.at("forwardSun")->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(
 		this->pipelineLayouts.at("forward")->getHandle(), 0, 1,
 		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
 
 	if (this->shadowsEnabled) {
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 2, 1,
 			&this->descriptorSets.at("pointLightShadows")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
 			&this->descriptorSets.at("directionalLightShadows")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 4, 1,
 			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 5, 1,
 			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
-		vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 6, 1,
 			&this->descriptorSets.at("lightMatrices")->getHandle(), 0, nullptr);
-		vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
+		RendererUtils::bindPushConstant(this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
 	}
 
 	vkCmdSetCullMode(this->cmdBuff, VK_CULL_MODE_BACK_BIT);
 
 	auto perMeshCallback2 = [this](MeshData& meshData) {
-		vkCmdBindDescriptorSets(
-			this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 1, 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
 		};
@@ -670,26 +667,25 @@ void Renderer::render() {
 
 	// Render frustum bounding box
 	if (this->renderCameraFrustumBounds) {
-		vkCmdBindPipeline(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("lineDebug")->getHandle());
+		RendererUtils::bindGraphicPipeline(this->pipelines.at("lineDebug")->getHandle());
 
-		vkCmdBindDescriptorSets(
-			this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("lineDebug")->getHandle(), 0, 1,
 			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
 
 		this->drawLineMesh(this->lineMeshData);
 	}
 
-	RendererUtils::endRenderPass(this->cmdBuff);
+	RendererUtils::endRenderPass();
 
-	RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
+	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
 
 	if (ImGui::GetDrawData() != nullptr)
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), this->cmdBuff);
 
-	RendererUtils::endRenderPass(this->cmdBuff);
+	RendererUtils::endRenderPass();
 
-	endCommandBuffer(*this->context.window, this->cmdBuff);
+	VkUtils::endCommandBuffer(this->cmdBuff);
 }
 
 void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
@@ -731,9 +727,9 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 				// Calculate layer index
 				std::uint32_t layer = (pointLightIndex * 6) + face;
 
-				RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("shadow").get(), this->framebuffers.at("pointArrayShadows").get(), layer);
+				RendererUtils::beginRenderPass(this->renderPasses.at("shadow").get(), this->framebuffers.at("pointArrayShadows").get(), layer);
 
-				vkCmdBindPipeline(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("cubemapShadow")->getHandle());
+				RendererUtils::bindGraphicPipeline(this->pipelines.at("cubemapShadow")->getHandle());
 				
 				glm::mat4 cubeView = glm::lookAt(light.getPosition(), light.getPosition() + directions[face], upVectors[face]);
 				glm::mat4 cubeMatrix = cubePerspective * cubeView;
@@ -748,9 +744,9 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 					.farPlane = this->camera.getFarPlane()
 				};
 
-				vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("cubemapShadow")->getHandle(), 
+				RendererUtils::bindPushConstant(this->pipelineLayouts.at("cubemapShadow")->getHandle(),
 					VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &cubeMatrix);
-				vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("cubemapShadow")->getHandle(), 
+				RendererUtils::bindPushConstant(this->pipelineLayouts.at("cubemapShadow")->getHandle(),
 					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(glm::vec4) + sizeof(float), &fragPC);
 
 				vkCmdSetDepthBias(this->cmdBuff, this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
@@ -758,7 +754,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 				for (std::size_t i = 0; i < meshData.size(); i++)
 					this->drawMeshGeometry(meshData[i]);
 
-				RendererUtils::endRenderPass(this->cmdBuff);
+				RendererUtils::endRenderPass();
 			}
 
 			pointLightIndex++;
@@ -768,21 +764,21 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 		{
 			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
 
-			RendererUtils::beginRenderPass(this->cmdBuff, this->renderPasses.at("shadow").get(), this->framebuffers.at("directionalArrayShadows").get(), directionalLightIndex);
+			RendererUtils::beginRenderPass(this->renderPasses.at("shadow").get(), this->framebuffers.at("directionalArrayShadows").get(), directionalLightIndex);
 
-			vkCmdBindPipeline(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS, this->pipelines.at("shadow")->getHandle());
+			RendererUtils::bindGraphicPipeline(this->pipelines.at("shadow")->getHandle());
 
 			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at(directionalLightIndex);
 
-			vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("shadow")->getHandle(),
+			RendererUtils::bindPushConstant(this->pipelineLayouts.at("shadow")->getHandle(),
 				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &lightMatrix);
 #if !defined(NDEBUG)
 			int projType = 1;
 
-			vkCmdPushConstants(this->cmdBuff, this->pipelineLayouts.at("shadow")->getHandle(),
+			RendererUtils::bindPushConstant(this->pipelineLayouts.at("shadow")->getHandle(),
 				VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(int), &projType);
 
-			vkCmdBindDescriptorSets(this->cmdBuff, VK_PIPELINE_BIND_POINT_GRAPHICS,
+			RendererUtils::bindGraphicDescriptorSets(
 				this->pipelineLayouts.at("shadow")->getHandle(), 0, 1,
 				&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
 #endif
@@ -791,7 +787,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 			for (std::size_t i = 0; i < meshData.size(); i++)
 				this->drawMeshGeometry(meshData[i]);
 
-			RendererUtils::endRenderPass(this->cmdBuff);
+			RendererUtils::endRenderPass();
 
 			directionalLightIndex++;
 			break;
