@@ -4,7 +4,8 @@
 
 layout(location = 0) in vec3 v2fPosition;
 layout(location = 1) in vec2 v2fTexCoord;
-layout(location = 2) in mat3 v2fTBN;
+layout(location = 2) in vec4 v2fFallbackNormal;
+layout(location = 3) in mat3 v2fTBN;
 
 layout(set = 0, binding = 0) uniform MVP {
 	mat4 projection;
@@ -93,7 +94,12 @@ vec3 fresnel(float metalness, vec3 halfwayVector, vec3 viewDir) {
 }
 
 void main() {
-    vec3 normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
+    vec3 normal;
+	if (v2fFallbackNormal.w == 1.0) {
+		normal = v2fFallbackNormal.xyz;
+	} else {
+		normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
+	}
 
     vec3 total = vec3(0.0);
 

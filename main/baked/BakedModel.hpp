@@ -92,6 +92,7 @@ struct BakedModel {
 struct MeshData {
 	vk::Buffer posBuffer;
 	vk::Buffer texCoordBuffer;
+	vk::Buffer normalsBuffer;
 	vk::Buffer tbnFrameBuffer;
 	vk::Buffer indicesBuffer;
 	std::size_t indicesCount;

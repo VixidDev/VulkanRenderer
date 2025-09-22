@@ -30,6 +30,6 @@ struct IndexedMesh {
 	IndexedMesh();
 };
 
-IndexedMesh makeIndexedMesh(const TriangleSoup& triSoup, float errorTol = 1e-6f);
+IndexedMesh makeIndexedMesh(const TriangleSoup& triSoup, float errorTol = 1e-6f, int i = 0);
 
 void ensureNormals(IndexedMesh& iMesh);

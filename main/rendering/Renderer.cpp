@@ -832,16 +832,17 @@ void Renderer::drawMesh(MeshData& meshData, const std::function<void(MeshData&)>
 	if (perMeshCallback)
 		perMeshCallback(meshData);
 	
-	VkBuffer vBuffers[3] = { 
+	VkBuffer vBuffers[4] = { 
 		meshData.posBuffer.buffer,
 		meshData.texCoordBuffer.buffer,
+		meshData.normalsBuffer.buffer,
 		meshData.tbnFrameBuffer.buffer
 	};
 	VkBuffer iBuffer = meshData.indicesBuffer.buffer;
-	VkDeviceSize vOffsets[3]{};
+	VkDeviceSize vOffsets[4]{};
 	VkDeviceSize iOffset{};
 
-	vkCmdBindVertexBuffers(this->cmdBuff, 0, 3, vBuffers, vOffsets);
+	vkCmdBindVertexBuffers(this->cmdBuff, 0, 4, vBuffers, vOffsets);
 	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
 
 	vkCmdDrawIndexed(this->cmdBuff, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);

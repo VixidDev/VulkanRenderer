@@ -47,7 +47,7 @@ void ForwardPipeline::recreate() {
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
 
-	VkVertexInputBindingDescription vertexInputs[3]{};
+	VkVertexInputBindingDescription vertexInputs[4]{};
 	// Positions
 	vertexInputs[0].binding = 0;
 	vertexInputs[0].stride = sizeof(float) * 3;
@@ -56,12 +56,16 @@ void ForwardPipeline::recreate() {
 	vertexInputs[1].binding = 1;
 	vertexInputs[1].stride = sizeof(float) * 2;
 	vertexInputs[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	// TBN frame
+	// Fallback normals
 	vertexInputs[2].binding = 2;
-	vertexInputs[2].stride = sizeof(std::uint32_t);
+	vertexInputs[2].stride = sizeof(float) * 3;
 	vertexInputs[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	// TBN frame
+	vertexInputs[3].binding = 3;
+	vertexInputs[3].stride = sizeof(std::uint32_t);
+	vertexInputs[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	VkVertexInputAttributeDescription vertexAttributes[3]{};
+	VkVertexInputAttributeDescription vertexAttributes[4]{};
 	vertexAttributes[0].binding = 0;
 	vertexAttributes[0].location = 0;
 	vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -72,14 +76,18 @@ void ForwardPipeline::recreate() {
 	vertexAttributes[1].offset = 0;
 	vertexAttributes[2].binding = 2;
 	vertexAttributes[2].location = 2;
-	vertexAttributes[2].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+	vertexAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
 	vertexAttributes[2].offset = 0;
+	vertexAttributes[3].binding = 3;
+	vertexAttributes[3].location = 3;
+	vertexAttributes[3].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+	vertexAttributes[3].offset = 0;
 
 	VkPipelineVertexInputStateCreateInfo inputInfo{};
 	inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	inputInfo.vertexBindingDescriptionCount = 3;
+	inputInfo.vertexBindingDescriptionCount = 4;
 	inputInfo.pVertexBindingDescriptions = vertexInputs;
-	inputInfo.vertexAttributeDescriptionCount = 3;
+	inputInfo.vertexAttributeDescriptionCount = 4;
 	inputInfo.pVertexAttributeDescriptions = vertexAttributes;
 
 	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};

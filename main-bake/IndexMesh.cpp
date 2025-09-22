@@ -68,7 +68,7 @@ IndexedMesh::IndexedMesh()
 	, aabbMax(std::numeric_limits<float>::min())
 {}
 
-IndexedMesh makeIndexedMesh(const TriangleSoup& triSoup, float errorTolerance) {
+IndexedMesh makeIndexedMesh(const TriangleSoup& triSoup, float errorTolerance, int i) {
 	// compute bounding volume
 	glm::vec3 bmin(std::numeric_limits<float>::max());
 	glm::vec3 bmax(std::numeric_limits<float>::min());
@@ -157,9 +157,29 @@ IndexedMesh makeIndexedMesh(const TriangleSoup& triSoup, float errorTolerance) {
 	std::vector<tgen::RealT> tangents;
 
 	// Compute tangents with tgen
+	if (i == 6) {
+		int a = 0;
+	}
+
 	tgen::computeCornerTSpace(newIndices, newIndices, vertices, texCoords, cornerTangents, cornerBitangents);
-	tgen::computeVertexTSpace(newIndices, cornerTangents, cornerBitangents, newIndices.size(), vertexTangents, vertexBitangents);
+	tgen::computeVertexTSpace(newIndices, cornerTangents, cornerBitangents, texCoords.size() / 2, vertexTangents, vertexBitangents);
 	tgen::orthogonalizeTSpace(normals, vertexTangents, vertexBitangents);
+
+	// Sanitize vectors
+	for (std::size_t i = 0; i < vertexTangents.size(); i++) {
+		if (std::isnan(vertexTangents[i])) {
+			std::fprintf(stderr, "Found nan value in vertexTangents at %llu\n", i);
+			break;
+		}
+	}
+	for (std::size_t i = 0; i < vertexBitangents.size(); i++) {
+		if (std::isnan(vertexBitangents[i])) {
+			std::fprintf(stderr, "Found nan value in vertexBitangents at %llu\n", i);
+			break;
+		}
+	}
+
+
 	tgen::computeTangent4D(normals, vertexTangents, vertexBitangents, tangents);
 
 	// Put tangents into the IndexedMesh's glm::vec4
@@ -211,7 +231,7 @@ IndexedMesh makeIndexedMesh(const TriangleSoup& triSoup, float errorTolerance) {
 		// Put values in 32 bit value
 		// Put max component index in 2 most significant bits as our TBN format is A2R10G10B10
 		ret.tangentComp[i] = (maxIndex << 30) | (smallest[0] << 20) | (smallest[1] << 10) | smallest[2];
-		
+
 	}
 
 	// meta-data & return

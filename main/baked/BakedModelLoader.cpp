@@ -143,6 +143,13 @@ namespace BakedModelLoader {
 				0,
 				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
+			vk::Buffer vertexNormsGPU = vk::createBuffer(
+				allocator,
+				bakedModel.meshes[i].normals.size() * sizeof(glm::vec3),
+				VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+				0,
+				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
+
 			vk::Buffer vertexTBNGPU = vk::createBuffer(
 				allocator,
 				bakedModel.meshes[i].tangentsComp.size() * sizeof(std::uint32_t),
@@ -170,6 +177,12 @@ namespace BakedModelLoader {
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
+			vk::Buffer normsStaging = vk::createBuffer(
+				allocator,
+				bakedModel.meshes[i].normals.size() * sizeof(glm::vec3),
+				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+
 			vk::Buffer tbnStaging = vk::createBuffer(
 				allocator,
 				bakedModel.meshes[i].tangentsComp.size() * sizeof(std::uint32_t),
@@ -184,6 +197,7 @@ namespace BakedModelLoader {
 
 			mapToGPU(allocator, vertexPosGPU, posStaging, bakedModel.meshes[i].positions);
 			mapToGPU(allocator, vertexTexGPU, texStaging, bakedModel.meshes[i].texcoords);
+			mapToGPU(allocator, vertexNormsGPU, normsStaging, bakedModel.meshes[i].normals);
 			mapToGPU(allocator, vertexTBNGPU, tbnStaging, bakedModel.meshes[i].tangentsComp);
 			mapToGPU(allocator, vertexIndexGPU, indexStaging, bakedModel.meshes[i].indices);
 
@@ -193,6 +207,7 @@ namespace BakedModelLoader {
 
 			copyToGPU(uploadCmd, vertexPosGPU, posStaging, bakedModel.meshes[i].positions);
 			copyToGPU(uploadCmd, vertexTexGPU, texStaging, bakedModel.meshes[i].texcoords);
+			copyToGPU(uploadCmd, vertexNormsGPU, normsStaging, bakedModel.meshes[i].normals);
 			copyToGPU(uploadCmd, vertexTBNGPU, tbnStaging, bakedModel.meshes[i].tangentsComp);
 			copyToGPU(uploadCmd, vertexIndexGPU, indexStaging, bakedModel.meshes[i].indices);
 
@@ -205,6 +220,7 @@ namespace BakedModelLoader {
 				MeshData{
 					std::move(vertexPosGPU),
 					std::move(vertexTexGPU),
+					std::move(vertexNormsGPU),
 					std::move(vertexTBNGPU),
 					std::move(vertexIndexGPU),
 					bakedModel.meshes[i].indices.size(),

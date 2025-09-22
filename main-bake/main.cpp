@@ -351,6 +351,7 @@ namespace {
 	std::vector<IndexedMesh> indexMeshes(const InputModel& model, float errorTolerance) {
 		std::vector<IndexedMesh> indexed;
 
+		int i = 0;
 		for (const auto& imesh : model.meshes) {
 			const auto endIndex = imesh.vertexStartIndex + imesh.vertexCount;
 
@@ -367,8 +368,9 @@ namespace {
 			soup.norm.reserve(imesh.vertexCount);
 			for (std::size_t i = imesh.vertexStartIndex; i < endIndex; ++i)
 				soup.norm.emplace_back(model.normals[i]);
-
-			indexed.emplace_back(makeIndexedMesh(soup, errorTolerance));
+			std::fprintf(stderr, "Mesh: %d\n", i);
+			indexed.emplace_back(makeIndexedMesh(soup, errorTolerance, i));
+			i++;
 		}
 
 		return indexed;
