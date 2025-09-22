@@ -25,14 +25,12 @@ ForwardPipeline::ForwardPipeline(
 }
 
 void ForwardPipeline::recreate() {
-	vk::ShaderModule vert;
+	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/forward.vert.spv");
 	vk::ShaderModule frag;
 
 	if (*this->shadowsEnabled) {
-		vert = loadShaderModule(*this->window, "assets/main/shaders/forwardShadow.vert.spv");
 		frag = loadShaderModule(*this->window, "assets/main/shaders/forwardShadow.frag.spv");
 	} else {
-		vert = loadShaderModule(*this->window, "assets/main/shaders/forward.vert.spv");
 		frag = loadShaderModule(*this->window, "assets/main/shaders/forward.frag.spv");
 	}
 

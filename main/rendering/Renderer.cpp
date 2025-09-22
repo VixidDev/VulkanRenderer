@@ -538,11 +538,13 @@ void Renderer::render() {
 
 	// Forward pass
 	RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
-
 	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
+
 	RendererUtils::bindGraphicDescriptorSets(
 		this->pipelineLayouts.at("forward")->getHandle(), 0, 1,
 		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+	RendererUtils::bindPushConstant(
+		this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
 
 	if (this->shadowsEnabled) {
 		RendererUtils::bindGraphicDescriptorSets(
@@ -560,8 +562,13 @@ void Renderer::render() {
 		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 6, 1,
 			&this->descriptorSets.at("lightMatrices")->getHandle(), 0, nullptr);
-		RendererUtils::bindPushConstant(
-			this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
+	} else {
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("forward")->getHandle(), 2, 1,
+			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
+			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
 	}
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
@@ -672,7 +679,7 @@ void Renderer::renderDebugViews() {
 	bool isOvervisualisation = this->debugState > 6;
 
 	if (isOvervisualisation) {
-		// Set clear colour to a dark green to create  a 'negative'-like image, but also restore
+		// Set clear colour to a dark green to create a 'negative'-like image, but also restore
 		// the original clear colour afterwards for when we disable overvisualisation
 		VkClearValue originalValue = this->renderPasses.at("forward")->getClearValues().at(0);
 		this->renderPasses.at("forward")->getClearValues().at(0) = { {0.0f, 0.3f, 0.0f, 1.0f} };
@@ -942,6 +949,10 @@ void Renderer::recreateSizeDependents() {
 	// (causes dependent DescriptorSets to also be recreated)
 	for (auto& textureBuffer : this->textureBuffers)
 		textureBuffer.second->recreate();
+
+	// Recreate pipeline layouts
+	for (auto& pipelineLayout : this->pipelineLayouts)
+		pipelineLayout.second->recreate();
 
 	// Recreate pipelines
 	for (auto& pipeline : this->pipelines)

@@ -22,7 +22,7 @@ DebugViewsPipeline::DebugViewsPipeline(
 }
 
 void DebugViewsPipeline::recreate() {
-	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/debug.vert.spv");
+	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/forward.vert.spv");
 	vk::ShaderModule frag = loadShaderModule(*this->window, "assets/main/shaders/debug.frag.spv");
 
 	VkPipelineShaderStageCreateInfo stages[2]{};

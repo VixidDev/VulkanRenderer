@@ -16,6 +16,8 @@ void ForwardPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> forwardLayouts;
 	forwardLayouts.emplace_back(this->descriptorLayouts->at("uboVF").handle); // MV matrices
 	forwardLayouts.emplace_back(this->descriptorLayouts->at("materials").handle); // Material textures
+	forwardLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes
+	forwardLayouts.emplace_back(this->descriptorLayouts->at("ssboF").handle); // Lights SSBO
 
 	std::vector<VkDescriptorSetLayout> forwardShadowLayouts;
 	forwardShadowLayouts.emplace_back(this->descriptorLayouts->at("uboVF").handle); // MV matrices

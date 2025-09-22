@@ -71,7 +71,7 @@ static void HelpMarker(const char* desc) {
 void GUI::draw() {
 	Renderer& renderer = this->driver->getRenderer();
 
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
 
 	ImGui::Begin("Debug Menu");
 
