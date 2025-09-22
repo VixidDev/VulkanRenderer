@@ -67,9 +67,6 @@ public:
 	void update(float timeDelta);
 
 	void render();
-	void drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
-	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
-	void drawLineMesh(LineMeshData& lineMeshData);
 
 	void submitRender();
 	void finishRendering();
@@ -166,7 +163,6 @@ private:
 	int debugState = 0;
 
 	// Internal
-	VkCommandBuffer cmdBuff = VK_NULL_HANDLE;
 	bool recreateSwapchain = false;
 	bool forceRecreate = false;
 

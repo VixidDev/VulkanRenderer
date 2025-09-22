@@ -104,6 +104,56 @@ namespace RendererUtils {
 		vkCmdPushConstants(boundCommandBuffer, pipelineLayout, stageFlags, offset, size, pValues);
 	}
 
+	void drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {
+		if (perMeshCallback)
+			perMeshCallback(meshData);
+
+		VkBuffer vBuffers[4] = {
+			meshData.posBuffer.buffer,
+			meshData.texCoordBuffer.buffer,
+			meshData.normalsBuffer.buffer,
+			meshData.tbnFrameBuffer.buffer
+		};
+		VkBuffer iBuffer = meshData.indicesBuffer.buffer;
+		VkDeviceSize vOffsets[4]{};
+		VkDeviceSize iOffset{};
+
+		vkCmdBindVertexBuffers(boundCommandBuffer, 0, 4, vBuffers, vOffsets);
+		vkCmdBindIndexBuffer(boundCommandBuffer, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
+
+		vkCmdDrawIndexed(boundCommandBuffer, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);
+	}
+
+	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {
+		if (perMeshCallback)
+			perMeshCallback(meshData);
+
+		VkBuffer vBuffer = meshData.posBuffer.buffer;
+		VkBuffer iBuffer = meshData.indicesBuffer.buffer;
+		VkDeviceSize vOffset{};
+		VkDeviceSize iOffset{};
+
+		vkCmdBindVertexBuffers(boundCommandBuffer, 0, 1, &vBuffer, &vOffset);
+		vkCmdBindIndexBuffer(boundCommandBuffer, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
+
+		vkCmdDrawIndexed(boundCommandBuffer, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);
+	}
+
+	void drawLineMesh(LineMeshData& lineMeshData) {
+		VkBuffer vBuffers[2] = {
+			lineMeshData.posBuffer.buffer,
+			lineMeshData.colBuffer.buffer,
+		};
+		VkBuffer iBuffer = lineMeshData.indicesBuffer.buffer;
+		VkDeviceSize vOffsets[2]{};
+		VkDeviceSize iOffset{};
+
+		vkCmdBindVertexBuffers(boundCommandBuffer, 0, 2, vBuffers, vOffsets);
+		vkCmdBindIndexBuffer(boundCommandBuffer, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
+
+		vkCmdDrawIndexed(boundCommandBuffer, static_cast<std::uint32_t>(lineMeshData.indicesCount), 1, 0, 0, 0);
+	}
+
 	void renderImGUI() {
 		checkCommandBuffer();
 

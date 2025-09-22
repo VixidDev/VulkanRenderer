@@ -1,3 +1,6 @@
+/*
+* File credits to Markus Billeter
+*/
 #pragma once
 
 #include "InputModel.hpp"

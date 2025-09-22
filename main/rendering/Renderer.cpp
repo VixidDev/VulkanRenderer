@@ -500,7 +500,6 @@ void Renderer::update(float timeDelta) {
 }
 
 void Renderer::render() {
-	this->cmdBuff = this->cmdBuffers[this->frameIndex];
 	// Begin command buffer
 	RendererUtils::bindCommandBuffer(this->cmdBuffers[this->frameIndex]);
 	RendererUtils::beginCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
@@ -546,7 +545,7 @@ void Renderer::render() {
 		for (std::size_t i = 0; i < meshData.size(); i++) {
 			if (meshData[i].hasAlphaMask) continue;
 
-			this->drawMesh(meshData[i], perMeshCallbackDebug);
+			RendererUtils::drawMesh(meshData[i], perMeshCallbackDebug);
 		}
 
 		RendererUtils::setCullMode(VK_CULL_MODE_NONE);
@@ -555,7 +554,7 @@ void Renderer::render() {
 		for (std::uint32_t i = 0; i < meshData.size(); i++) {
 			if (!meshData[i].hasAlphaMask) continue;
 
-			this->drawMesh(meshData[i], perMeshCallbackDebug);
+			RendererUtils::drawMesh(meshData[i], perMeshCallbackDebug);
 		}
 
 		RendererUtils::endRenderPass();
@@ -624,7 +623,7 @@ void Renderer::render() {
 	for (std::size_t i = 0; i < meshData.size(); i++) {
 		if (meshData[i].hasAlphaMask) continue;
 
-		this->drawMesh(meshData[i], perMeshCallback);
+		RendererUtils::drawMesh(meshData[i], perMeshCallback);
 	}
 
 	RendererUtils::setCullMode(VK_CULL_MODE_NONE);
@@ -633,7 +632,7 @@ void Renderer::render() {
 	for (std::uint32_t i = 0; i < meshData.size(); i++) {
 		if (!meshData[i].hasAlphaMask) continue;
 
-		this->drawMesh(meshData[i], perMeshCallback);
+		RendererUtils::drawMesh(meshData[i], perMeshCallback);
 	}
 
 	RendererUtils::endRenderPass();
@@ -680,7 +679,7 @@ void Renderer::render() {
 	for (std::size_t i = 0; i < meshData.size(); i++) {
 		if (meshData[i].hasAlphaMask) continue;
 
-		this->drawMesh(meshData[i], perMeshCallback);
+		RendererUtils::drawMesh(meshData[i], perMeshCallback);
 	}
 
 	RendererUtils::setCullMode(VK_CULL_MODE_NONE);
@@ -689,7 +688,7 @@ void Renderer::render() {
 	for (std::uint32_t i = 0; i < meshData.size(); i++) {
 		if (!meshData[i].hasAlphaMask) continue;
 
-		this->drawMesh(meshData[i], perMeshCallback);
+		RendererUtils::drawMesh(meshData[i], perMeshCallback);
 	}
 
 	// Render frustum bounding box
@@ -700,7 +699,7 @@ void Renderer::render() {
 			this->pipelineLayouts.at("lineDebug")->getHandle(), 0, 1,
 			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
 
-		this->drawLineMesh(this->lineMeshData);
+		RendererUtils::drawLineMesh(this->lineMeshData);
 	}
 
 	RendererUtils::endRenderPass();
@@ -777,7 +776,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 				RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
 				for (std::size_t i = 0; i < meshData.size(); i++)
-					this->drawMeshGeometry(meshData[i]);
+					RendererUtils::drawMeshGeometry(meshData[i]);
 
 				RendererUtils::endRenderPass();
 			}
@@ -810,7 +809,7 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 			RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
 			for (std::size_t i = 0; i < meshData.size(); i++)
-				this->drawMeshGeometry(meshData[i]);
+				RendererUtils::drawMeshGeometry(meshData[i]);
 
 			RendererUtils::endRenderPass();
 
@@ -826,56 +825,6 @@ void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
 		}
 
 	}
-}
-
-void Renderer::drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {
-	if (perMeshCallback)
-		perMeshCallback(meshData);
-	
-	VkBuffer vBuffers[4] = { 
-		meshData.posBuffer.buffer,
-		meshData.texCoordBuffer.buffer,
-		meshData.normalsBuffer.buffer,
-		meshData.tbnFrameBuffer.buffer
-	};
-	VkBuffer iBuffer = meshData.indicesBuffer.buffer;
-	VkDeviceSize vOffsets[4]{};
-	VkDeviceSize iOffset{};
-
-	vkCmdBindVertexBuffers(this->cmdBuff, 0, 4, vBuffers, vOffsets);
-	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
-
-	vkCmdDrawIndexed(this->cmdBuff, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);
-}
-
-void Renderer::drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {
-	if (perMeshCallback)
-		perMeshCallback(meshData);
-
-	VkBuffer vBuffer = meshData.posBuffer.buffer;
-	VkBuffer iBuffer = meshData.indicesBuffer.buffer;
-	VkDeviceSize vOffset{};
-	VkDeviceSize iOffset{};
-
-	vkCmdBindVertexBuffers(this->cmdBuff, 0, 1, &vBuffer, &vOffset);
-	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
-
-	vkCmdDrawIndexed(this->cmdBuff, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);
-}
-
-void Renderer::drawLineMesh(LineMeshData& lineMeshData) {
-	VkBuffer vBuffers[2] = {
-		lineMeshData.posBuffer.buffer,
-		lineMeshData.colBuffer.buffer,
-	};
-	VkBuffer iBuffer = lineMeshData.indicesBuffer.buffer;
-	VkDeviceSize vOffsets[2]{};
-	VkDeviceSize iOffset{};
-
-	vkCmdBindVertexBuffers(this->cmdBuff, 0, 2, vBuffers, vOffsets);
-	vkCmdBindIndexBuffer(this->cmdBuff, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
-
-	vkCmdDrawIndexed(this->cmdBuff, static_cast<std::uint32_t>(lineMeshData.indicesCount), 1, 0, 0, 0);
 }
 
 LightMatrices Renderer::getLightMatricesForCameraFrustum(glsl::Light& lightStruct) {

@@ -1,3 +1,8 @@
+/*
+* File credits to Markus Billeter
+* Tangent generation and packing done by me.
+*/
+
 #include "IndexMesh.hpp"
 
 #include <numeric>
@@ -157,29 +162,9 @@ IndexedMesh makeIndexedMesh(const TriangleSoup& triSoup, float errorTolerance, i
 	std::vector<tgen::RealT> tangents;
 
 	// Compute tangents with tgen
-	if (i == 6) {
-		int a = 0;
-	}
-
 	tgen::computeCornerTSpace(newIndices, newIndices, vertices, texCoords, cornerTangents, cornerBitangents);
 	tgen::computeVertexTSpace(newIndices, cornerTangents, cornerBitangents, texCoords.size() / 2, vertexTangents, vertexBitangents);
 	tgen::orthogonalizeTSpace(normals, vertexTangents, vertexBitangents);
-
-	// Sanitize vectors
-	for (std::size_t i = 0; i < vertexTangents.size(); i++) {
-		if (std::isnan(vertexTangents[i])) {
-			std::fprintf(stderr, "Found nan value in vertexTangents at %llu\n", i);
-			break;
-		}
-	}
-	for (std::size_t i = 0; i < vertexBitangents.size(); i++) {
-		if (std::isnan(vertexBitangents[i])) {
-			std::fprintf(stderr, "Found nan value in vertexBitangents at %llu\n", i);
-			break;
-		}
-	}
-
-
 	tgen::computeTangent4D(normals, vertexTangents, vertexBitangents, tangents);
 
 	// Put tangents into the IndexedMesh's glm::vec4

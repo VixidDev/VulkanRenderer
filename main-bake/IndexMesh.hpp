@@ -1,3 +1,6 @@
+/*
+* File credits to Markus Billeter
+*/
 #pragma once
 
 #include <vector>
@@ -7,7 +10,6 @@
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
-
 
 struct TriangleSoup {
 	std::vector<glm::vec3> vert;

@@ -1,3 +1,6 @@
+/*
+* File credits to Markus Billeter
+*/
 #include "Error.hpp"
 
 #include <cstdarg>

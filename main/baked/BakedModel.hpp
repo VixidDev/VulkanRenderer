@@ -15,7 +15,7 @@
  *
  *  1. Header:
  *    - 16*char: file magic = "\0\0VixidVkMesh"
- *    - 16*char: variant = "default" (changes later)
+ *    - 16*char: variant = "25-tan" (maybe something different if changed in main-bake/main.cpp)
  *
  *  2. Textures
  *    - 1*uint32_t: U = number of (unique) textures
@@ -43,6 +43,8 @@
  *      - repeat V times: vec3 position
  *      - repeat V times: vec3 normal
  *      - repeat V times: vec2 texture coordinate
+ *      - repeat V times: vec2 tangents
+ *      - repeat V times: vec2 optimised tangents
  *      - repeat I times: uint32_t index
  *
  * Strings are stored as

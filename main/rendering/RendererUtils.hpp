@@ -38,6 +38,9 @@ namespace RendererUtils {
 		const void* pValues);
 
 	// Rendering
+	void drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
+	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
+	void drawLineMesh(LineMeshData& lineMeshData);
 	void renderImGUI();
 	
 	// Dynamic states

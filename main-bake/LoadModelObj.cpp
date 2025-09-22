@@ -1,3 +1,6 @@
+/*
+* File credits to Markus Billeter
+*/
 #include "LoadModelObj.hpp"
 
 #include <unordered_set>
