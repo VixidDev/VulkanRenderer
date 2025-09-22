@@ -4,7 +4,6 @@
 
 #include "objects/VkObjects.hpp"
 #include "VulkanContext.hpp"
-#include "dbgname.hpp"
 
 struct SamplerInfo {
 	VkFilter minFilter;

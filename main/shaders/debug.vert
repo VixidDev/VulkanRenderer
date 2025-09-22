@@ -64,7 +64,7 @@ void main() {
         }
     }
 
-        if (isnan(quaternion).x || isnan(quaternion).y || isnan(quaternion).z || isnan(quaternion).w) {
+    if (isnan(quaternion).x || isnan(quaternion).y || isnan(quaternion).z || isnan(quaternion).w) {
         v2fTBN = mat3(1.0);
         v2fFallbackNormal = vec4(iFallbackNormal, 1.0);
     } else {
