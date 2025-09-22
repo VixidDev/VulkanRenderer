@@ -21,12 +21,14 @@
 #include "objects/impl/pipelineLayouts/CubemapShadowPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/LineDebugPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/DebugViewsPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/OverVisualisationPipelineLayout.hpp"
 
 #include "objects/impl/pipelines/ForwardPipeline.hpp"
 #include "objects/impl/pipelines/ShadowPipeline.hpp"
 #include "objects/impl/pipelines/CubemapShadowPipeline.hpp"
 #include "objects/impl/pipelines/LineDebugPipeline.hpp"
 #include "objects/impl/pipelines/DebugViewsPipeline.hpp"
+#include "objects/impl/pipelines/OverVisualisationPipeline.hpp"
 
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/ShadowDepthTextureBuffer.hpp"
@@ -97,6 +99,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("cubemapShadow", std::make_unique<CubemapShadowPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("lineDebug", std::make_unique<LineDebugPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("debugViews", std::make_unique<DebugViewsPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("overVisualisation", std::make_unique<OverVisualisationPipelineLayout>(window, &this->descriptorSetLayouts));
 
 	// Pipelines
 	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
@@ -105,6 +108,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->pipelineLayouts.at("cubemapShadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->pipelineLayouts.at("debugViews").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
+	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->pipelineLayouts.at("overVisualisation").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
 
 	// Texture Buffers
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
@@ -511,67 +515,16 @@ void Renderer::render() {
 	RendererUtils::updateShaderStorageBuffer(this->shaderStorageBuffers.at("lights"));
 	RendererUtils::updateShaderStorageBuffer(this->shaderStorageBuffers.at("lightMatrices"));
 
+	// Debug pass (if its enabled)
 	if (this->debugView) {
-		RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
-		RendererUtils::bindGraphicPipeline(this->pipelines.at("debugViews")->getHandle());
-
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), 0, 1,
-			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), 2, 1,
-			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), 3, 1,
-			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
-
-		debugStatePC debugState = {
-			.lightCount = this->numLights,
-			.debugState = this->debugState
-		};
-
-		RendererUtils::bindPushConstant(
-			this->pipelineLayouts.at("debugViews")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(debugStatePC), &debugState);
-
-		auto perMeshCallbackDebug = [this](MeshData& meshData) {
-			RendererUtils::bindGraphicDescriptorSets(
-				this->pipelineLayouts.at("debugViews")->getHandle(), 1, 1,
-				&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
-		};
-
-		RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
-
-		// Draw non-alpha masked meshes
-		for (std::size_t i = 0; i < meshData.size(); i++) {
-			if (meshData[i].hasAlphaMask) continue;
-
-			RendererUtils::drawMesh(meshData[i], perMeshCallbackDebug);
-		}
-
-		RendererUtils::setCullMode(VK_CULL_MODE_NONE);
-
-		// Draw alpha masked meshes
-		for (std::uint32_t i = 0; i < meshData.size(); i++) {
-			if (!meshData[i].hasAlphaMask) continue;
-
-			RendererUtils::drawMesh(meshData[i], perMeshCallbackDebug);
-		}
-
-		RendererUtils::endRenderPass();
-
-		// Render GUI
-		RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
-		RendererUtils::renderImGUI();
-		RendererUtils::endRenderPass();
-
-		RendererUtils::endCommandBuffer();
+		this->renderDebugViews();
 		return;
 	}
 
 	// Shadow pass
 	if (this->shadowsEnabled) {
 		RendererUtils::updateUniformBuffer(this->uniformBuffers.at("cameraPlanes"));
-		this->renderShadowMaps(meshData);
+		this->renderShadowMaps();
 	}
 
 	// Transition any dummy light textures to respective layout
@@ -712,7 +665,89 @@ void Renderer::render() {
 	RendererUtils::endCommandBuffer();
 }
 
-void Renderer::renderShadowMaps(std::vector<MeshData>& meshData) {
+void Renderer::renderDebugViews() {
+	std::vector<MeshData>& meshData = this->driver->getMeshData();
+
+	// Determine debug state flags
+	bool isOvervisualisation = this->debugState > 6;
+
+	if (isOvervisualisation) {
+		// Set clear colour to a dark green to create  a 'negative'-like image, but also restore
+		// the original clear colour afterwards for when we disable overvisualisation
+		VkClearValue originalValue = this->renderPasses.at("forward")->getClearValues().at(0);
+		this->renderPasses.at("forward")->getClearValues().at(0) = { {0.0f, 0.3f, 0.0f, 1.0f} };
+		RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
+		this->renderPasses.at("forward")->getClearValues().at(0) = originalValue;
+	} else {
+		RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
+	}
+
+	if (!isOvervisualisation) {
+		RendererUtils::bindGraphicPipeline(this->pipelines.at("debugViews")->getHandle());
+
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("debugViews")->getHandle(), 0, 1,
+			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("debugViews")->getHandle(), 2, 1,
+			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("debugViews")->getHandle(), 3, 1,
+			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
+
+		debugStatePC debugState = {
+			.lightCount = this->numLights,
+			.debugState = this->debugState
+		};
+
+		RendererUtils::bindPushConstant(
+			this->pipelineLayouts.at("debugViews")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(debugStatePC), &debugState);
+
+		RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
+	} else {
+		RendererUtils::bindGraphicPipeline(this->pipelines.at("overVisualisation")->getHandle());
+
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("overVisualisation")->getHandle(), 0, 1,
+			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+	}
+
+	auto perMeshCallbackDebug = [this](MeshData& meshData) {
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("debugViews")->getHandle(), 1, 1,
+			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
+	};
+
+	for (std::size_t i = 0; i < meshData.size(); i++) {
+		if (!isOvervisualisation) {
+			RendererUtils::drawMesh(meshData[i], perMeshCallbackDebug);
+		} else {
+			// Overdraw
+			if (this->debugState == 7) {
+				RendererUtils::setDepthTestEnable(VK_FALSE);
+			} 
+			// Overshading
+			else if (this->debugState == 8) {
+				RendererUtils::setDepthTestEnable(VK_TRUE);
+			}
+
+			RendererUtils::drawMesh(meshData[i]);
+		}
+	}
+
+	RendererUtils::endRenderPass();
+
+	// Render GUI
+	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
+	RendererUtils::renderImGUI();
+	RendererUtils::endRenderPass();
+
+	RendererUtils::endCommandBuffer();
+}
+
+void Renderer::renderShadowMaps() {
+	std::vector<MeshData>& meshData = this->driver->getMeshData();
+
 	// Some light-specific counters
 	std::uint32_t pointLightIndex = 0;
 	std::uint32_t directionalLightIndex = 0;

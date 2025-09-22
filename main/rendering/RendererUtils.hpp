@@ -46,6 +46,7 @@ namespace RendererUtils {
 	// Dynamic states
 	void setCullMode(VkCullModeFlags cullMode);
 	void setDepthBias(float depthBiasConstant, float depthBiasClamp, float depthBiasSlopeFactor);
+	void setDepthTestEnable(VkBool32 value);
 
 	// Barriers
 	void bufferBarrier(

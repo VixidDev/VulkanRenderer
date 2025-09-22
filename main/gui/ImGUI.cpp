@@ -148,6 +148,8 @@ void GUI::draw() {
 				ImGui::RadioButton("Show Mipmap Levels", &renderer.getDebugState(), 1);
 				ImGui::RadioButton("Show Linear Depth", &renderer.getDebugState(), 2);
 				ImGui::RadioButton("Show Partial Derivatives", &renderer.getDebugState(), 3);
+				ImGui::RadioButton("Show Overdraw", &renderer.getDebugState(), 7);
+				ImGui::RadioButton("Show Overshading", &renderer.getDebugState(), 8);
 				ImGui::Text("PBR Debug"); ImGui::SameLine(); HelpMarker("Some of the PBR debug views will appear overexposed when multiple lights are active, they only really serve to show if the selected PBR function is working");
 				ImGui::RadioButton("Show Distribution Function", &renderer.getDebugState(), 4);
 				ImGui::RadioButton("Show Geometry Function", &renderer.getDebugState(), 5);

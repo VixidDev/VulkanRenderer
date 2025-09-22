@@ -67,5 +67,4 @@ namespace VkUtils {
 		std::uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
 	);
 
-
 }

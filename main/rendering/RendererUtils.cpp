@@ -173,6 +173,12 @@ namespace RendererUtils {
 		vkCmdSetDepthBias(boundCommandBuffer, depthBiasConstant, depthBiasClamp, depthBiasSlopeFactor);
 	}
 
+	void setDepthTestEnable(VkBool32 value) {
+		checkCommandBuffer();
+
+		vkCmdSetDepthTestEnable(boundCommandBuffer, value);
+	}
+
 	void bufferBarrier(
 		VkBuffer buffer, 
 		VkAccessFlags srcAccessMask, 
