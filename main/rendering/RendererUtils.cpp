@@ -60,6 +60,12 @@ namespace RendererUtils {
 		vkCmdBeginRenderPass(boundCommandBuffer, &passInfo, VK_SUBPASS_CONTENTS_INLINE);
 	}
 
+	void nextSubpass(VkSubpassContents subpassContents) {
+		checkCommandBuffer();
+
+		vkCmdNextSubpass(boundCommandBuffer, subpassContents);
+	}
+
 	void endRenderPass() {
 		vkCmdEndRenderPass(boundCommandBuffer);
 	}
@@ -102,6 +108,13 @@ namespace RendererUtils {
 		checkCommandBuffer();
 
 		vkCmdPushConstants(boundCommandBuffer, pipelineLayout, stageFlags, offset, size, pValues);
+	}
+
+	// Used to directly call vkCmdDraw, usually used for drawing full screen triangles
+	void drawDirect(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex, std::uint32_t firstInstance) {
+		checkCommandBuffer();
+
+		vkCmdDraw(boundCommandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
 	}
 
 	void drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {

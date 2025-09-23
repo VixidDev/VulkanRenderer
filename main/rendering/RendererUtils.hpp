@@ -17,6 +17,7 @@ namespace RendererUtils {
 
 	// Render passes
 	void beginRenderPass(RenderPass* renderPass, Framebuffer* framebuffer, std::uint32_t imageIndex);
+	void nextSubpass(VkSubpassContents subpassContents = VK_SUBPASS_CONTENTS_INLINE);
 	void endRenderPass();
 
 	// Pipeline
@@ -38,6 +39,7 @@ namespace RendererUtils {
 		const void* pValues);
 
 	// Rendering
+	void drawDirect(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex, std::uint32_t firstInstance);
 	void drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
 	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
 	void drawLineMesh(LineMeshData& lineMeshData);

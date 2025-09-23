@@ -37,7 +37,8 @@ void VulkanDevice::createDescriptorPool() {
 	const VkDescriptorPoolSize pools[] = {
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 2048 },
 		{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 100 },
-		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2048 }
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2048 },
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 2048 }
 	};
 
 	VkDescriptorPoolCreateInfo poolInfo{};

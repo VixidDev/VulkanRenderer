@@ -22,7 +22,6 @@
 
 struct Uniforms {
 	glsl::MVPUniform mvpUniform;
-	glsl::DepthMVPUniform depthMVPUniform;
 	glsl::CameraPlanesUniform cameraPlanesUniform;
 };
 
@@ -87,6 +86,7 @@ public:
 	Uniforms& getUniforms();
 	SSBOs& getSSBOs();
 
+	int& getRenderingType();
 	bool& getShadowsEnabled();
 	float& getDepthBiasConstant();
 	float& getDepthBiasSlopeFactor();
@@ -108,6 +108,8 @@ public:
 	bool renderCameraFrustumBounds = false;
 	float zMult = 10.0f;
 private:
+	void renderForward();
+	void renderDeferred();
 	void renderDebugViews();
 	void renderShadowMaps();
 	LightMatrices getLightMatricesForCameraFrustum(glsl::Light& lightStruct);
@@ -149,6 +151,7 @@ private:
 	SSBOs ssbos;
 
 	// Renderer settings
+	int renderingType = 0; // 0 = Forward, 1 = Deferred
 	VkSampleCountFlagBits sampleCountSetting = VK_SAMPLE_COUNT_1_BIT;
 	bool shadowsEnabled = true;
 	VkExtent2D shadowRes = VkExtent2D{ 2048, 2048 };

@@ -19,11 +19,6 @@ layout(set = 1, binding = 2) uniform sampler2D uRoughness;
 layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
 
-layout(set = 2, binding = 0) uniform ClipPlanes {
-	float far;
-	float near;
-} planes;
-
 struct ShaderLight {
 	vec3 position;
 	vec3 direction;
@@ -34,7 +29,7 @@ struct ShaderLight {
 	// metadata.z = intensity
 };
 
-layout(set = 3, binding = 0) readonly buffer Lights {
+layout(set = 2, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
 };
 
@@ -102,9 +97,11 @@ void main() {
 
 	vec3 normal;
 	if (v2fFallbackNormal.w == 1.0) {
-		normal = v2fFallbackNormal.xyz;
+		normal = normalize(v2fFallbackNormal.xyz);
 	} else {
-		normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
+		vec3 tangentNormal = texture(uNormalMap, v2fTexCoord).rgb;
+		tangentNormal = tangentNormal * 2.0 - 1.0;
+		normal = normalize(v2fTBN * tangentNormal);
 	}
 
 	vec3 ambient = vec3(0.03) * texture(uTexColour, v2fTexCoord).rgb;
@@ -115,7 +112,6 @@ void main() {
 
 		vec3 lightPos = lights[i].position;
 		float distToLight = length(lightPos - v2fPosition);
-
 		vec3 lightDir = normalize(lightPos - v2fPosition);
 
 		float attenuation;

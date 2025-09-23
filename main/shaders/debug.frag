@@ -96,9 +96,11 @@ vec3 fresnel(float metalness, vec3 halfwayVector, vec3 viewDir) {
 void main() {
     vec3 normal;
 	if (v2fFallbackNormal.w == 1.0) {
-		normal = v2fFallbackNormal.xyz;
+		normal = normalize(v2fFallbackNormal.xyz);
 	} else {
-		normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
+		vec3 tangentNormal = texture(uNormalMap, v2fTexCoord).rgb;
+		tangentNormal = tangentNormal * 2.0 - 1.0;
+		normal = normalize(v2fTBN * tangentNormal);
 	}
 
     vec3 total = vec3(0.0);

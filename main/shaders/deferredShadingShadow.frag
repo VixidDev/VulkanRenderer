@@ -15,6 +15,15 @@ layout(set = 1, binding = 0) uniform MVP {
 	vec4 camPos;
 } mvp;
 
+layout(set = 2, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
+layout(set = 3, binding = 0) uniform sampler2DShadow sunShadow;
+//layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
+
+layout(set = 4, binding = 0) uniform ClipPlanes {
+	float far;
+	float near;
+} planes;
+
 struct ShaderLight {
 	vec3 position;
 	vec3 direction;
@@ -25,8 +34,12 @@ struct ShaderLight {
 	// metadata.z = intensity
 };
 
-layout(set = 2, binding = 0) readonly buffer Lights {
+layout(set = 5, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
+};
+
+layout(set = 6, binding = 0) readonly buffer LightSpaceMatrices {
+	mat4 lightSpaceMatrices[];
 };
 
 layout(push_constant) uniform PushConstants {
@@ -76,7 +89,7 @@ float geometryFunction(vec3 normal, vec3 halfwayVector, vec3 viewDir, vec3 light
     return geometry;    
 }
 
-vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal) {
+vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal, float shadow) {
 	vec3 halfwayVector = normalize(viewDir + lightDir);
 
 	float metalness = subpassLoad(gBuffer1).a;
@@ -92,7 +105,53 @@ vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal) {
 	vec3 diffuse = (subpassLoad(gBuffer2).rgb / PI) * (vec3(1.0) - fresnel) * (1 - metalness);
 	vec3 specular = (ndf * fresnel * geometry) / (0.0001 + specular_denom);
 
-	return diffuse + specular;
+	vec3 ret;
+	// If shadow is not 1.0 then the fragment is in shadow and has no
+	// direction line of sight to the light and should not contribute any
+	// specular to final colour
+	if (shadow < 1.0) {
+		ret = diffuse * shadow;
+	} else {
+		ret = diffuse + specular;
+	}
+
+	return ret;
+}
+
+const mat4 biasMat = mat4( 
+	0.5, 0.0, 0.0, 0.0,
+	0.0, 0.5, 0.0, 0.0,
+	0.0, 0.0, 1.0, 0.0,
+	0.5, 0.5, 0.0, 1.0);
+
+float calculateShadow(ShaderLight light, vec3 pos) {
+	float shadow = 0.0;
+
+	int lightType = light.metadata.x;
+	int shadowMapIndex = light.metadata.y;
+
+	switch (lightType) {
+	case 0: // Point light
+		vec3 lightToFrag = pos - light.position;
+
+		float currentDepth = length(lightToFrag) / planes.far;
+		vec3 dir = normalize(lightToFrag);
+
+		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - SHADOW_BIAS);
+		break;
+	case 1: // Directional light
+		mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[shadowMapIndex];
+
+		vec4 lightSpacePos = lightSpaceMatrix * vec4(pos, 1.0);
+		vec3 shadowCoord = lightSpacePos.xyz / lightSpacePos.w;
+
+		shadow = texture(sunShadow, shadowCoord);
+		break;
+	case 2: // Spot light
+		break;
+	}
+
+	return shadow;
 }
 
 void main() {
@@ -131,7 +190,9 @@ void main() {
 
 		vec3 viewDir = normalize(mvp.camPos.xyz - pos);
 
-		vec3 brdfVal = brdf(lightDir, viewDir, normal) * lights[i].metadata.z;
+		float shadow = calculateShadow(lights[i], pos);
+
+		vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * lights[i].metadata.z;
 		float NdotL = max(dot(normal, lightDir), 0.0001);
 
 		totalLight += (brdfVal * NdotL) * lights[i].colour * attenuation;

@@ -10,10 +10,6 @@ namespace glsl {
 		glm::vec4 camPos{};
 	};
 
-	struct DepthMVPUniform {
-		glm::mat4 depthMVP = glm::mat4(1.0f);
-	};
-
 	struct CameraPlanesUniform {
 		float _far;
 		float _near;

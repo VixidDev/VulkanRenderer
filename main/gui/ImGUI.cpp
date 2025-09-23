@@ -76,7 +76,14 @@ void GUI::draw() {
 	ImGui::Begin("Debug Menu");
 
 	if (ImGui::BeginTabBar("Main Debug Menu")) {
-		if (ImGui::BeginTabItem("Misc")) {
+		if (ImGui::BeginTabItem("Main")) {
+			// Renderer type
+			ImGui::Text("Rendering type:");
+			ImGui::RadioButton("Forward", &renderer.getRenderingType(), 0); ImGui::SameLine();
+			ImGui::RadioButton("Deferred", &renderer.getRenderingType(), 1);
+
+			ImGui::Separator();
+
 			// Shadow Settings
 			ImGui::Text("Shadow settings:");
 			if (ImGui::Checkbox("Shadows", &renderer.getShadowsEnabled())) {
