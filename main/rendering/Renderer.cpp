@@ -578,8 +578,6 @@ void Renderer::renderForward() {
 	RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
 
-	throw Utils::Error("Some error\n");
-
 	RendererUtils::bindGraphicDescriptorSets(
 		this->pipelineLayouts.at("forward")->getHandle(), 0, 1,
 		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
