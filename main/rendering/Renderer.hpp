@@ -50,6 +50,7 @@ class Renderer {
 public:
 	Renderer() = default;
 	Renderer(Driver* driver);
+	~Renderer();
 
 	Renderer(const Renderer&) = delete;
 	Renderer& operator=(const Renderer&) = delete;
@@ -175,4 +176,7 @@ private:
 
 	LineMeshData lineMeshData;
 	bool lineMeshDataInit = false;
+
+	// Shutdown logic
+	bool handledImGUIShutdown = false;
 };

@@ -189,6 +189,17 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSets.emplace("sunView", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, sunViewDescriptorSettings));
 }
 
+Renderer::~Renderer() {
+	// Used in case Vulkan/VMA throws an error during rendering,
+	// we need to manually destroy ImGUI related Vulkan objects
+	// through its shutdown methods before destroying our Vulkan 
+	// device instance
+	if (!this->handledImGUIShutdown) {
+		vkDeviceWaitIdle(this->context.window->device->device);
+		RendererUtils::destroyImGUI();
+	}
+}
+
 void Renderer::setLights(std::vector<Light>* lights) {
 	this->lights = lights;
 
@@ -566,6 +577,8 @@ void Renderer::renderForward() {
 
 	RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
+
+	throw Utils::Error("Some error\n");
 
 	RendererUtils::bindGraphicDescriptorSets(
 		this->pipelineLayouts.at("forward")->getHandle(), 0, 1,
@@ -975,7 +988,6 @@ void Renderer::renderShadowMaps() {
 			break;
 		}
 		}
-
 	}
 }
 
@@ -1046,6 +1058,7 @@ void Renderer::submitRender() {
 void Renderer::finishRendering() {
 	vkDeviceWaitIdle(this->context.window->device->device);
 	RendererUtils::destroyImGUI();
+	this->handledImGUIShutdown = true;
 }
 
 void Renderer::recreateFormatDependents() {
