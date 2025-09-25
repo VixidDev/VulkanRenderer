@@ -24,5 +24,5 @@ void ShadowFramebuffer::recreate() {
 		shadowViews.emplace_back(this->textureBuffers.at(i)->getImageView().handle);
 	}
 
-	createFramebuffers(*this->window, this->framebuffers, this->renderPass->getRenderPassHandle(), shadowViews, *this->renderExtent, true);
+	createFramebuffers(*this->window, this->framebuffers, this->renderPass->getRenderPassHandle(), shadowViews, *this->renderExtent);
 }

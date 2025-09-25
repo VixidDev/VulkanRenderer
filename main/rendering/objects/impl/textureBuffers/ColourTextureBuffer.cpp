@@ -21,7 +21,7 @@ void ColourTextureBuffer::recreate() {
 	TextureBufferSetting textureSetting = {
 		.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT,
 		.imageExtent = *this->renderExtent,
-		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 		.viewAspectFlags = VK_IMAGE_ASPECT_COLOR_BIT };
 
 	std::pair<vk::Image, vk::ImageView> textureBuffer = createTextureBuffer(*this->context, textureSetting);

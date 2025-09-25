@@ -19,6 +19,7 @@
 #include "objects/base/UniformBuffer.hpp"
 #include "objects/base/ShaderStorageBuffer.hpp"
 #include "objects/base/DescriptorSet.hpp"
+#include "objects/base/PostProcessingEffect.hpp"
 
 struct Uniforms {
 	glsl::MVPUniform mvpUniform;
@@ -45,6 +46,7 @@ using _TextureBuffer = std::unique_ptr<TextureBuffer>;
 using _UniformBuffer = std::unique_ptr<IUniformBuffer>;
 using _ShaderStorageBuffer = std::unique_ptr<IShaderStorageBuffer>;
 using _DescriptorSet = std::unique_ptr<DescriptorSet>;
+using _PostProcessingEffect = std::unique_ptr<PostProcessingEffect>;
 
 class Renderer {
 public:
@@ -74,15 +76,27 @@ public:
 	// Recreation
 	void recreateFormatDependents();
 	void recreateSizeDependents();
+	void setRecreateSwapchain(bool value, bool force = false);
 
 	VulkanContext& getContext();
 	Camera& getCamera();
 
-	VkRenderPass getRenderPassHandle(const std::string& renderPass);
-	std::map<std::string, vk::DescriptorSetLayout>& getDescriptorSetLayouts();
+	RenderPass* getRenderPass(const std::string& renderPass);
+	VkDescriptorSetLayout getDescriptorSetLayout(const std::string& descriptorSetLayout);
+	PipelineLayout* getPipelineLayout(const std::string& pipelineLayout);
+	Pipeline* getPipeline(const std::string& pipeline);
+	Framebuffer* getFramebuffer(const std::string& framebuffer);
 	TextureBuffer* getTextureBuffer(const std::string& textureBuffer);
+	IUniformBuffer* getUniformBuffer(const std::string& uniformBuffer);
+	IShaderStorageBuffer* getShaderStorageBuffer(const std::string& shaderStorageBuffer);
 	DescriptorSet* getDescriptorSet(const std::string& descriptorSet);
+
+	std::vector<std::pair<std::string, _PostProcessingEffect>>& getPostProcessingEffects();
+
 	vk::Sampler& getDefaultSampler();
+
+	std::uint32_t getFrameIndex();
+	std::uint32_t getImageIndex();
 
 	Uniforms& getUniforms();
 	SSBOs& getSSBOs();
@@ -94,7 +108,8 @@ public:
 	bool& getDebugView();
 	int& getDebugState();
 
-	void setRecreateSwapchain(bool value, bool force = false);
+	// Post processing effects
+	bool& getMosaicEnabled();
 
 	int numLights = 0;
 	std::uint32_t numPointLights = 0;
@@ -132,6 +147,9 @@ private:
 	std::map<std::string, _ShaderStorageBuffer> shaderStorageBuffers;
 	std::map<std::string, _DescriptorSet> descriptorSets;
 
+	// Post processing effects
+	std::vector<std::pair<std::string, _PostProcessingEffect>> postProcessingEffects;
+
 	// Synchronisation variables
 	std::uint32_t frameIndex = 0;
 	std::uint32_t imageIndex = 0;
@@ -166,6 +184,9 @@ private:
 	float depthBiasSlopeFactor = 8.0f;
 	bool debugView = false;
 	int debugState = 0;
+
+	// Post processing effect states
+	bool mosaicEnabled = false;
 
 	// Internal
 	bool recreateSwapchain = false;

@@ -16,6 +16,7 @@
 #include "objects/impl/renderPasses/ShadowPass.hpp"
 #include "objects/impl/renderPasses/GUIPass.hpp"
 #include "objects/impl/renderPasses/SunViewPass.hpp"
+#include "objects/impl/renderPasses/PostProcessPass.hpp"
 
 #include "objects/impl/pipelineLayouts/ForwardPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/DeferredWritingPipelineLayout.hpp"
@@ -25,6 +26,7 @@
 #include "objects/impl/pipelineLayouts/LineDebugPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/DebugViewsPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/OverVisualisationPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/SingleImageSamplePipelineLayout.hpp"
 
 #include "objects/impl/pipelines/ForwardPipeline.hpp"
 #include "objects/impl/pipelines/DeferredWritingPipeline.hpp"
@@ -34,6 +36,7 @@
 #include "objects/impl/pipelines/LineDebugPipeline.hpp"
 #include "objects/impl/pipelines/DebugViewsPipeline.hpp"
 #include "objects/impl/pipelines/OverVisualisationPipeline.hpp"
+#include "objects/impl/pipelines/MosaicPipeline.hpp"
 
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/ShadowDepthTextureBuffer.hpp"
@@ -51,10 +54,14 @@
 #include "objects/impl/framebuffers/ArrayFramebuffer.hpp"
 #include "objects/impl/framebuffers/GUIFramebuffer.hpp"
 #include "objects/impl/framebuffers/SunFramebuffer.hpp"
+#include "objects/impl/framebuffers/OutputFramebuffer.hpp"
+#include "objects/impl/framebuffers/IntermediateFramebuffer.hpp"
 
 #include "objects/impl/descriptorSets/BufferDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ImageDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
+
+#include "postProcessing/MosaicPostProcess.hpp"
 
 #include "../vulkan/VulkanDevice.hpp"
 #include "../vulkan/VkUtils.hpp"
@@ -79,6 +86,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->renderPasses.emplace("shadow", std::make_unique<ShadowPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("gui", std::make_unique<GUIPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("sunView", std::make_unique<SunViewPass>(window, &this->sampleCountSetting));
+	this->renderPasses.emplace("postProcess", std::make_unique<PostProcessPass>(window));
 
 	// Descriptor Set Layouts
 	std::vector<DescriptorSetting> uniformBufferV = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT } };
@@ -114,6 +122,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("lineDebug", std::make_unique<LineDebugPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("debugViews", std::make_unique<DebugViewsPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("overVisualisation", std::make_unique<OverVisualisationPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("singleImageSample", std::make_unique<SingleImageSamplePipelineLayout>(window, &this->descriptorSetLayouts));
 
 	// Pipelines
 	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
@@ -125,8 +134,11 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->pipelineLayouts.at("debugViews").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->pipelineLayouts.at("overVisualisation").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
+	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->pipelineLayouts.at("singleImageSample").get(), this->renderPasses.at("postProcess").get()));
 
 	// Texture Buffers
+	this->textureBuffers.emplace("colour", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
+	this->textureBuffers.emplace("intermediate", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
 	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
 	this->textureBuffers.emplace("gBuffer2", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
@@ -137,6 +149,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->framebuffers.emplace("deferred", std::make_unique<DeferredFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("deferred").get(), &this->sampleCountSetting));
 	this->framebuffers.emplace("sun", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->renderPasses.at("gui").get()));
+	this->framebuffers.emplace("writeToOutput", std::make_unique<OutputFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
+	this->framebuffers.emplace("writeToIntermediate", std::make_unique<IntermediateFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -182,11 +196,20 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->textureBuffers.at("depth").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE } };
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
 		{ this->textureBuffers.at("sunView").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle} };
+	std::vector<DescriptorImageSetting> colourOuputDescriptorSettings = {
+		{ this->textureBuffers.at("colour").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+	std::vector<DescriptorImageSetting> intermediateImageDescriptorSettings = {
+		{ this->textureBuffers.at("intermediate").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
 	this->descriptorSets.emplace("deferredInputs", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("deferredInputAttachments").handle, deferredInputsDescriptorSettings));
 	this->descriptorSets.emplace("sunView", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, sunViewDescriptorSettings));
+	this->descriptorSets.emplace("sceneOutput", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, colourOuputDescriptorSettings));
+	this->descriptorSets.emplace("intermediate", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediateImageDescriptorSettings));
+
+	// Post processing effects
+	this->postProcessingEffects.emplace_back(std::make_pair("mosaic", std::make_unique<MosaicPostProcess>(this)));
 }
 
 Renderer::~Renderer() {
@@ -440,6 +463,8 @@ void Renderer::update(float timeDelta) {
 		}
 	}
 
+	// TODO: Move all this somewhere else, and only calculate it if the debug
+	// option for frustum bounds is actually enabled.
 	// Update debug frustum lines
 	std::array<glm::vec4, 8> frustumCornersArr = this->camera.getFrustumCorners();
 	std::vector<glm::vec4> frustumCorners(frustumCornersArr.begin(), frustumCornersArr.end());
@@ -565,11 +590,52 @@ void Renderer::render() {
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
 	}
 
+	// Scene pass
 	if (this->renderingType == 1) {
 		this->renderDeferred();
 	} else {
 		this->renderForward();
 	}
+
+	VkDescriptorSet readImage = this->descriptorSets.at("sceneOutput")->getHandle();
+	VkDescriptorSet writeImage = this->descriptorSets.at("intermediate")->getHandle();
+
+	Framebuffer* framebuffer1 = this->framebuffers.at("writeToIntermediate").get();
+	Framebuffer* framebuffer2 = this->framebuffers.at("writeToOutput").get();
+
+	// Post processing effects
+	bool atLeastOneEffect = false;
+
+	for (const auto& [effectName, effect] : this->postProcessingEffects) {
+		if (!effect->getEnabled()) continue;
+		if (!atLeastOneEffect) atLeastOneEffect = true;
+
+		RendererUtils::beginRenderPass(effect->getRenderPass(), framebuffer1, this->imageIndex);
+		RendererUtils::bindGraphicPipeline(effect->getPipeline()->getHandle());
+		RendererUtils::bindGraphicDescriptorSets(effect->getPipelineLayout()->getHandle(), 0, 1, &readImage, 0, nullptr);
+		RendererUtils::drawDirect(3, 1, 0, 0);
+		RendererUtils::endRenderPass();
+
+		std::swap(readImage, writeImage);
+		std::swap(framebuffer1, framebuffer2);
+	}
+
+	// Blit image to swapchain
+	VkImage srcImage = atLeastOneEffect ? 
+		this->textureBuffers.at("intermediate")->getImage().image : 
+		this->textureBuffers.at("colour")->getImage().image;
+	VkImage swapchainImage = this->context.window->swapImages[this->imageIndex];
+
+	RendererUtils::blitImageToSwapchain(
+		srcImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, swapchainImage,
+		this->context.window->swapchainExtent, VK_FILTER_LINEAR);
+
+	// Render GUI
+	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
+	RendererUtils::renderImGUI();
+	RendererUtils::endRenderPass();
+
+	RendererUtils::endCommandBuffer();
 }
 
 void Renderer::renderForward() {
@@ -700,13 +766,6 @@ void Renderer::renderForward() {
 	}
 
 	RendererUtils::endRenderPass();
-
-	// Render GUI
-	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
-	RendererUtils::renderImGUI();
-	RendererUtils::endRenderPass();
-
-	RendererUtils::endCommandBuffer();
 }
 
 void Renderer::renderDeferred() {
@@ -784,13 +843,6 @@ void Renderer::renderDeferred() {
 	RendererUtils::drawDirect(3, 1, 0, 0);
 
 	RendererUtils::endRenderPass();
-
-	// Render GUI
-	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
-	RendererUtils::renderImGUI();
-	RendererUtils::endRenderPass();
-
-	RendererUtils::endCommandBuffer();
 }
 
 void Renderer::renderDebugViews() {
@@ -864,6 +916,14 @@ void Renderer::renderDebugViews() {
 	}
 
 	RendererUtils::endRenderPass();
+
+	// Blit image to swapchain
+	VkImage srcImage = this->textureBuffers.at("colour")->getImage().image;
+	VkImage swapchainImage = this->context.window->swapImages[this->imageIndex];
+
+	RendererUtils::blitImageToSwapchain(
+		srcImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, swapchainImage,
+		this->context.window->swapchainExtent, VK_FILTER_LINEAR);
 
 	// Render GUI
 	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
@@ -1092,11 +1152,11 @@ Camera& Renderer::getCamera() {
 	return this->camera;
 }
 
-VkRenderPass Renderer::getRenderPassHandle(const std::string& renderPass) {
-	VkRenderPass ret = VK_NULL_HANDLE;
+RenderPass* Renderer::getRenderPass(const std::string& renderPass) {
+	RenderPass* ret = nullptr;
 
 	try {
-		ret = this->renderPasses.at(renderPass).get()->getRenderPassHandle();
+		ret = this->renderPasses.at(renderPass).get();
 	} catch (const std::out_of_range&) {
 		std::printf("Could not find: %s in 'renderPasses'\n", renderPass.c_str());
 	}
@@ -1104,17 +1164,85 @@ VkRenderPass Renderer::getRenderPassHandle(const std::string& renderPass) {
 	return ret;
 }
 
-std::map<std::string, vk::DescriptorSetLayout>& Renderer::getDescriptorSetLayouts() {
-	return this->descriptorSetLayouts;
+VkDescriptorSetLayout Renderer::getDescriptorSetLayout(const std::string& descriptorSetLayout) {
+	VkDescriptorSetLayout ret = VK_NULL_HANDLE;
+
+	try {
+		ret = this->descriptorSetLayouts.at(descriptorSetLayout).handle;
+	} catch (const std::out_of_range&) {
+		std::printf("Could not find: %s in 'renderPasses'\n", descriptorSetLayout.c_str());
+	}
+
+	return ret;
+}
+
+PipelineLayout* Renderer::getPipelineLayout(const std::string& pipelineLayout) {
+	PipelineLayout* ret = nullptr;
+
+	try {
+		ret = this->pipelineLayouts.at(pipelineLayout).get();
+	} catch (const std::out_of_range&) {
+		std::printf("Could not find: %s in 'renderPasses'\n", pipelineLayout.c_str());
+	}
+
+	return ret;
+}
+
+Pipeline* Renderer::getPipeline(const std::string& pipeline) {
+	Pipeline* ret = nullptr;
+
+	try {
+		ret = this->pipelines.at(pipeline).get();
+	} catch (const std::out_of_range&) {
+		std::printf("Could not find: %s in 'renderPasses'\n", pipeline.c_str());
+	}
+
+	return ret;
+}
+
+Framebuffer* Renderer::getFramebuffer(const std::string& framebuffer) {
+	Framebuffer* ret = nullptr;
+
+	try {
+		ret = this->framebuffers.at(framebuffer).get();
+	} catch (const std::out_of_range&) {
+		std::printf("Could not find: %s in 'renderPasses'\n", framebuffer.c_str());
+	}
+
+	return ret;
 }
 
 TextureBuffer* Renderer::getTextureBuffer(const std::string& textureBuffer) {
 	TextureBuffer* ret = nullptr;
-	
+
 	try {
 		ret = this->textureBuffers.at(textureBuffer).get();
 	} catch (const std::out_of_range&) {
 		std::printf("Could not find: %s in 'textureBuffers'\n", textureBuffer.c_str());
+	}
+
+	return ret;
+}
+
+IUniformBuffer* Renderer::getUniformBuffer(const std::string& uniformBuffer) {
+	IUniformBuffer* ret = nullptr;
+
+	try {
+		ret = this->uniformBuffers.at(uniformBuffer).get();
+	} catch (const std::out_of_range&) {
+		std::printf("Could not find: %s in 'renderPasses'\n", uniformBuffer.c_str());
+	}
+
+	return ret;
+}
+
+IShaderStorageBuffer* Renderer::getShaderStorageBuffer(const std::string& shaderStorageBuffer) {
+	IShaderStorageBuffer* ret = nullptr;
+
+	try {
+		ret = this->shaderStorageBuffers.at(shaderStorageBuffer).get();
+	} catch (const std::out_of_range&) {
+		std::printf("Could not find: %s in 'renderPasses'\n", shaderStorageBuffer.c_str());
 	}
 
 	return ret;
@@ -1132,8 +1260,20 @@ DescriptorSet* Renderer::getDescriptorSet(const std::string& descriptorSet) {
 	return ret;
 }
 
+std::vector<std::pair<std::string, _PostProcessingEffect>>& Renderer::getPostProcessingEffects() {
+	return this->postProcessingEffects;
+}
+
 vk::Sampler& Renderer::getDefaultSampler() {
 	return this->defaultSampler;
+}
+
+std::uint32_t Renderer::getFrameIndex() {
+	return this->frameIndex;
+}
+
+std::uint32_t Renderer::getImageIndex() {
+	return this->imageIndex;
 }
 
 Uniforms& Renderer::getUniforms() {
@@ -1166,6 +1306,10 @@ bool& Renderer::getDebugView() {
 
 int& Renderer::getDebugState() {
 	return this->debugState;
+}
+
+bool& Renderer::getMosaicEnabled() {
+	return this->mosaicEnabled;
 }
 
 void Renderer::setRecreateSwapchain(bool value, bool force) {

@@ -1,37 +1,26 @@
-#include "DeferredShadingPipeline.hpp"
+#include "MosaicPipeline.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 #include "../../../PipelineCreation.hpp"
 
-DeferredShadingPipeline::DeferredShadingPipeline(
+MosaicPipeline::MosaicPipeline(
 	VulkanWindow* window,
 	PipelineLayout* pipelineLayout,
-	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount,
-	bool* shadowsEnabled
-) : shadowsEnabled(shadowsEnabled),
-	Pipeline(window) 
-{
+	RenderPass* renderPass
+) : Pipeline(window) {
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
-	this->sampleCount = sampleCount;
 
 	this->renderExtent = &this->window->swapchainExtent;
 
 	this->recreate();
 }
 
-void DeferredShadingPipeline::recreate() {
+void MosaicPipeline::recreate() {
 	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/fullScreen.vert.spv");
-	vk::ShaderModule frag;
-
-	if (*this->shadowsEnabled) {
-		frag = loadShaderModule(*this->window, "assets/main/shaders/deferredShadingShadow.frag.spv");
-	} else {
-		frag = loadShaderModule(*this->window, "assets/main/shaders/deferredShading.frag.spv");
-	}
+	vk::ShaderModule frag = loadShaderModule(*this->window, "assets/main/shaders/mosaic.frag.spv");
 
 	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -83,7 +72,7 @@ void DeferredShadingPipeline::recreate() {
 
 	VkPipelineMultisampleStateCreateInfo multisampleInfo{};
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampleInfo.rasterizationSamples = *this->sampleCount;
+	multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkPipelineColorBlendAttachmentState blendStates[1]{};
 	blendStates[0].blendEnable = VK_FALSE;
@@ -118,7 +107,7 @@ void DeferredShadingPipeline::recreate() {
 	pipeInfo.pDynamicState = nullptr;
 	pipeInfo.layout = this->pipelineLayout->getHandle();
 	pipeInfo.renderPass = this->renderPass->getRenderPassHandle();
-	pipeInfo.subpass = 1;
+	pipeInfo.subpass = 0;
 
 	VkPipeline pipe = VK_NULL_HANDLE;
 	if (const auto res = vkCreateGraphicsPipelines(this->window->device->device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &pipe); VK_SUCCESS != res)

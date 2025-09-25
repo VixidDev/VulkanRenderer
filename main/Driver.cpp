@@ -21,7 +21,7 @@ int Driver::init() {
 
 	// Init GUI
 	this->gui = GUI(this);
-	this->gui.init(this->renderer.getRenderPassHandle("gui"));
+	this->gui.init(this->renderer.getRenderPass("gui")->getRenderPassHandle());
 
 	// Load mesh data
 	if (!this->loadScene()) {

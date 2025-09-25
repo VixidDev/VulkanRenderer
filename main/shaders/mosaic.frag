@@ -9,6 +9,9 @@ layout(location = 0) out vec4 oColor;
 void main() {
     vec2 size = textureSize(resultImage, 0);
 
+    // TODO: maybe scale kernel size based on framebuffer extent
+    // since current size is not very noticable on large resolutions
+    // like 4k
     float kernelWidth = 5.0f / size.x;
     float kernelHeight = 3.0f / size.y;
 

@@ -56,8 +56,7 @@ void createFramebuffers(
 	std::vector<vk::Framebuffer>& framebuffers, 
 	VkRenderPass renderPass, 
 	std::vector<VkImageView>& imageViews, 
-	VkExtent2D extent, 
-	bool ignoreSwapchainImage = false);
+	VkExtent2D extent);
 
 VkDescriptorSet createImageDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorImageSetting>& imageViews);
 VkDescriptorSet createBufferDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorBufferSetting>& buffers);

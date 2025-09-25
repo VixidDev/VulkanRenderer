@@ -44,6 +44,22 @@ namespace RendererUtils {
 	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
 	void drawLineMesh(LineMeshData& lineMeshData);
 	void renderImGUI();
+
+	// Blitting
+	void blitImage(
+		VkImage srcImage,
+		VkImageLayout srcImageLayout,
+		VkImage dstImage,
+		VkImageLayout dstImageLayout,
+		std::uint32_t regionCount,
+		const VkImageBlit* pRegions,
+		VkFilter filter);
+	void blitImageToSwapchain(
+		VkImage srcImage,
+		VkImageLayout srcImageLayout,
+		VkImage swapchainImage,
+		VkExtent2D renderExtent,
+		VkFilter filter);
 	
 	// Dynamic states
 	void setCullMode(VkCullModeFlags cullMode);

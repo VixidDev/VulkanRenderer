@@ -159,26 +159,17 @@ void createFramebuffers(
 	std::vector<vk::Framebuffer>& framebuffers, 
 	VkRenderPass renderPass, 
 	std::vector<VkImageView>& imageViews, 
-	VkExtent2D extent, 
-	bool ignoreSwapchainImage) 
+	VkExtent2D extent) 
 {
 	assert(framebuffers.empty());
 
 	for (std::size_t i = 0; i < window.swapViews.size(); ++i) {
-		std::vector<VkImageView> attachments;
-		if (!ignoreSwapchainImage)
-			attachments.push_back(window.swapViews[i]);
-
-		for (std::size_t j = 0; j < imageViews.size(); j++) {
-			attachments.push_back(imageViews[j]);
-		}
-
 		VkFramebufferCreateInfo fbInfo{};
 		fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		fbInfo.flags = 0;
 		fbInfo.renderPass = renderPass;
-		fbInfo.attachmentCount = (std::uint32_t)attachments.size();
-		fbInfo.pAttachments = attachments.data();
+		fbInfo.attachmentCount = static_cast<std::uint32_t>(imageViews.size());
+		fbInfo.pAttachments = imageViews.data();
 		fbInfo.width = extent.width;
 		fbInfo.height = extent.height;
 		fbInfo.layers = 1;

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <map>
-#include <string>
-
 #include "../../base/Framebuffer.hpp"
 #include "../../base/TextureBuffer.hpp"
 #include "../../base/RenderPass.hpp"

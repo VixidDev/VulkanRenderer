@@ -73,6 +73,9 @@ void GUI::draw() {
 
 	//ImGui::ShowDemoWindow();
 
+	// I dont like this, but it is what it is
+	bool& mosaicEnabled = renderer.getPostProcessingEffects()[0].second->getEnabled();
+
 	ImGui::Begin("Debug Menu");
 
 	if (ImGui::BeginTabBar("Main Debug Menu")) {
@@ -144,6 +147,12 @@ void GUI::draw() {
 			glsl::Light& light = ssbos.lights.at(this->selectedLight);
 			ImGui::ColorEdit3("Colour", &light.colour[0]);
 			ImGui::SliderInt("Intensity", &light.metadata.z, 1, 500);
+
+			ImGui::EndTabItem();
+		}
+		if (ImGui::BeginTabItem("Post Processing")) {
+			ImGui::Text("Post Processing Effects");
+			ImGui::Checkbox("Mosaic", &mosaicEnabled);
 
 			ImGui::EndTabItem();
 		}
