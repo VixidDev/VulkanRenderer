@@ -59,7 +59,7 @@ vk::DescriptorSetLayout createDescriptorLayout(const VulkanWindow& window, std::
 
 	for (std::size_t i = 0; i < descriptorSettings.size(); i++) {
 		VkDescriptorSetLayoutBinding binding{};
-		binding.binding = (std::uint32_t)i;
+		binding.binding = static_cast<std::uint32_t>(i);
 		binding.descriptorType = descriptorSettings[i].descriptorType;
 		binding.descriptorCount = 1;
 		binding.stageFlags = descriptorSettings[i].shaderStageFlags;
@@ -69,7 +69,7 @@ vk::DescriptorSetLayout createDescriptorLayout(const VulkanWindow& window, std::
 
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = (std::uint32_t)layoutBindings.size();
+	layoutInfo.bindingCount = static_cast<std::uint32_t>(layoutBindings.size());
 	layoutInfo.pBindings = layoutBindings.data();
 
 	VkDescriptorSetLayout layout = VK_NULL_HANDLE;
@@ -126,10 +126,8 @@ std::pair<vk::Image, vk::ImageView> createTextureBuffer(const VulkanContext& con
 	VkImage image = VK_NULL_HANDLE;
 	VmaAllocation allocation = VK_NULL_HANDLE;
 
-	if (const auto res = vmaCreateImage(context.allocator->allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr); VK_SUCCESS != res) {
-		std::fprintf(stderr, "Unable to allocate depth buffer image.\n vmaCreateImage() returned %s\n", Utils::toString(res).c_str());
+	if (const auto res = vmaCreateImage(context.allocator->allocator, &imageInfo, &allocInfo, &image, &allocation, nullptr); VK_SUCCESS != res)
 		throw Utils::Error("Unable to allocate depth buffer image.\n vmaCreateImage() returned %s\n", Utils::toString(res).c_str());
-	}
 
 	vk::Image Image(context.allocator->allocator, image, allocation);
 

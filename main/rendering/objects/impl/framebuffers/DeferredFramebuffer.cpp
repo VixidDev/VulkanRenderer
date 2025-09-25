@@ -26,6 +26,7 @@ void DeferredFramebuffer::recreate() {
 	views.emplace_back(this->textureBuffers->at("colour")->getImageView().handle);
 	views.emplace_back(this->textureBuffers->at("gBuffer1")->getImageView().handle);
 	views.emplace_back(this->textureBuffers->at("gBuffer2")->getImageView().handle);
+	views.emplace_back(this->textureBuffers->at("gBuffer3")->getImageView().handle);
 	views.emplace_back(this->textureBuffers->at("depth")->getImageView().handle);
 
 	std::vector<VkImageView> MSAAViews;

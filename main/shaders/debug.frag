@@ -18,6 +18,7 @@ layout(set = 1, binding = 1) uniform sampler2D uMetalness;
 layout(set = 1, binding = 2) uniform sampler2D uRoughness;
 layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
+layout(set = 1, binding = 5) uniform sampler2D uEmissive;
 
 layout(set = 2, binding = 0) uniform ClipPlanes {
 	float far;

@@ -12,7 +12,7 @@ DeferredPass::DeferredPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCo
 }
 
 void DeferredPass::recreate() {
-	VkAttachmentDescription attachments[4]{};
+	VkAttachmentDescription attachments[5]{};
 	// Output image
 	attachments[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -38,46 +38,58 @@ void DeferredPass::recreate() {
 	attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[2].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	// Depth buffer
-	attachments[3].format = VK_FORMAT_D32_SFLOAT;
+	// emissive = rgb
+	attachments[3].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[3].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[3].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	attachments[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachments[3].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachments[3].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	// Depth buffer
+	attachments[4].format = VK_FORMAT_D32_SFLOAT;
+	attachments[4].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachments[4].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[4].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[4].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[4].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference swapchainAttachment{};
 	swapchainAttachment.attachment = 0;
 	swapchainAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkAttachmentReference gBufferAttachments[2]{};
+	VkAttachmentReference gBufferAttachments[3]{};
 	gBufferAttachments[0].attachment = 1;
 	gBufferAttachments[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 	gBufferAttachments[1].attachment = 2;
 	gBufferAttachments[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	gBufferAttachments[2].attachment = 3;
+	gBufferAttachments[2].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depthAttachment{};
-	depthAttachment.attachment = 3;
+	depthAttachment.attachment = 4;
 	depthAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-	VkAttachmentReference inputAttachments[3]{};
+	VkAttachmentReference inputAttachments[4]{};
 	inputAttachments[0].attachment = 1;
 	inputAttachments[0].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	inputAttachments[1].attachment = 2;
 	inputAttachments[1].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	inputAttachments[2].attachment = 3;
 	inputAttachments[2].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	inputAttachments[3].attachment = 4;
+	inputAttachments[3].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkSubpassDescription subpasses[2]{};
 	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpasses[0].colorAttachmentCount = 2;
+	subpasses[0].colorAttachmentCount = 3;
 	subpasses[0].pColorAttachments = gBufferAttachments;
 	subpasses[0].pDepthStencilAttachment = &depthAttachment;
 
 	subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpasses[1].colorAttachmentCount = 1;
 	subpasses[1].pColorAttachments = &swapchainAttachment;
-	subpasses[1].inputAttachmentCount = 3;
+	subpasses[1].inputAttachmentCount = 4;
 	subpasses[1].pInputAttachments = inputAttachments;
 
 	VkSubpassDependency deps[3]{};
@@ -107,7 +119,7 @@ void DeferredPass::recreate() {
 
 	VkRenderPassCreateInfo passInfo{};
 	passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	passInfo.attachmentCount = 4;
+	passInfo.attachmentCount = 5;
 	passInfo.pAttachments = attachments;
 	passInfo.subpassCount = 2;
 	passInfo.pSubpasses = subpasses;
@@ -132,6 +144,7 @@ void DeferredPass::recreate() {
 	depthClearValue.depthStencil.depth = 1.0f;
 
 	this->clearValues.clear();
+	this->clearValues.emplace_back(colourClearValue);
 	this->clearValues.emplace_back(colourClearValue);
 	this->clearValues.emplace_back(colourClearValue);
 	this->clearValues.emplace_back(colourClearValue);

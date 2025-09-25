@@ -130,6 +130,10 @@ void GUI::draw() {
 
 			ImGui::Separator();
 
+			ImGui::SliderFloat("Emissive Strength", &renderer.emissiveStrength, 1.0f, 30.0f);
+
+			ImGui::Separator();
+
 			ImGui::Text("Sun Light Debug");
 			ImGui::SliderFloat("Ortho bounds", &renderer.sunOrthoBounds, 0.1f, 50.0f);
 			ImGui::SliderFloat("Near plane", &renderer.sunShadowNear, 0.001f, 10.0f);

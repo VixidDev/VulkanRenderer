@@ -117,16 +117,18 @@ void DeferredWritingPipeline::recreate() {
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampleInfo.rasterizationSamples = *this->sampleCount;
 
-	VkPipelineColorBlendAttachmentState blendStates[2]{};
+	VkPipelineColorBlendAttachmentState blendStates[3]{};
 	blendStates[0].blendEnable = VK_FALSE;
 	blendStates[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	blendStates[1].blendEnable = VK_FALSE;
 	blendStates[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	blendStates[2].blendEnable = VK_FALSE;
+	blendStates[2].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
 	VkPipelineColorBlendStateCreateInfo blendInfo{};
 	blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	blendInfo.logicOpEnable = VK_FALSE;
-	blendInfo.attachmentCount = 2;
+	blendInfo.attachmentCount = 3;
 	blendInfo.pAttachments = blendStates;
 
 	VkPipelineDepthStencilStateCreateInfo depthInfo{};

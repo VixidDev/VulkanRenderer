@@ -39,7 +39,6 @@
 #include "objects/impl/pipelines/MosaicPipeline.hpp"
 
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/ShadowDepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/CubemapDepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/CubemapArrayDepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/ArrayColourTextureBuffer.hpp"
@@ -75,6 +74,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->context.window = initialiseVulkanWindow();
 	this->context.allocator = initialiseVulkanAllocator(*this->context.window);
 
+	this->createDummyTexture();
+
 	VulkanWindow* window = this->context.window.get();
 	VulkanAllocator* allocator = this->context.allocator.get();
 
@@ -99,8 +100,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
 	std::vector<DescriptorSetting> deferredInputAttachments = {
+		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT } };
@@ -137,12 +140,13 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->pipelineLayouts.at("singleImageSample").get(), this->renderPasses.at("postProcess").get()));
 
 	// Texture Buffers
-	this->textureBuffers.emplace("colour", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
-	this->textureBuffers.emplace("intermediate", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
+	this->textureBuffers.emplace("colour", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("intermediate", std::make_unique<ColourTextureBuffer>(&this->context));
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
-	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
-	this->textureBuffers.emplace("gBuffer2", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
-	this->textureBuffers.emplace("sunView", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting));
+	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("gBuffer2", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("gBuffer3", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("sunView", std::make_unique<ColourTextureBuffer>(&this->context));
 
 	// Framebuffers
 	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("forward").get(), &this->sampleCountSetting));
@@ -193,6 +197,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	std::vector<DescriptorImageSetting> deferredInputsDescriptorSettings = {
 		{ this->textureBuffers.at("gBuffer1").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
 		{ this->textureBuffers.at("gBuffer2").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
+		{ this->textureBuffers.at("gBuffer3").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
 		{ this->textureBuffers.at("depth").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE } };
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
 		{ this->textureBuffers.at("sunView").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle} };
@@ -251,11 +256,11 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	}
 
 	// Create a texture buffers and framebuffers for array shadow maps for non-zero light types
-	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<CubemapArrayDepthTextureBuffer>(&this->context, this->numPointLights, &this->shadowRes));
-	this->textureBuffers.emplace("directionalShadow", std::make_unique<DepthTextureBuffer>(&this->context, &this->shadowRes));
+	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<CubemapArrayDepthTextureBuffer>(&this->context, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->shadowRes));
+	this->textureBuffers.emplace("directionalShadow", std::make_unique<DepthTextureBuffer>(&this->context, VK_FORMAT_D32_SFLOAT, nullptr, &this->shadowRes));
 #ifndef NDEBUG
-	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numPointLights * 6, &this->shadowRes));
-	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, &this->sampleCountSetting, &this->shadowRes));
+	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numPointLights * 6, VK_FORMAT_R16G16B16A16_SFLOAT, &this->shadowRes));
+	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16G16B16A16_SFLOAT, nullptr, &this->shadowRes));
 #endif
 
 	if (this->numPointLights != 0) {
@@ -647,8 +652,14 @@ void Renderer::renderForward() {
 	RendererUtils::bindGraphicDescriptorSets(
 		this->pipelineLayouts.at("forward")->getHandle(), 0, 1,
 		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+
+	glsl::LightsAndEmissive lightsAndEmissive = {
+		.numLights = this->numLights,
+		.emissiveStrength = this->emissiveStrength
+	};
+
 	RendererUtils::bindPushConstant(
-		this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
+		this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	// TODO: put all shadow relevant descriptors last so no need for else branch (same for sun position view and deferred)
 	if (this->shadowsEnabled) {
@@ -732,8 +743,14 @@ void Renderer::renderForward() {
 		RendererUtils::bindGraphicDescriptorSets(
 			this->pipelineLayouts.at("forward")->getHandle(), 6, 1,
 			&this->descriptorSets.at("lightMatrices")->getHandle(), 0, nullptr);
+
+		glsl::LightsAndEmissive lightsAndEmissive = {
+			.numLights = this->numLights,
+			.emissiveStrength = this->emissiveStrength
+		};
+
 		RendererUtils::bindPushConstant(
-			this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
+			this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 	}
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
@@ -815,8 +832,14 @@ void Renderer::renderDeferred() {
 	RendererUtils::bindGraphicDescriptorSets(
 		this->pipelineLayouts.at("deferredShading")->getHandle(), 1, 1,
 		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+
+	glsl::LightsAndEmissive lightsAndEmissive = {
+		.numLights = this->numLights,
+		.emissiveStrength = this->emissiveStrength
+	};
+
 	RendererUtils::bindPushConstant(
-		this->pipelineLayouts.at("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &this->numLights);
+		this->pipelineLayouts.at("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	if (this->shadowsEnabled) {
 		RendererUtils::bindGraphicDescriptorSets(
@@ -1119,6 +1142,12 @@ void Renderer::finishRendering() {
 	this->handledImGUIShutdown = true;
 }
 
+void Renderer::createDummyTexture() {
+	vk::Image dummyImage = vk::createDummyImage(this->context, VK_FORMAT_R8G8B8A8_SRGB);
+	vk::ImageView dummyImageView = vk::createImageView(this->context, dummyImage.image, VK_FORMAT_R8G8B8A8_SRGB);
+	this->dummyTexture = { std::move(dummyImage), std::move(dummyImageView) };
+}
+
 void Renderer::recreateFormatDependents() {
 	// Recreate render passes
 	for (auto& renderPass : this->renderPasses)
@@ -1310,6 +1339,10 @@ int& Renderer::getDebugState() {
 
 bool& Renderer::getMosaicEnabled() {
 	return this->mosaicEnabled;
+}
+
+std::pair<vk::Image, vk::ImageView>& Renderer::getDummyTexture() {
+	return this->dummyTexture;
 }
 
 void Renderer::setRecreateSwapchain(bool value, bool force) {

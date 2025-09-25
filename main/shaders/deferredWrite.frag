@@ -16,9 +16,11 @@ layout(set = 1, binding = 1) uniform sampler2D uMetalness;
 layout(set = 1, binding = 2) uniform sampler2D uRoughness;
 layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
+layout(set = 1, binding = 5) uniform sampler2D uEmssive;
 
 layout(location = 0) out vec4 gBuffer1; // normals = rgb, metalness = a
 layout(location = 1) out vec4 gBuffer2; // albedo = rgb, roughness = a
+layout(location = 2) out vec4 gBuffer3; // emissive = rgb
 
 void main() {
 	vec3 normal;
@@ -37,4 +39,6 @@ void main() {
 
 	gBuffer2.rgb = texture(uTexColour, v2fTexCoord).rgb;
 	gBuffer2.a = texture(uRoughness, v2fTexCoord).r;
+
+	gBuffer3.rgb = texture(uEmssive, v2fTexCoord).rgb;
 }

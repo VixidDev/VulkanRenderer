@@ -32,7 +32,7 @@
  *      - uint32_t: metalness texture index
  *      - uint32_t: alpha mask texture index; set to 0xffffffff if not available
  *      - uint32_t: normal map texture index; set to 0xffffffff if not available
- *      - uint32_t: emissive texture index;
+ *      - uint32_t: emissive texture index; set to 0xffffffff if not available
  *
  *  4. Mesh data
  *    - 1*uint32_t: M = number of meshes

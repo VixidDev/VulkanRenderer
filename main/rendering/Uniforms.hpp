@@ -28,4 +28,10 @@ namespace glsl {
 	};
 
 	static_assert(sizeof(Light) == 64, "Light stuct must be 64 bytes!");
+
+	// Push constant structs
+	struct LightsAndEmissive {
+		int numLights;
+		float emissiveStrength;
+	};
 }

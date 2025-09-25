@@ -28,6 +28,8 @@ protected:
 	vk::Image image;
 	vk::ImageView imageView;
 
+	VkFormat format = VK_FORMAT_UNDEFINED;
+
 	VkSampleCountFlagBits* sampleCount = nullptr;
 	VkExtent2D* renderExtent = nullptr;
 };

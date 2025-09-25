@@ -1,6 +1,7 @@
 #include "ForwardPipelineLayout.hpp"
 
 #include "../../../PipelineCreation.hpp"
+#include "../../../Uniforms.hpp"
 
 ForwardPipelineLayout::ForwardPipelineLayout(VulkanWindow* window,
 	std::map<std::string, vk::DescriptorSetLayout>* descriptorLayouts,
@@ -29,7 +30,7 @@ void ForwardPipelineLayout::recreate() {
 
 	VkPushConstantRange lightCount = {
 		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-		.size = sizeof(int)
+		.size = sizeof(glsl::LightsAndEmissive)
 	};
 
 	std::vector<VkPushConstantRange> pushConstants;

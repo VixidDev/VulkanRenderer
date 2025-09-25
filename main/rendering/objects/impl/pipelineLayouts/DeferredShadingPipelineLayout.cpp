@@ -1,6 +1,7 @@
 #include "DeferredShadingPipelineLayout.hpp"
 
 #include "../../../PipelineCreation.hpp"
+#include "../../../Uniforms.hpp"
 
 DeferredShadingPipelineLayout::DeferredShadingPipelineLayout(VulkanWindow* window,
 	std::map<std::string, vk::DescriptorSetLayout>* descriptorLayouts,
@@ -29,7 +30,7 @@ void DeferredShadingPipelineLayout::recreate() {
 
 	VkPushConstantRange lightCount = {
 		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-		.size = sizeof(int)
+		.size = sizeof(glsl::LightsAndEmissive)
 	};
 
 	std::vector<VkPushConstantRange> pushConstants;

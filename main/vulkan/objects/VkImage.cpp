@@ -48,7 +48,7 @@ namespace vk {
 		return *this;
 	}
 
-	Image loadImageTexture(char const* path, const VulkanContext& context, VkFormat format, std::uint8_t channels) {
+	Image loadImage(char const* path, const VulkanContext& context, VkFormat format, std::uint8_t channels) {
 		const VulkanAllocator& allocator = *context.allocator;
 		VkCommandPool cmdPool = context.window->device->cmdPool;
 
@@ -61,17 +61,15 @@ namespace vk {
 		if (!data)
 			throw Utils::Error("%s: Unable to load texture base image (%s)", path, 0, stbi_failure_reason());
 
-		const auto baseWidth = std::uint32_t(baseWidthi);
-		const auto baseHeight = std::uint32_t(baseHeighti);
+		const std::uint32_t baseWidth = std::uint32_t(baseWidthi);
+		const std::uint32_t baseHeight = std::uint32_t(baseHeighti);
+		const std::uint32_t sizeInBytes = baseWidth * baseHeight * 4;
 
-		const auto sizeInBytes = baseWidth * baseHeight * 4;
-
-		auto staging = createBuffer(
+		vk::Buffer staging = createBuffer(
 			allocator,
 			sizeInBytes,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-		);
+			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
 		void* sptr = nullptr;
 		if (const auto res = vmaMapMemory(allocator.allocator, staging.allocation, &sptr); VK_SUCCESS != res)
@@ -82,172 +80,76 @@ namespace vk {
 
 		stbi_image_free(data);
 
-		Image ret = createImageTexture(
-			allocator,
-			baseWidth,
-			baseHeight,
-			format,
+		Image ret = createImage(allocator, baseWidth, baseHeight, format,
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
 		);
 		
 		VkCommandBuffer cbuff = VkUtils::createCommandBuffer(*context.window, cmdPool);
+		VkUtils::beginCommandBuffer(cbuff);
 
-		VkCommandBufferBeginInfo beginInfo{};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = 0;
-		beginInfo.pInheritanceInfo = nullptr;
+		const std::uint32_t mipLevels = computeMipLevelCount(baseWidth, baseHeight);
 
-		if (const auto res = vkBeginCommandBuffer(cbuff, &beginInfo); VK_SUCCESS != res)
-			throw Utils::Error("Unable to begin command buffer\n vkBeginCommandBuffer() returned %s", Utils::toString(res).c_str());
-
-		const auto mipLevels = computeMipLevelCount(baseWidth, baseHeight);
-
-		VkUtils::imageBarrier(
-			cbuff,
-			ret.image,
-			0,
-			VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VkImageSubresourceRange{
-				VK_IMAGE_ASPECT_COLOR_BIT,
-				0,
-				mipLevels,
-				0,
-				1
-			}
-		);
+		VkUtils::imageBarrier(cbuff, ret.image,
+			/* srcAccessMask */ 0, /* dstAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT,
+			/* srcLayout     */ VK_IMAGE_LAYOUT_UNDEFINED, /* dstLayout */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			/* srcStageMask  */ VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1 });
 
 		VkBufferImageCopy copy;
 		copy.bufferOffset = 0;
 		copy.bufferRowLength = 0;
 		copy.bufferImageHeight = 0;
-		copy.imageSubresource = VkImageSubresourceLayers{
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			0,
-			0,
-			1
-		};
+		copy.imageSubresource = VkImageSubresourceLayers{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 		copy.imageOffset = VkOffset3D{ 0, 0, 0 };
 		copy.imageExtent = VkExtent3D{ baseWidth, baseHeight, 1 };
 
 		vkCmdCopyBufferToImage(cbuff, staging.buffer, ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
-		VkUtils::imageBarrier(
-			cbuff,
-			ret.image,
-			VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_ACCESS_TRANSFER_READ_BIT,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VkImageSubresourceRange{
-				VK_IMAGE_ASPECT_COLOR_BIT,
-				0,
-				1,
-				0,
-				1
-			}
-		);
+		VkUtils::imageBarrier(cbuff, ret.image,
+			/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT, /* dstAccessMask */ VK_ACCESS_TRANSFER_READ_BIT,
+			/* srcLayout     */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, /* dstLayout */ VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			/* srcStageMask  */ VK_PIPELINE_STAGE_TRANSFER_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
 		uint32_t width = baseWidth, height = baseHeight;
 
 		for (std::uint32_t level = 1; level < mipLevels; ++level) {
 			VkImageBlit blit{};
-			blit.srcSubresource = VkImageSubresourceLayers{
-				VK_IMAGE_ASPECT_COLOR_BIT,
-				level - 1,
-				0,
-				1
-			};
+			blit.srcSubresource = VkImageSubresourceLayers{ VK_IMAGE_ASPECT_COLOR_BIT, level - 1, 0, 1 };
 			blit.srcOffsets[0] = { 0, 0, 0 };
 			blit.srcOffsets[1] = { std::int32_t(width), std::int32_t(height), 1 };
 
 			width >>= 1; if (width == 0) width = 1;
 			height >>= 1; if (height == 0) height = 1;
 
-			blit.dstSubresource = VkImageSubresourceLayers{
-				VK_IMAGE_ASPECT_COLOR_BIT,
-				level,
-				0,
-				1
-			};
+			blit.dstSubresource = VkImageSubresourceLayers{ VK_IMAGE_ASPECT_COLOR_BIT, level, 0, 1 };
 			blit.dstOffsets[0] = { 0, 0, 0 };
 			blit.dstOffsets[1] = { std::int32_t(width), std::int32_t(height), 1 };
 
-			vkCmdBlitImage(
-				cbuff,
-				ret.image,
-				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-				ret.image,
-				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				1,
-				&blit,
-				VK_FILTER_LINEAR
-			);
+			vkCmdBlitImage(cbuff,
+				ret.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				1, &blit, VK_FILTER_LINEAR);
 
-			VkUtils::imageBarrier(
-				cbuff,
-				ret.image,
-				VK_ACCESS_TRANSFER_WRITE_BIT,
-				VK_ACCESS_TRANSFER_READ_BIT,
-				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-				VK_PIPELINE_STAGE_TRANSFER_BIT,
-				VkImageSubresourceRange{
-					VK_IMAGE_ASPECT_COLOR_BIT,
-					level,
-					1,
-					0,
-					1
-				}
-			);
+			VkUtils::imageBarrier(cbuff, ret.image,
+				/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT, /* dstAccessMask */ VK_ACCESS_TRANSFER_READ_BIT,
+				/* srcLayout     */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, /* dstLayout */ VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				/* srcStageMask  */ VK_PIPELINE_STAGE_TRANSFER_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT,
+				VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, level, 1, 0, 1 });
 		}
 
-		VkUtils::imageBarrier(
-			cbuff,
-			ret.image,
-			VK_ACCESS_TRANSFER_READ_BIT,
-			VK_ACCESS_SHADER_READ_BIT,
-			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			VkImageSubresourceRange{
-				VK_IMAGE_ASPECT_COLOR_BIT,
-				0,
-				mipLevels,
-				0,
-				1
-			}
-		);
+		VkUtils::imageBarrier(cbuff, ret.image,
+			/* srcAccessMask */ VK_ACCESS_TRANSFER_READ_BIT, /* dstAccessMask */ VK_ACCESS_SHADER_READ_BIT,
+			/* srcLayout     */ VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, /* dstLayout */ VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			/* srcStageMask  */ VK_PIPELINE_STAGE_TRANSFER_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, mipLevels, 0, 1 });
 
-		if (const auto res = vkEndCommandBuffer(cbuff); VK_SUCCESS != res)
-			throw Utils::Error("Unable to end command buffer\n vkEndCommandBuffer() returned %s", Utils::toString(res).c_str());
-
-		Fence uploadComplete = VkUtils::createFence(*context.window);
-
-		VkSubmitInfo submitInfo{};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &cbuff;
-
-		if (const auto res = vkQueueSubmit(context.window->graphicsQueue, 1, &submitInfo, uploadComplete.handle); VK_SUCCESS != res)
-			throw Utils::Error("Unable to queue submit\n vkQueueSubmit() returned %s", Utils::toString(res).c_str());
-
-		if (const auto res = vkWaitForFences(context.window->device->device, 1, &uploadComplete.handle, VK_TRUE, std::numeric_limits<std::uint64_t>::max()); VK_SUCCESS != res)
-			throw Utils::Error("Unable to wait for fences\n vkWaitForFences() returned %s", Utils::toString(res).c_str());
-
-		vkFreeCommandBuffers(context.window->device->device, cmdPool, 1, &cbuff);
+		VkUtils::endAndSubmitCommandBuffer(*context.window, cbuff);
 
 		return ret;
 	}
 
-	Image createImageTexture(const VulkanAllocator& allocator, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usageFlags) {
+	Image createImage(const VulkanAllocator& allocator, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usageFlags) {
 		const auto mipLevels = computeMipLevelCount(width, height);
 
 		VkImageCreateInfo imageInfo{};
@@ -282,14 +184,13 @@ namespace vk {
 		const VulkanAllocator& allocator = *context.allocator;
 		VkCommandPool cmdPool = context.window->device->cmdPool;
 
-		std::uint8_t data[4] = { std::uint8_t(255), std::uint8_t(255), std::uint8_t(255), std::uint8_t(255) };
+		constexpr std::uint8_t data[4] = { 0, 0, 0, 0 };
 
-		auto staging = createBuffer(
+		vk::Buffer staging = createBuffer(
 			allocator,
 			4, // 1 byte
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT
-		);
+			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
 		void* sptr = nullptr;
 		if (const auto res = vmaMapMemory(allocator.allocator, staging.allocation, &sptr); VK_SUCCESS != res)
@@ -298,124 +199,47 @@ namespace vk {
 		std::memcpy(sptr, data, 4);
 		vmaUnmapMemory(allocator.allocator, staging.allocation);
 
-		Image ret = createImageTexture(allocator, 1, 1, format,
-			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-		);
+		Image ret = createImage(allocator, 1, 1, format,
+			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
 		VkCommandBuffer cbuff = VkUtils::createCommandBuffer(*context.window, cmdPool);
+		VkUtils::beginCommandBuffer(cbuff);
 
-		VkCommandBufferBeginInfo beginInfo{};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		beginInfo.flags = 0;
-		beginInfo.pInheritanceInfo = nullptr;
-
-		if (const auto res = vkBeginCommandBuffer(cbuff, &beginInfo); VK_SUCCESS != res)
-			throw Utils::Error("Unable to begin command buffer\n vkBeginCommandBuffer() returned %s", Utils::toString(res).c_str());
-
-		VkUtils::imageBarrier(
-			cbuff,
-			ret.image,
-			0,
-			VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_IMAGE_LAYOUT_UNDEFINED,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VkImageSubresourceRange{
-				VK_IMAGE_ASPECT_COLOR_BIT,
-				0,
-				1,
-				0,
-				1
-			}
-		);
+		VkUtils::imageBarrier(cbuff, ret.image,
+			/* srcAccessMask */ 0, /* dstAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT,
+			/* srcLayout     */ VK_IMAGE_LAYOUT_UNDEFINED, /* dstLayout */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			/* srcStageMask  */ VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
 		VkBufferImageCopy copy;
 		copy.bufferOffset = 0;
 		copy.bufferRowLength = 0;
 		copy.bufferImageHeight = 0;
-		copy.imageSubresource = VkImageSubresourceLayers{
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			0,
-			0,
-			1
-		};
+		copy.imageSubresource = VkImageSubresourceLayers{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1 };
 		copy.imageOffset = VkOffset3D{ 0, 0, 0 };
 		copy.imageExtent = VkExtent3D{ 1, 1, 1 };
 
 		vkCmdCopyBufferToImage(cbuff, staging.buffer, ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
-		VkUtils::imageBarrier(
-			cbuff,
-			ret.image,
-			VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_ACCESS_TRANSFER_READ_BIT,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VkImageSubresourceRange{
-				VK_IMAGE_ASPECT_COLOR_BIT,
-				0,
-				1,
-				0,
-				1
-			}
-		);
+		VkUtils::imageBarrier(cbuff, ret.image,
+			/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT, /* dstAccessMask */ VK_ACCESS_SHADER_READ_BIT,
+			/* srcLayout     */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, /* dstLayout */ VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			/* srcStageMask  */ VK_PIPELINE_STAGE_TRANSFER_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 
-		VkUtils::imageBarrier(
-			cbuff,
-			ret.image,
-			VK_ACCESS_TRANSFER_READ_BIT,
-			VK_ACCESS_SHADER_READ_BIT,
-			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-			VkImageSubresourceRange{
-				VK_IMAGE_ASPECT_COLOR_BIT,
-				0,
-				1,
-				0,
-				1
-			}
-		);
-
-		if (const auto res = vkEndCommandBuffer(cbuff); VK_SUCCESS != res)
-			throw Utils::Error("Unable to end command buffer\n vkEndCommandBuffer() returned %s", Utils::toString(res).c_str());
-
-		Fence uploadComplete = VkUtils::createFence(*context.window);
-
-		VkSubmitInfo submitInfo{};
-		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-		submitInfo.commandBufferCount = 1;
-		submitInfo.pCommandBuffers = &cbuff;
-
-		if (const auto res = vkQueueSubmit(context.window->graphicsQueue, 1, &submitInfo, uploadComplete.handle); VK_SUCCESS != res)
-			throw Utils::Error("Unable to queue submit\n vkQueueSubmit() returned %s", Utils::toString(res).c_str());
-
-		if (const auto res = vkWaitForFences(context.window->device->device, 1, &uploadComplete.handle, VK_TRUE, std::numeric_limits<std::uint64_t>::max()); VK_SUCCESS != res)
-			throw Utils::Error("Unable to wait for fences\n vkWaitForFences() returned %s", Utils::toString(res).c_str());
-
-		vkFreeCommandBuffers(context.window->device->device, cmdPool, 1, &cbuff);
+		VkUtils::endAndSubmitCommandBuffer(*context.window, cbuff);
 
 		return ret;
 	}
 
-	ImageView createImageViewTexture(const VulkanContext& context, VkImage image, VkFormat format) {
+	ImageView createImageView(const VulkanContext& context, VkImage image, VkFormat format) {
 		VkImageViewCreateInfo viewInfo{};
 		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		viewInfo.image = image;
 		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 		viewInfo.format = format;
 		viewInfo.components = VkComponentMapping{};
-		viewInfo.subresourceRange = VkImageSubresourceRange{
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			0,
-			VK_REMAINING_MIP_LEVELS,
-			0,
-			1
-		};
+		viewInfo.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, 1 };
 
 		VkImageView view = VK_NULL_HANDLE;
 		if (const auto res = vkCreateImageView(context.window->device->device, &viewInfo, nullptr, &view); VK_SUCCESS != res)

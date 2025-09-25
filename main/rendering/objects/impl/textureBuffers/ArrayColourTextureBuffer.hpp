@@ -4,7 +4,11 @@
 
 class ArrayColourTextureBuffer : public ArrayTextureBuffer {
 public:
-	ArrayColourTextureBuffer(VulkanContext* context, std::uint32_t arraySize, VkExtent2D* renderExtent = nullptr);
+	ArrayColourTextureBuffer(
+		VulkanContext* context, 
+		std::uint32_t arraySize, 
+		VkFormat format = VK_FORMAT_R16G16B16A16_SFLOAT, 
+		VkExtent2D* renderExtent = nullptr);
 
 	void recreate();
 

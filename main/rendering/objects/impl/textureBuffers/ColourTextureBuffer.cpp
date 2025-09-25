@@ -5,8 +5,11 @@
 
 ColourTextureBuffer::ColourTextureBuffer(
 	VulkanContext* context,
+	VkFormat format,
 	VkSampleCountFlagBits* sampleCount,
-	VkExtent2D* renderExtent) : TextureBuffer(context) {
+	VkExtent2D* renderExtent
+) : TextureBuffer(context) {
+	this->format = format;
 	this->sampleCount = sampleCount;
 
 	if (!renderExtent)
@@ -19,10 +22,11 @@ ColourTextureBuffer::ColourTextureBuffer(
 
 void ColourTextureBuffer::recreate() {
 	TextureBufferSetting textureSetting = {
-		.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT,
+		.imageFormat = this->format,
 		.imageExtent = *this->renderExtent,
 		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-		.viewAspectFlags = VK_IMAGE_ASPECT_COLOR_BIT };
+		.viewAspectFlags = VK_IMAGE_ASPECT_COLOR_BIT,
+		.samples = this->sampleCount ? *this->sampleCount : VK_SAMPLE_COUNT_1_BIT };
 
 	std::pair<vk::Image, vk::ImageView> textureBuffer = createTextureBuffer(*this->context, textureSetting);
 

@@ -4,7 +4,11 @@
 
 class CubemapArrayDepthTextureBuffer : public ArrayTextureBuffer {
 public:
-	CubemapArrayDepthTextureBuffer(VulkanContext* context, std::uint32_t arraySize, VkExtent2D* renderExtent = nullptr);
+	CubemapArrayDepthTextureBuffer(
+		VulkanContext* context, 
+		std::uint32_t arraySize, 
+		VkFormat format = VK_FORMAT_D32_SFLOAT,
+		VkExtent2D* renderExtent = nullptr);
 
 	void recreate();
 

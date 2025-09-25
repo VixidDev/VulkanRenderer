@@ -11,6 +11,8 @@
 
 namespace BakedModelLoader {
 
+	void createDummyTexutre(const VulkanContext& context);
+
 	std::vector<std::pair<vk::Image, vk::ImageView>> loadTextures(const VulkanContext& context, BakedModel& bakedModel);
 
 	std::vector<VkDescriptorSet> createMaterialDescriptors(Driver& driver, BakedModel& bakedModel);

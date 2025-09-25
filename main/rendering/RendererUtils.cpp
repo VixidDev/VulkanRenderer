@@ -81,8 +81,8 @@ namespace RendererUtils {
 		std::uint32_t firstSet, 
 		std::uint32_t descSetCount, 
 		const VkDescriptorSet* pDescriptorSets, 
-		std::uint32_t dynamicOffsetCount, /* default = 0 */
-		const std::uint32_t* pDynamicOffsets /* default = nullptr */)
+		std::uint32_t dynamicOffsetCount, /* = 0 */
+		const std::uint32_t* pDynamicOffsets /* = nullptr */)
 	{
 		checkCommandBuffer();
 

@@ -1,7 +1,5 @@
 #include "CubemapDepthTextureBuffer.hpp"
 
-#include "ShadowDepthTextureBuffer.hpp"
-
 #include "../../../../vulkan/VulkanContext.hpp"
 #include "../../../PipelineCreation.hpp"
 
@@ -12,8 +10,11 @@
 
 CubemapDepthTextureBuffer::CubemapDepthTextureBuffer(
 	VulkanContext* context,
+	VkFormat format,
 	VkSampleCountFlagBits* sampleCount,
-	VkExtent2D* renderExtent) : TextureBuffer(context) {
+	VkExtent2D* renderExtent
+) : TextureBuffer(context) {
+	this->format = format;
 	this->sampleCount = sampleCount;
 
 	if (!renderExtent)
@@ -33,13 +34,13 @@ void CubemapDepthTextureBuffer::recreate() {
 	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.format = VK_FORMAT_D32_SFLOAT;
+	imageInfo.format = this->format;
 	imageInfo.extent.width = this->renderExtent->width;
 	imageInfo.extent.height = this->renderExtent->height;
 	imageInfo.extent.depth = 1;
 	imageInfo.mipLevels = 1;
 	imageInfo.arrayLayers = 6;
-	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageInfo.samples = this->sampleCount ? *this->sampleCount : VK_SAMPLE_COUNT_1_BIT;
 	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
@@ -64,7 +65,7 @@ void CubemapDepthTextureBuffer::recreate() {
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	viewInfo.image = this->image.image;
 	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
-	viewInfo.format = VK_FORMAT_D32_SFLOAT;
+	viewInfo.format = this->format;
 	viewInfo.components = VkComponentMapping{};
 	viewInfo.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 };
 
@@ -93,11 +94,6 @@ void CubemapDepthTextureBuffer::recreate() {
 }
 
 vk::ImageView& CubemapDepthTextureBuffer::getImageView() {
-	return this->getDescriptorView();
-}
-
-// Downcasting will be required to access this method!
-vk::ImageView& CubemapDepthTextureBuffer::getDescriptorView() {
 	return this->descriptorView;
 }
 

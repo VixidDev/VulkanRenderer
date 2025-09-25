@@ -18,6 +18,7 @@ layout(set = 1, binding = 1) uniform sampler2D uMetalness;
 layout(set = 1, binding = 2) uniform sampler2D uRoughness;
 layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
+layout(set = 1, binding = 5) uniform sampler2D uEmissive;
 
 struct ShaderLight {
 	vec3 position;
@@ -35,6 +36,7 @@ layout(set = 2, binding = 0) readonly buffer Lights {
 
 layout(push_constant) uniform PushConstants {
 	int lightCount;
+	float emissiveStrength;
 } pConsts;
 
 layout(location = 0) out vec4 oColour;
@@ -130,8 +132,11 @@ void main() {
 		vec3 brdfVal = brdf(lightDir, viewDir, normal) * lights[i].metadata.z;
 		float NdotL = max(dot(normal, lightDir), 0.0001);
 
-		totalLight += (brdfVal * NdotL) * lights[i].colour * attenuation;
+		totalLight += (brdfVal * NdotL) * lights[i].colour * attenuation;	
 	}
+
+	vec3 emissive = texture(uEmissive, v2fTexCoord).rgb;
+	totalLight += emissive * pConsts.emissiveStrength;
 
 	oColour = vec4(totalLight, 1.0);
 }

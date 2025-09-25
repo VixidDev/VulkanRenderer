@@ -5,23 +5,15 @@
 #include "../vulkan/VulkanDevice.hpp"
 
 namespace BakedModelLoader {
-
+	
 	std::vector<std::pair<vk::Image, vk::ImageView>> loadTextures(const VulkanContext& context, BakedModel& bakedModel) {
 		std::vector<std::pair<vk::Image, vk::ImageView>> textures;
 
 		for (BakedTextureInfo textureInfo : bakedModel.textures) {
-
 			VkFormat format = textureInfo.space == ETextureSpace::srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
 
-			vk::Image image = vk::loadImageTexture(
-				textureInfo.path.c_str(), 
-				context,
-				format, 
-				textureInfo.channels);
-			vk::ImageView imageView = vk::createImageViewTexture(
-				context,
-				image.image,
-				format);
+			vk::Image image = vk::loadImage(textureInfo.path.c_str(), context, format, textureInfo.channels);
+			vk::ImageView imageView = vk::createImageView(context, image.image, format);
 
 			textures.emplace_back(std::move(image), std::move(imageView));
 		}
@@ -43,7 +35,7 @@ namespace BakedModelLoader {
 				window.device->descPool,
 				renderer.getDescriptorSetLayout("materials"));
 
-			VkWriteDescriptorSet desc[5]{};
+			VkWriteDescriptorSet desc[6]{};
 
 			VkDescriptorImageInfo baseColourInfo{};
 			baseColourInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -112,6 +104,24 @@ namespace BakedModelLoader {
 			desc[4].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 			desc[4].descriptorCount = 1;
 			desc[4].pImageInfo = &normalMapInfo;
+
+			VkImageView emissiveImageView = VK_NULL_HANDLE;
+			if (bakedModel.materials[i].emissiveTextureId == 0xffffffff)
+				emissiveImageView = renderer.getDummyTexture().second.handle;
+			else
+				emissiveImageView = textures[bakedModel.materials[i].emissiveTextureId].second.handle;
+
+			VkDescriptorImageInfo emissiveInfo{};
+			emissiveInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			emissiveInfo.imageView = textures[bakedModel.materials[i].emissiveTextureId].second.handle;
+			emissiveInfo.sampler = renderer.getDefaultSampler().handle;
+
+			desc[5].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			desc[5].dstSet = materialDescriptor;
+			desc[5].dstBinding = 5;
+			desc[5].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			desc[5].descriptorCount = 1;
+			desc[5].pImageInfo = &emissiveInfo;
 
 			constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
 			vkUpdateDescriptorSets(window.device->device, numSets, desc, 0, nullptr);

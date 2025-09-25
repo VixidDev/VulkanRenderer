@@ -1,7 +1,5 @@
 #include "ArrayDepthTextureBuffer.hpp"
 
-#include "ShadowDepthTextureBuffer.hpp"
-
 #include "../../../../vulkan/VulkanContext.hpp"
 #include "../../../PipelineCreation.hpp"
 
@@ -13,9 +11,12 @@
 ArrayDepthTextureBuffer::ArrayDepthTextureBuffer(
 	VulkanContext* context,
 	std::uint32_t arraySize,
-	VkExtent2D* renderExtent) : ArrayTextureBuffer(context) 
+	VkFormat format,
+	VkExtent2D* renderExtent
+) : ArrayTextureBuffer(context) 
 {
 	this->arraySize = arraySize;
+	this->format = format;
 
 	if (!renderExtent)
 		this->renderExtent = &this->context->window->swapchainExtent;
@@ -30,7 +31,7 @@ void ArrayDepthTextureBuffer::recreate() {
 	VkImageCreateInfo imageInfo = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_2D,
-		.format = VK_FORMAT_D32_SFLOAT,
+		.format = this->format,
 		.extent = { this->renderExtent->width, this->renderExtent->height, 1 },
 		.mipLevels = 1,
 		.arrayLayers = this->arraySize,
@@ -65,7 +66,7 @@ void ArrayDepthTextureBuffer::recreate() {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.image = this->image.image,
 		.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
-		.format = VK_FORMAT_D32_SFLOAT,
+		.format = this->format,
 		.components = VkComponentMapping{},
 		.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, this->arraySize }
 	};

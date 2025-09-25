@@ -111,10 +111,14 @@ public:
 	// Post processing effects
 	bool& getMosaicEnabled();
 
+	std::pair<vk::Image, vk::ImageView>& getDummyTexture();
+
 	int numLights = 0;
 	std::uint32_t numPointLights = 0;
 	std::uint32_t numDirectionalLights = 0;
 	std::uint32_t numSpotLights = 0;
+
+	float emissiveStrength = 15.0f;
 
 	float sunOrthoBounds = 20.0f;
 	float sunShadowNear = 0.1f;
@@ -124,6 +128,8 @@ public:
 	bool renderCameraFrustumBounds = false;
 	float zMult = 10.0f;
 private:
+	void createDummyTexture();
+
 	void renderForward();
 	void renderDeferred();
 	void renderDebugViews();
@@ -189,6 +195,8 @@ private:
 	bool mosaicEnabled = false;
 
 	// Internal
+	std::pair<vk::Image, vk::ImageView> dummyTexture;
+
 	bool recreateSwapchain = false;
 	bool forceRecreate = false;
 
