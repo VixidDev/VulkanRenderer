@@ -113,14 +113,14 @@ public:
 
 	std::pair<vk::Image, vk::ImageView>& getDummyTexture();
 
-	int numLights = 0;
+	int numLights = 2;
 	std::uint32_t numPointLights = 0;
 	std::uint32_t numDirectionalLights = 0;
 	std::uint32_t numSpotLights = 0;
 
 	float emissiveStrength = 15.0f;
 
-	float sunOrthoBounds = 20.0f;
+	float sunOrthoBounds = 22.0f;
 	float sunShadowNear = 0.1f;
 	float sunShadowFar = 256.0f;
 	float sunDistance = 50.0f;
@@ -187,7 +187,7 @@ private:
 		VkExtent2D{ 8192, 8192 }
 	};
 	float depthBiasConstant = 7.0f;
-	float depthBiasSlopeFactor = 8.0f;
+	float depthBiasSlopeFactor = 3.0f;
 	bool debugView = false;
 	int debugState = 0;
 

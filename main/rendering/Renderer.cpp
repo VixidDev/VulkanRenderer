@@ -602,13 +602,13 @@ void Renderer::render() {
 		this->renderForward();
 	}
 
+	// Post processing effects
 	VkDescriptorSet readImage = this->descriptorSets.at("sceneOutput")->getHandle();
 	VkDescriptorSet writeImage = this->descriptorSets.at("intermediate")->getHandle();
 
 	Framebuffer* framebuffer1 = this->framebuffers.at("writeToIntermediate").get();
 	Framebuffer* framebuffer2 = this->framebuffers.at("writeToOutput").get();
 
-	// Post processing effects
 	bool atLeastOneEffect = false;
 
 	for (const auto& [effectName, effect] : this->postProcessingEffects) {

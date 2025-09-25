@@ -119,7 +119,14 @@ void GUI::draw() {
 				ImGui::BeginDisabled();
 
 			ImGui::Checkbox("Shadow Map Texture", &this->showShadowMapTexture);
+
+			if (renderer.getRenderingType())
+				ImGui::BeginDisabled();
+
 			ImGui::Checkbox("Sun View Debug", &this->showSunView);
+
+			if (renderer.getRenderingType())
+				ImGui::EndDisabled();
 
 			if (renderer.getDebugView())
 				ImGui::EndDisabled();
