@@ -21,12 +21,12 @@ Also implements a modular post-processing effect system to add any number of eff
 
 | Debug Setting | Image |
 |---|---|
-| Normals | |
-| Mipmap level | |
-| Linear depth | |
-| Partial derivatives | |
-| Overdraw | |
-| Overshading | |
+| Normals | <img width="840" alt="normals" src="https://github.com/user-attachments/assets/98604fd2-d0ba-420e-ac2b-f453c9bd86ce" /> |
+| Mipmap level | <img width="840" alt="mipmap_level" src="https://github.com/user-attachments/assets/b1a98b00-571c-4ab5-a739-533f4af5f77b" /> |
+| Linear depth | <img width="840" alt="linear_depth" src="https://github.com/user-attachments/assets/6e5c0366-3ed7-4235-9956-a97bbec0c9db" /> |
+| Partial derivatives | <img width="840" alt="partial_derivatives" src="https://github.com/user-attachments/assets/a8fd0bc3-fafa-4737-9e07-927705310659" /> |
+| Overdraw | <img width="840" alt="overdraw" src="https://github.com/user-attachments/assets/b467d1ff-7ed8-47bb-99c5-4d9f26af4d3f" /> |
+| Overshading | <img width="840" alt="overshading" src="https://github.com/user-attachments/assets/ae69a0a0-5e05-4882-b96c-629383099490" /> |
 
 ## Usage
 
