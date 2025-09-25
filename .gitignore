@@ -6,6 +6,9 @@ assets/
 bin/
 Makefile
 imgui.ini
+premake5
+premake5.apple
+premake5.exe
 *.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
