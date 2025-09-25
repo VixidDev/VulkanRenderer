@@ -9,5 +9,5 @@ layout(set = 0, binding = 0) uniform MVP {
 layout(location = 0) out vec4 oColour;
 
 void main() {
-	oColour = vec4(vec3(0.025), 0.0);
+	oColour = vec4(vec3(0.05), 0.0);
 }
