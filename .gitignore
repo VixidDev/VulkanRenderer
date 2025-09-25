@@ -5,7 +5,7 @@ lib/
 assets/
 bin/
 Makefile
-a12output.txt
+imgui.ini
 *.vcxproj
 *.vcxproj.user
 *.vcxproj.filters
