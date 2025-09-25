@@ -7,11 +7,6 @@ local binname = nil;
 local shaderc = "third_party/shaderc";
 
 local host = os.host();
-local override = os.getenv( "COMP5892M_HOST_OVERRIDE" );
-if override then
-	host = override;
-	print( "COMP5892M_HOST_OVERRIDE: '" .. host .. "'" );
-end
 
 if "windows" == host then
 	binname = "win-x86_64/glslc.exe";
@@ -74,5 +69,3 @@ handle_glsl_files = function( opt, opath, ipaths )
 		glslc_build_command_( ty[1], ty[2], opt, opath, ipaths )
 	end
 end
-
---EOF vim:syntax=lua:foldmethod=marker:ts=4:noexpandtab: 

@@ -40,8 +40,6 @@ std::unique_ptr<VulkanAllocator> initialiseVulkanAllocator(const VulkanWindow& w
 	allocInfo.instance = window.instance;
 	allocInfo.pVulkanFunctions = &functions;
 
-	std::printf("Major: %d - Minor: %d - Patch: %d\n", VK_VERSION_MAJOR(allocInfo.vulkanApiVersion), VK_VERSION_MINOR(allocInfo.vulkanApiVersion), VK_VERSION_PATCH(allocInfo.vulkanApiVersion));
-
 	VmaAllocator allocator = VK_NULL_HANDLE;
 	if (auto const res = vmaCreateAllocator(&allocInfo, &allocator); VK_SUCCESS != res) {
 		throw Utils::Error("Unable to create allocator\n vmaCreateAllocator() returned %s", Utils::toString(res).c_str());

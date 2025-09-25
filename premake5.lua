@@ -62,7 +62,7 @@ workspace "VulkanRenderer"
 include "third_party" 
 
 -- GLSLC helpers
-dofile("util/glslc.lua")
+dofile("third_party/glslc.lua")
 
 -- Projects
 
