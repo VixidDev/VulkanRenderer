@@ -19,6 +19,8 @@ Implements a standard forward and deferred rendering pipeline with shadow mappin
 
 Also implements a modular post-processing effect system to add any number of effects post-scene rendering. Currently has just a mosaic post-processing effect.
 
+### Debug Visuals
+
 | Debug Setting | Image |
 |---|---|
 | Normals | <img width="840" alt="normals" src="https://github.com/user-attachments/assets/98604fd2-d0ba-420e-ac2b-f453c9bd86ce" /> |
