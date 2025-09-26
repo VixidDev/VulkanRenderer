@@ -1,3 +1,6 @@
+/*
+* File credits to Markus Billeter
+*/
 #include "zstdistream.hpp"
 
 #include <streambuf>
@@ -5,8 +8,7 @@
 
 #include <zstd.h>
 
-#include "../utils/error.hpp"
-namespace lut = labutils;
+#include "../utils/Error.hpp"
 
 namespace
 {
@@ -45,7 +47,7 @@ namespace
 		: mStream( aPath, std::ios::binary )
 	{
 		if( !mStream.is_open() )
-			throw lut::Error( "Unable to open '%s'", aPath );
+			throw Utils::Error( "Unable to open '%s'", aPath );
 
 		// Init ZStd
 		mOutSize = ZSTD_DStreamOutSize();
@@ -56,12 +58,12 @@ namespace
 
 		mCtx = ZSTD_createDCtx();
 		if( !mCtx )
-			throw lut::Error( "ZSTD_createDCtx(): returned error" );
+			throw Utils::Error( "ZSTD_createDCtx(): returned error" );
 
 		// Fill buffer once
 		mStream.read( mInBuf, mInSize );
 		if( mStream.bad() )
-			throw lut::Error( "Reading: badness happened" ); // :-(
+			throw Utils::Error( "Reading: badness happened" ); // :-(
 
 		mInState.src = mInBuf;
 		mInState.pos = 0;
@@ -71,7 +73,7 @@ namespace
 		ZSTD_outBuffer ob{ mOutBuf, mOutSize, 0 };
 		auto const ret = ZSTD_decompressStream( mCtx, &ob, &mInState );
 		if( ZSTD_isError(ret) )
-			throw lut::Error( "Decompression: %s", ZSTD_getErrorName(ret) );
+			throw Utils::Error( "Decompression: %s", ZSTD_getErrorName(ret) );
 
 		// Initialize stream buffer
 		setg( mOutBuf, mOutBuf, mOutBuf + ob.pos );
@@ -95,7 +97,7 @@ namespace
 			{
 				mStream.read( mInBuf, mInSize );
 				if( mStream.bad() )
-					throw lut::Error( "Reading: badness happened" ); // :-(
+					throw Utils::Error( "Reading: badness happened" ); // :-(
 
 				mInState.pos = 0;
 				mInState.size = mStream.gcount();
@@ -104,7 +106,7 @@ namespace
 			ZSTD_outBuffer ob{ mOutBuf, mOutSize, 0 };
 			auto const ret = ZSTD_decompressStream( mCtx, &ob, &mInState );
 			if( ZSTD_isError(ret) )
-				throw lut::Error( "Decompression: %s", ZSTD_getErrorName(ret) );
+				throw Utils::Error( "Decompression: %s", ZSTD_getErrorName(ret) );
 
 			setg( mOutBuf, mOutBuf, mOutBuf + ob.pos );
 		}

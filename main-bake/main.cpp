@@ -1,3 +1,6 @@
+/*
+* File credits to Markus Billeter
+*/
 #include <iterator>
 #include <vector>
 #include <typeinfo>
@@ -12,42 +15,34 @@
 #include <tgen.h>
 #include <glm/glm.hpp>
 
-#include "index_mesh.hpp"
-#include "input_model.hpp"
-#include "load_model_obj.hpp"
+#include "IndexMesh.hpp"
+#include "InputModel.hpp"
+#include "LoadModelObj.hpp"
 
-#include "../utils/error.hpp"
-namespace lut = labutils;
+#include "../utils/Error.hpp"
 
-
-namespace
-{
+namespace {
 	// constants
 	/* File "magic". The first 16 bytes of our custom file are equal to this
 	 * magic value. This allows us to check whether a certain file is
-	 * (probably) of the right type. Having a file magic is relatively common
-	 * practice -- you can find a list of such magic sequences e.g. here:
-     * https://en.wikipedia.org/wiki/List_of_file_signatures
+	 * (probably) of the right type.
 	 *
 	 * When picking a signature there are a few considerations. For example,
 	 * including non-printable characters (e.g. the \0) early keeps the file
 	 * from being misidentified as text.
 	 */
-	 constexpr char kFileMagic[16] = "\0\0COMP5892Mmesh";
+	constexpr char kFileMagic[16] = "\0\0VixidVkMesh";
 
-	/* Note: change the file variant if you change the file format! 
-	 */
-	constexpr char kFileVariant[16] = "21-tan";
+	// Note: change the file variant if file format changes!
+	constexpr char kFileVariant[16] = "25-tan";
 
-	/* Fallback texture for RGBA 1111 and Grayscale 1
-	 */
+	// Fallback texture for RGBA 1111 and Grayscale 1
 	constexpr char kTextureFallbackR1[] = "assets-src/main/r1.png";
 	constexpr char kTextureFallbackRGBA1111[] = "assets-src/main/rgba1111.png";
 	constexpr char kTextureFallbackRGB000[] = "assets-src/main/rgb000.png";
 
 	// types
-	struct TextureInfo_
-	{
+	struct TextureInfo_ {
 		std::uint32_t uniqueId;
 		std::uint8_t space;
 		std::uint8_t channels;
@@ -55,45 +50,36 @@ namespace
 	};
 
 	// local functions:
-	void process_model_(
-		char const* aOutput,
-		char const* aInputOBJ,
-		glm::mat4x4 const& aStaticTransform = glm::mat4x4( 1.f ) //TODO
-	);
+	void processModel(
+		const char* output,
+		const char* inputOBJ,
+		const glm::mat4x4& staticTransform = glm::mat4x4(1.f));
 
+	InputModel normalize(InputModel inputModel);
 
-	InputModel normalize_( InputModel );
+	void writeModelData(
+		FILE* out,
+		const InputModel& model,
+		const std::vector<IndexedMesh>& indexedMeshes,
+		const std::unordered_map<std::string,TextureInfo_>& textures);
 
+	std::vector<IndexedMesh> indexMeshes(
+		const InputModel& model,
+		float errorTolerance = 1e-5f);
 
-	void write_model_data_(
-		FILE*,
-		InputModel const&,
-		std::vector<IndexedMesh> const&,
-		std::unordered_map<std::string,TextureInfo_> const&
-	);
+	std::unordered_map<std::string,TextureInfo_> findUniqueTextures(const InputModel& model);
 
-	std::vector<IndexedMesh> index_meshes_(
-		InputModel const&,
-		float aErrorTolerance = 1e-5f
-	);
-
-	std::unordered_map<std::string,TextureInfo_> find_unique_textures_(
-		InputModel const&
-	);
-
-	std::unordered_map<std::string,TextureInfo_> new_paths_(
-		std::unordered_map<std::string,TextureInfo_>,
-		std::filesystem::path const& aTexDir
-	);
+	std::unordered_map<std::string,TextureInfo_> newPaths(
+		std::unordered_map<std::string,TextureInfo_> textures,
+		const std::filesystem::path& texDir);
 
 }
 
 
-int main() try
-{
-#	if !defined(NDEBUG)
-	std::printf( "Suggest running this in release mode (it appears to be running in debug)\n" );
-	std::printf( "Especially under VisualStudio/MSVC, the debug build seems very slow.\n" );
+int main() try {
+#if !defined(NDEBUG)
+	std::printf("Suggest running this in release mode (it appears to be running in debug)\n");
+	std::printf("Especially under VisualStudio/MSVC, the debug build seems very slow.\n");
 	/* A few notes:
 	 * 
 	 * I have not profiled this at all. The following are based on previous
@@ -119,168 +105,150 @@ int main() try
 	 * - The VisualStudio interactive debugger's heap profiler (the thing that 
 	 *   shows you the memory usage graph) carries a measurable overhead as well.
 	 *
-	 * The binary .comp5892mesh should be unchanged between debug and release
+	 * The binary .vixidvkmesh should be unchanged between debug and release
 	 * builds, so you can safely use the release build to create the file once,
 	 * even while debugging the main A12 program.
 	 */
-#	endif
-	process_model_(
-		"assets/main/suntemple.comp5892mesh",
-		"assets-src/main/suntemple.obj-zstd"
-	);
+#endif
+
+	processModel(
+		"assets/main/suntemple.vixidvkmesh",
+		"assets-src/main/suntemple.obj-zstd");
 
 	return 0;
-}
-catch( std::exception const& eErr )
-{
-	std::fprintf( stderr, "Top-level exception [%s]:\n%s\nBye.\n", typeid(eErr).name(), eErr.what() );
+} catch (const std::exception& error) {
+	std::fprintf(stderr, "Top-level exception [%s]:\n%s\nBye.\n", typeid(error).name(), error.what());
 	return 1;
 }
 
-namespace
-{
-	void process_model_( char const* aOutput, char const* aInputOBJ, glm::mat4x4 const& aStaticTransform )
-	{
-		static constexpr std::size_t vertexSize = sizeof(float)*(3+3+2);
+namespace {
+	void processModel(const char* output, const char* inputOBJ, const glm::mat4x4& staticTransform) {
+		static constexpr std::size_t vertexSize = sizeof(float) * (3 + 3 + 2);
 
 		// Figure out output paths
-		std::filesystem::path const outname( aOutput );
-		std::filesystem::path const rootdir = outname.parent_path();
-		std::filesystem::path const basename = outname.stem();
-		std::filesystem::path const texdir = basename.string() + "-tex";
+		const std::filesystem::path outname(output);
+		const std::filesystem::path rootdir = outname.parent_path();
+		const std::filesystem::path basename = outname.stem();
+		const std::filesystem::path texdir = basename.string() + "-tex";
 
 		// Load input model
-		auto const model = normalize_( load_compressed_wavefront_obj( aInputOBJ ) );
+		const InputModel model = normalize(loadCompressedWavefrontObj(inputOBJ));
 
 		std::size_t inputVerts = 0;
-		for( auto const& imesh : model.meshes )
+		for (const InputMeshInfo& imesh : model.meshes)
 			inputVerts += imesh.vertexCount;
 
-		std::printf( "%s: %zu meshes, %zu materials\n", aInputOBJ, model.meshes.size(), model.materials.size() );
-		std::printf( " - triangle soup vertices: %zu => %zu kB\n", inputVerts, inputVerts*vertexSize/1024 );
+		std::printf("%s: %zu meshes, %zu materials\n", inputOBJ, model.meshes.size(), model.materials.size());
+		std::printf(" - triangle soup vertices: %zu => %zu kB\n", inputVerts, inputVerts * vertexSize / 1024);
 
 		// Index meshes
-		auto const indexed = index_meshes_( model );
+		const auto indexed = indexMeshes(model);
 
 		std::size_t outputVerts = 0, outputIndices = 0;
-		for( auto const& mesh : indexed )
-		{
+		for (const auto& mesh : indexed) {
 			outputVerts += mesh.vert.size();
 			outputIndices += mesh.indices.size();
 		}
 
-		std::printf( " - indexed vertices: %zu with %zu indices => %zu kB\n", outputVerts, outputIndices, (outputVerts*vertexSize + outputIndices*sizeof(std::uint32_t))/1024 );
+		std::printf(" - indexed vertices: %zu with %zu indices => %zu kB\n", outputVerts, outputIndices, (outputVerts*vertexSize + outputIndices*sizeof(std::uint32_t))/1024);
 
 		// Find list of unique textures
-		auto const textures = new_paths_( find_unique_textures_( model ), texdir );
+		const auto textures = newPaths(findUniqueTextures(model), texdir);
 
-		std::printf( " - unique textures: %zu\n", textures.size() );
+		std::printf(" - unique textures: %zu\n", textures.size());
 
 		// Ensure output directory exists
-		std::filesystem::create_directories( rootdir );
+		std::filesystem::create_directories(rootdir);
 
 		// Output mesh data
 		auto mainpath = rootdir / basename;
-		mainpath.replace_extension( "comp5892mesh" );
+		mainpath.replace_extension("vixidvkmesh");
 
-		FILE* fof = std::fopen( mainpath.string().c_str(), "wb" );
-		if( !fof )
-			throw lut::Error( "Unable to open '%s' for writing", mainpath.string().c_str() );
+		FILE* fof = std::fopen(mainpath.string().c_str(), "wb");
+		if (!fof)
+			throw Utils::Error("Unable to open '%s' for writing", mainpath.string().c_str());
 
-		try
-		{
-			write_model_data_( fof, model, indexed, textures );
-		}
-		catch( ... )
-		{
-			std::fclose( fof );
+		try {
+			writeModelData(fof, model, indexed, textures);
+		} catch (...) {
+			std::fclose(fof);
 			throw;
 		}
 
-		std::fclose( fof );
+		std::fclose(fof);
 
 		// Copy textures
-		std::filesystem::create_directories( rootdir / texdir );
+		std::filesystem::create_directories(rootdir / texdir);
 
 		std::size_t errors = 0;
-		for( auto const& entry : textures )
-		{
-			auto const dest = rootdir / entry.second.newPath;
+		for (const auto& entry : textures) {
+			const auto dest = rootdir / entry.second.newPath;
 
 			std::error_code ec;
 			bool ret = std::filesystem::copy_file( 
 				entry.first,
 				dest,
 				std::filesystem::copy_options::none,
-				ec
-			);
+				ec);
 
-			if( !ret )
-			{
+			if (!ret) {
 				++errors;
-				std::fprintf( stderr, "copy_file(): '%s' failed: %s (%s)\n", dest.string().c_str(), ec.message().c_str(), ec.category().name() );
+				std::fprintf(stderr, "copy_file(): '%s' failed: %s (%s)\n", dest.string().c_str(), ec.message().c_str(), ec.category().name());
 			}
 		}
 
-		auto const total = textures.size();
-		std::printf( "Copied %zu textures out of %zu.\n", total-errors, total );
-		if( errors )
-		{
-			std::fprintf( stderr, "Some copies reported an error. Currently, the code will never overwrite existing files. The errors likely just indicate that the file was copied previously. Remove old files manually, if necessary.\n" );
+		const auto total = textures.size();
+		std::printf("Copied %zu textures out of %zu.\n", total - errors, total);
+		if (errors) {
+			std::fprintf(stderr, "Some copies reported an error. Currently, the code will never overwrite existing files. The errors likely just indicate that the file was copied previously. Remove old files manually, if necessary.\n");
 		}
 	}
-}
 
-namespace
-{
-	InputModel normalize_( InputModel aModel )
-	{
-		for( auto& mat : aModel.materials )
-		{
-			if( mat.baseColorTexturePath.empty() )
+	InputModel normalize(InputModel inputModel) {
+		for (auto& mat : inputModel.materials) {
+			if (mat.baseColorTexturePath.empty())
 				mat.baseColorTexturePath = kTextureFallbackRGBA1111;
-			if( mat.roughnessTexturePath.empty() )
+			if (mat.roughnessTexturePath.empty())
 				mat.roughnessTexturePath = kTextureFallbackR1;
-			if( mat.metalnessTexturePath.empty() )
+			if (mat.metalnessTexturePath.empty())
 				mat.metalnessTexturePath = kTextureFallbackR1;
-			if( mat.emissiveTexturePath.empty() )
+			if (mat.emissiveTexturePath.empty())
 				mat.emissiveTexturePath = kTextureFallbackRGB000;
 		}
 
-		return aModel; // This should use the move constructor implicitly.
-	}
-}
-
-namespace
-{
-	void checked_write_( FILE* aOut, std::size_t aBytes, void const* aData )
-	{
-		auto const ret = std::fwrite( aData, 1, aBytes, aOut );
-
-		if( ret != aBytes )
-			throw lut::Error( "fwrite() failed: %zu instead of %zu", ret, aBytes );
+		return inputModel; // This should use the move constructor implicitly.
 	}
 
-	void write_string_( FILE* aOut, char const* aString )
-	{
+	void checkedWrite(FILE* out, std::size_t bytes, const void* data) {
+		const auto ret = std::fwrite(data, 1, bytes, out);
+
+		if (ret != bytes)
+			throw Utils::Error( "fwrite() failed: %zu instead of %zu", ret, bytes);
+	}
+
+	void writeString(FILE* out, const char* string) {
 		// Write a string
 		// Format:
 		//  - uint32_t : N = length of string in bytes, including terminating '\0'
 		//  - N x char : string
-		std::uint32_t const length = std::uint32_t(std::strlen(aString)+1);
-		checked_write_( aOut, sizeof(std::uint32_t), &length );
+		const std::uint32_t length = std::uint32_t(std::strlen(string) + 1);
+		checkedWrite(out, sizeof(std::uint32_t), &length);
 
-		checked_write_( aOut, length, aString );
+		checkedWrite(out, length, string);
 	}
 
-	void write_model_data_( FILE* aOut, InputModel const& aModel, std::vector<IndexedMesh> const& aIndexedMeshes, std::unordered_map<std::string,TextureInfo_> const& aTextures )
+	void writeModelData(
+		FILE* out, 
+		const InputModel& model, 
+		const std::vector<IndexedMesh>& indexedMeshes, 
+		const std::unordered_map<std::string,TextureInfo_>& textures) 
 	{
 		// Write header
 		// Format:
 		//   - char[16] : file magic
 		//   - char[16] : file variant ID
-		checked_write_( aOut, sizeof(char)*16, kFileMagic );
-		checked_write_( aOut, sizeof(char)*16, kFileVariant );
+		checkedWrite(out, sizeof(char) * 16, kFileMagic);
+		checkedWrite(out, sizeof(char) * 16, kFileVariant);
 		
 		// Write list of unique textures
 		// Format:
@@ -289,26 +257,24 @@ namespace
 		//    - string : path to texture 
 		//    - uint8_t : texture color space (0 = unorm, 1 = srgb)
 		//    - uint8_t : number of channels in texture
-		std::vector<TextureInfo_ const*> orderedUnqiue( aTextures.size() );
-		for( auto const& tex : aTextures )
-		{
-			assert( !orderedUnqiue[tex.second.uniqueId] );
+		std::vector<const TextureInfo_*> orderedUnqiue(textures.size());
+		for (const auto& tex : textures) {
+			assert(!orderedUnqiue[tex.second.uniqueId]);
 			orderedUnqiue[tex.second.uniqueId] = &tex.second;
 		}
 
-		std::uint32_t const textureCount = std::uint32_t(orderedUnqiue.size());
-		checked_write_( aOut, sizeof(textureCount), &textureCount );
+		const std::uint32_t textureCount = std::uint32_t(orderedUnqiue.size());
+		checkedWrite(out, sizeof(textureCount), &textureCount);
 
-		for( auto const& tex : orderedUnqiue )
-		{
-			assert( tex );
-			write_string_( aOut, tex->newPath.c_str() );
+		for (const auto& tex : orderedUnqiue) {
+			assert(tex);
+			writeString(out, tex->newPath.c_str());
 
 			std::uint8_t space = tex->space;
-			checked_write_( aOut, sizeof(space), &space );
+			checkedWrite(out, sizeof(space), &space);
 
 			std::uint8_t channels = tex->channels;
-			checked_write_( aOut, sizeof(channels), &channels );
+			checkedWrite(out, sizeof(channels), &channels);
 		}
 
 		// Write material information
@@ -321,31 +287,29 @@ namespace
 		//    - uin32_t : alphaMask texture index (or 0xffffffff if none)
 		//    - uin32_t : normalMap texture index (or 0xffffffff if none)
 		//    - uin32_t : emissive texture index
-		std::uint32_t const materialCount = std::uint32_t(aModel.materials.size());
-		checked_write_( aOut, sizeof(materialCount), &materialCount );
+		const std::uint32_t materialCount = std::uint32_t(model.materials.size());
+		checkedWrite(out, sizeof(materialCount), &materialCount);
 
-		for( auto const& mat : aModel.materials )
-		{
-			auto const write_tex_ = [&] (std::string const& aTexturePath ) {
-				if( aTexturePath.empty() )
-				{
+		for (const auto& mat : model.materials) {
+			const auto write_tex_ = [&] (const std::string& texturePath) {
+				if (texturePath.empty()) {
 					static constexpr std::uint32_t sentinel = ~std::uint32_t(0);
-					checked_write_( aOut, sizeof(std::uint32_t), &sentinel );
+					checkedWrite(out, sizeof(std::uint32_t), &sentinel);
 					return;
 				}
 
-				auto const it = aTextures.find( aTexturePath );
-				assert( aTextures.end() != it );
+				const auto it = textures.find(texturePath);
+				assert(textures.end() != it);
 
-				checked_write_( aOut, sizeof(std::uint32_t), &it->second.uniqueId );
+				checkedWrite(out, sizeof(std::uint32_t), &it->second.uniqueId);
 			};
 
-			write_tex_( mat.baseColorTexturePath );
-			write_tex_( mat.roughnessTexturePath );
-			write_tex_( mat.metalnessTexturePath );
-			write_tex_( mat.alphaMaskTexturePath );
-			write_tex_( mat.normalMapTexturePath );
-			write_tex_( mat.emissiveTexturePath );
+			write_tex_(mat.baseColorTexturePath);
+			write_tex_(mat.roughnessTexturePath);
+			write_tex_(mat.metalnessTexturePath);
+			write_tex_(mat.alphaMaskTexturePath);
+			write_tex_(mat.normalMapTexturePath);
+			write_tex_(mat.emissiveTexturePath);
 		}
 
 		// Write mesh data
@@ -360,119 +324,107 @@ namespace
 		//    - repeat V times: vec2 texture coordinate
 		//    - repeat V times: vec4 tangent
 		//    - repeat I times: uint32_t index
-		std::uint32_t const meshCount = std::uint32_t(aModel.meshes.size());
-		checked_write_( aOut, sizeof(meshCount), &meshCount );
+		const std::uint32_t meshCount = std::uint32_t(model.meshes.size());
+		checkedWrite(out, sizeof(meshCount), &meshCount);
 
-		assert( aModel.meshes.size() == aIndexedMeshes.size() );
-		for( std::size_t i = 0; i < aModel.meshes.size(); ++i )
-		{
-			auto const& mmesh = aModel.meshes[i];
+		assert(model.meshes.size() == indexedMeshes.size());
+		for (std::size_t i = 0; i < model.meshes.size(); ++i) {
+			const auto& mmesh = model.meshes[i];
 
 			std::uint32_t materialIndex = std::uint32_t(mmesh.materialIndex);
-			checked_write_( aOut, sizeof(materialIndex), &materialIndex );
+			checkedWrite(out, sizeof(materialIndex), &materialIndex);
 
-			auto const& imesh = aIndexedMeshes[i];
+			auto const& imesh = indexedMeshes[i];
 
 			std::uint32_t vertexCount = std::uint32_t(imesh.vert.size());
-			checked_write_( aOut, sizeof(vertexCount), &vertexCount );
+			checkedWrite(out, sizeof(vertexCount), &vertexCount);
 			std::uint32_t indexCount = std::uint32_t(imesh.indices.size());
-			checked_write_( aOut, sizeof(indexCount), &indexCount );
+			checkedWrite(out, sizeof(indexCount), &indexCount);
 
-			checked_write_( aOut, sizeof(glm::vec3)*vertexCount, imesh.vert.data() );
-			checked_write_( aOut, sizeof(glm::vec3)*vertexCount, imesh.norm.data() );
-			checked_write_( aOut, sizeof(glm::vec2)*vertexCount, imesh.text.data() );
-			checked_write_( aOut, sizeof(glm::vec4)*vertexCount, imesh.tangent.data() ); // imesh.tangent populated in index_mesh.cpp
-			checked_write_( aOut, sizeof(std::uint32_t)*vertexCount, imesh.tangentComp.data() );
+			checkedWrite(out, sizeof(glm::vec3) * vertexCount, imesh.vert.data());
+			checkedWrite(out, sizeof(glm::vec3) * vertexCount, imesh.norm.data());
+			checkedWrite(out, sizeof(glm::vec2) * vertexCount, imesh.text.data());
+			checkedWrite(out, sizeof(glm::vec4) * vertexCount, imesh.tangent.data()); // imesh.tangent populated in IndexMesh.hpp
+			checkedWrite(out, sizeof(std::uint32_t) * vertexCount, imesh.tangentComp.data());
 
-			checked_write_( aOut, sizeof(std::uint32_t)*indexCount, imesh.indices.data() );
+			checkedWrite(out, sizeof(std::uint32_t) * indexCount, imesh.indices.data());
 		}
 	}
-}
 
-namespace
-{
-	std::vector<IndexedMesh> index_meshes_( InputModel const& aModel, float aErrorTolerance )
-	{
+	std::vector<IndexedMesh> indexMeshes(const InputModel& model, float errorTolerance) {
 		std::vector<IndexedMesh> indexed;
 
-		for( auto const& imesh : aModel.meshes )
-		{
-			auto const endIndex = imesh.vertexStartIndex + imesh.vertexCount;
+		for (const auto& imesh : model.meshes) {
+			const auto endIndex = imesh.vertexStartIndex + imesh.vertexCount;
 
 			TriangleSoup soup;
 
-			soup.vert.reserve( imesh.vertexCount );
-			for( std::size_t i = imesh.vertexStartIndex; i < endIndex; ++i )
-				soup.vert.emplace_back( aModel.positions[i] );
+			soup.vert.reserve(imesh.vertexCount);
+			for (std::size_t i = imesh.vertexStartIndex; i < endIndex; ++i)
+				soup.vert.emplace_back(model.positions[i]);
 
-			soup.text.reserve( imesh.vertexCount );
-			for( std::size_t i = imesh.vertexStartIndex; i < endIndex; ++i )
-				soup.text.emplace_back( aModel.texcoords[i] );
+			soup.text.reserve(imesh.vertexCount);
+			for (std::size_t i = imesh.vertexStartIndex; i < endIndex; ++i)
+				soup.text.emplace_back(model.texcoords[i]);
 
-			soup.norm.reserve( imesh.vertexCount );
-			for( std::size_t i = imesh.vertexStartIndex; i < endIndex; ++i )
-				soup.norm.emplace_back( aModel.normals[i] );
+			soup.norm.reserve(imesh.vertexCount);
+			for (std::size_t i = imesh.vertexStartIndex; i < endIndex; ++i)
+				soup.norm.emplace_back(model.normals[i]);
 
-
-			indexed.emplace_back( make_indexed_mesh( soup, aErrorTolerance ) );
+			indexed.emplace_back(makeIndexedMesh(soup, errorTolerance));
 		}
 
 		return indexed;
 	}
-}
 
-namespace
-{
-	std::unordered_map<std::string,TextureInfo_> find_unique_textures_( InputModel const& aModel )
-	{
+	std::unordered_map<std::string,TextureInfo_> findUniqueTextures(const InputModel& model) {
 		std::unordered_map<std::string,TextureInfo_> unique;
 
 		std::uint32_t texid = 0;
-		auto const add_unique_ = [&] (std::string const& aPath, std::uint8_t aSpace, std::uint8_t aChannels)
-		{
-			if( aPath.empty() )
+		const auto add_unique_ = [&] (const std::string& path, std::uint8_t space, std::uint8_t channels) {
+			if (path.empty())
 				return;
 
 			TextureInfo_ info{};
 			info.uniqueId = texid;
-			info.space = aSpace;
-			info.channels = aChannels;
+			info.space = space;
+			info.channels = channels;
 
-			auto const [it, isNew] = unique.emplace( std::make_pair(aPath,info) );
+			auto const [it, isNew] = unique.emplace(std::make_pair(path,info));
 
-			if( isNew )
+			if (isNew)
 				++texid;
 		};
 
-		for( auto const& mat : aModel.materials )
-		{
-			add_unique_( mat.baseColorTexturePath, 1, 4 );
-			add_unique_( mat.roughnessTexturePath, 0, 1 ); 
-			add_unique_( mat.metalnessTexturePath, 0, 1 ); 
-			add_unique_( mat.alphaMaskTexturePath, 1, 4 );  // assume == baseColor
-			add_unique_( mat.normalMapTexturePath, 0, 3 );  // xyz only
-			add_unique_( mat.emissiveTexturePath, 1, 4 ); 
+		for (const auto& mat : model.materials) {
+			add_unique_(mat.baseColorTexturePath, 1, 4);
+			add_unique_(mat.roughnessTexturePath, 0, 1); 
+			add_unique_(mat.metalnessTexturePath, 0, 1); 
+			add_unique_(mat.alphaMaskTexturePath, 1, 4);  // assume == baseColor
+			add_unique_(mat.normalMapTexturePath, 0, 3);  // xyz only
+			add_unique_(mat.emissiveTexturePath, 1, 4); 
 		}
 
 		return unique;
 	}
 
-	std::unordered_map<std::string,TextureInfo_> new_paths_( std::unordered_map<std::string,TextureInfo_> aTextures, std::filesystem::path const& aTexDir )
+	std::unordered_map<std::string,TextureInfo_> newPaths(
+		std::unordered_map<std::string,TextureInfo_> textures, 
+		const std::filesystem::path& texDir)
 	{
-		for( auto& entry : aTextures )
-		{
-			std::filesystem::path const originalPath( entry.first );
-			auto const filename = originalPath.filename();
-			auto const newpath = aTexDir / filename;
+		for (auto& entry : textures) {
+			const std::filesystem::path originalPath(entry.first);
+			const auto filename = originalPath.filename();
+			const auto newpath = texDir / filename;
 		
 			auto& info = entry.second;
 			info.newPath = newpath.string();
 		}
 
-		// Note: aTextures is still local to the function, so there is no need
+		// Note: 'textures' is still local to the function, so there is no need
 		// to explicitly std::move() it. However, since it is passed in as an
 		// argument, NRVO is unlikely to occur.
-		return aTextures; 
+		return textures; 
 	}
 }
 

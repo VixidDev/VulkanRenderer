@@ -1,20 +1,21 @@
 -- Third party projects
 
-includedirs( "volk/include" );
-includedirs( "vulkan/include" );
-includedirs( "stb/include" );
-includedirs( "glfw/include" );
-includedirs( "VulkanMemoryAllocator/include" );
-includedirs( "glm/include" );
-includedirs( "rapidobj/include" );
-includedirs( "tgen/include" );
-includedirs( "zstd/include" );
+includedirs("volk/include");
+includedirs("vulkan/include");
+includedirs("stb/include");
+includedirs("glfw/include");
+includedirs("VulkanMemoryAllocator/include");
+includedirs("glm/include");
+includedirs("rapidobj/include");
+includedirs("tgen/include");
+includedirs("zstd/include");
 
-defines( "GLM_FORCE_RADIANS=1" )
-defines( "GLM_FORCE_SIZE_T_LENGTH=1" )
-defines( "GLM_ENABLE_EXPERIMENTAL=1" )
+defines("GLM_FORCE_RADIANS=1")
+defines("GLM_FORCE_SIZE_T_LENGTH=1")
+defines("GLM_ENABLE_EXPERIMENTAL=1")
+defines("GLM_FORCE_DEPTH_ZERO_TO_ONE=1")
 
-defines( "ZSTD_DISABLE_ASM=1" ) -- this makes the build simpler
+defines("ZSTD_DISABLE_ASM=1") -- this makes the build simpler
 
 filter "system:macosx"
 	-- Additional dependencies required by GLFW on MacOS.
@@ -27,29 +28,29 @@ filter "system:macosx"
 	};
 filter "*"
 
-project( "x-volk" )
+project("x-volk")
 	kind "StaticLib"
 
 	location "."
 
-	files( "volk/src/*.c" )
-	files( "volk/include/volk/*.h" )
+	files("volk/src/*.c")
+	files("volk/include/volk/*.h")
 
-project( "x-vulkan-headers" )
+project("x-vulkan-headers")
 	kind "Utility"
 
 	location "."
 
-	files( "vulkan/include/**.h*" )
+	files("vulkan/include/**.h*")
 
-project( "x-stb" )
+project("x-stb")
 	kind "StaticLib"
 
 	location "."
 
-	files( "stb/src/*.c" )
+	files("stb/src/*.c")
 
-project( "x-glfw" )
+project("x-glfw")
 	kind "StaticLib"
 
 	location "."
@@ -114,7 +115,7 @@ project( "x-glfw" )
 
 	filter "*"
 
-project( "x-vma" )
+project("x-vma")
 	kind "StaticLib"
 
 	location "."
@@ -130,38 +131,38 @@ project( "x-vma" )
 		}
 	filter {}
 
-	files( "VulkanMemoryAllocator/src/*.cpp" )
+	files("VulkanMemoryAllocator/src/*.cpp")
 
-project( "x-glm" )
+project("x-glm")
 	kind "Utility"
 
 	location "."
 
-	files( "glm/include/**.h" )
-	files( "glm/include/**.hpp" )
-	files( "glm/include/**.inl" )
+	files("glm/include/**.h")
+	files("glm/include/**.hpp")
+	files("glm/include/**.inl")
 
-project( "x-rapidobj" )
+project("x-rapidobj")
 	kind "Utility"
 
 	location "."
 
-	files( "rapidobj/include/**.h*" )
+	files("rapidobj/include/**.h*")
 
-project( "x-tgen" )
+project("x-tgen")
 	kind "StaticLib"
 
 	location "."
 
-	files( "tgen/src/*.cpp" )
+	files("tgen/src/*.cpp")
 
-project( "x-zstd" )
+project("x-zstd")
 	kind "StaticLib"
 
 	location "."
 
-	files( "zstd/src/common/*.c" )
-	files( "zstd/src/decompress/*.c" )
+	files("zstd/src/common/*.c")
+	files("zstd/src/decompress/*.c")
 
 project()
 
