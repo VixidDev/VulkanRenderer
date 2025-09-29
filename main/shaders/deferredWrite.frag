@@ -35,7 +35,7 @@ void main() {
 		tangentNormal = tangentNormal * 2.0 - 1.0;
 		normal = normalize(v2fTBN * tangentNormal);
 		// Map normals from [-1, 1] to [0, 1] since gBuffer format is UNORM
-		//normal = normal * 0.5 + 0.5;
+		normal = normal * 0.5 + 0.5;
 	}
 
 	gBuffer1.rgb = normal;

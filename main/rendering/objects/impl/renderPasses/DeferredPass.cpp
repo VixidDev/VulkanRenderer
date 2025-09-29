@@ -23,8 +23,8 @@ void DeferredPass::recreate() {
 
 	// G-Buffers
 	// normals = rgb
-	//attachments[1].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-	attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	attachments[1].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+	//attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;

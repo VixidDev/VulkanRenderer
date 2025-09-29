@@ -158,7 +158,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// depth - standard depth buffer
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
 	// gBuffers - g-buffers used in deferred rendering
-	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context /*,VK_FORMAT_A2R10G10B10_UNORM_PACK32*/));
+	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_A2R10G10B10_UNORM_PACK32));
 	this->textureBuffers.emplace("gBuffer2", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 	this->textureBuffers.emplace("gBuffer3", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 

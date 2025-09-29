@@ -109,9 +109,9 @@ void main() {
     // Get world space vertex position from depth buffer
     vec3 pos = posFromDepth(depth);
 
-	vec3 normal = normalize(subpassLoad(gBuffer1).rgb);
+	vec3 normal = subpassLoad(gBuffer1).rgb;
 	// Map normals from [0, 1] (gBuffer format is UNORM) back to [-1, 1]
-	//normal = normal * 2.0 - 1.0;
+	normal = normal * 2.0 - 1.0;
 
 	vec3 ambient = vec3(0.03) * subpassLoad(gBuffer2).rgb;
 	vec3 totalLight = ambient;
@@ -145,5 +145,5 @@ void main() {
 	vec3 emissive = subpassLoad(gBuffer3).rgb;
 	totalLight += emissive * pConsts.emissiveStrength;
 
-    oColour = vec4(normal, 1.0);
+    oColour = vec4(totalLight, 1.0);
 }
