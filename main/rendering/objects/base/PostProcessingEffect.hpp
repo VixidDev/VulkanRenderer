@@ -1,28 +1,22 @@
 #pragma once
 
+#include "../vulkan/objects/VkObjects.hpp"
+
 class Renderer;
 class RenderPass;
 class PipelineLayout;
 class Pipeline;
+class Framebuffer;
 
 class PostProcessingEffect {
 public:
 	PostProcessingEffect() = default;
 	PostProcessingEffect(Renderer* renderer);
 
-	virtual void recreate();
-	virtual void apply();
-
-	RenderPass* getRenderPass();
-	PipelineLayout* getPipelineLayout();
-	Pipeline* getPipeline();
+	virtual void apply(Framebuffer* framebuffer, std::uint32_t imageIndex, VkDescriptorSet readImage);
 
 	bool& getEnabled();
 protected:
 	Renderer* renderer;
 	bool enabled = false;
-
-	RenderPass* renderPass = nullptr;
-	PipelineLayout* pipelineLayout = nullptr;
-	Pipeline* pipeline = nullptr;
 };

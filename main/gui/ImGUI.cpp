@@ -74,7 +74,8 @@ void GUI::draw() {
 	//ImGui::ShowDemoWindow();
 
 	// I dont like this, but it is what it is
-	bool& mosaicEnabled = renderer.getPostProcessingEffects()[0].second->getEnabled();
+	bool& bloomEnabled = renderer.getPostProcessingEffects()[0].second->getEnabled();
+	bool& mosaicEnabled = renderer.getPostProcessingEffects()[1].second->getEnabled();
 
 	ImGui::Begin("Debug Menu");
 
@@ -164,6 +165,7 @@ void GUI::draw() {
 		}
 		if (ImGui::BeginTabItem("Post Processing")) {
 			ImGui::Text("Post Processing Effects");
+			ImGui::Checkbox("Bloom", &bloomEnabled);
 			ImGui::Checkbox("Mosaic", &mosaicEnabled);
 
 			ImGui::EndTabItem();

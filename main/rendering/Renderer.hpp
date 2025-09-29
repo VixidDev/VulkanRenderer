@@ -76,6 +76,7 @@ public:
 	// Recreation
 	void recreateFormatDependents();
 	void recreateSizeDependents();
+	void recreateSwapViewDependents();
 	void setRecreateSwapchain(bool value, bool force = false);
 
 	VulkanContext& getContext();

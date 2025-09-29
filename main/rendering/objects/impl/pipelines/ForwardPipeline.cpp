@@ -126,7 +126,7 @@ void ForwardPipeline::recreate() {
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampleInfo.rasterizationSamples = *this->sampleCount;
 
-	VkPipelineColorBlendAttachmentState blendStates[1]{};
+	VkPipelineColorBlendAttachmentState blendStates[2]{};
 	blendStates[0].blendEnable = VK_TRUE;
 	blendStates[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	blendStates[0].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
@@ -135,11 +135,19 @@ void ForwardPipeline::recreate() {
 	blendStates[0].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 	blendStates[0].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
 	blendStates[0].alphaBlendOp = VK_BLEND_OP_ADD;
+	blendStates[1].blendEnable = VK_TRUE;
+	blendStates[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	blendStates[1].srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+	blendStates[1].dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+	blendStates[1].colorBlendOp = VK_BLEND_OP_ADD;
+	blendStates[1].srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+	blendStates[1].dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+	blendStates[1].alphaBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendStateCreateInfo blendInfo{};
 	blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	blendInfo.logicOpEnable = VK_FALSE;
-	blendInfo.attachmentCount = 1;
+	blendInfo.attachmentCount = 2;
 	blendInfo.pAttachments = blendStates;
 
 	VkPipelineDepthStencilStateCreateInfo depthInfo{};

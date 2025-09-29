@@ -12,7 +12,7 @@ DeferredPass::DeferredPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCo
 }
 
 void DeferredPass::recreate() {
-	VkAttachmentDescription attachments[5]{};
+	VkAttachmentDescription attachments[6]{};
 	// Output image
 	attachments[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -21,25 +21,24 @@ void DeferredPass::recreate() {
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// G-Buffers
-	// normals = rgb
-	attachments[1].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-	//attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	// Output brightness
+	attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachments[1].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	attachments[1].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// albedo = rgb, roughness = a
-	attachments[2].format = VK_FORMAT_R8G8B8A8_UNORM;
+	// G-Buffers
+	// normals = rgb
+	attachments[2].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
 	attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[2].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	// emissive = rgb, metalness = a
+	// albedo = rgb, roughness = a
 	attachments[3].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attachments[3].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[3].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
@@ -47,38 +46,48 @@ void DeferredPass::recreate() {
 	attachments[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[3].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	// Depth buffer
-	attachments[4].format = VK_FORMAT_D32_SFLOAT;
+	// emissive = rgb, metalness = a
+	attachments[4].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attachments[4].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[4].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachments[4].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[4].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[4].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachments[4].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachments[4].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	VkAttachmentReference swapchainAttachment{};
-	swapchainAttachment.attachment = 0;
-	swapchainAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	// Depth buffer
+	attachments[5].format = VK_FORMAT_D32_SFLOAT;
+	attachments[5].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachments[5].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[5].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[5].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[5].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference outputAttachments[2]{};
+	outputAttachments[0].attachment = 0;
+	outputAttachments[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	outputAttachments[1].attachment = 1;
+	outputAttachments[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference gBufferAttachments[3]{};
-	gBufferAttachments[0].attachment = 1;
+	gBufferAttachments[0].attachment = 2;
 	gBufferAttachments[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	gBufferAttachments[1].attachment = 2;
+	gBufferAttachments[1].attachment = 3;
 	gBufferAttachments[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	gBufferAttachments[2].attachment = 3;
+	gBufferAttachments[2].attachment = 4;
 	gBufferAttachments[2].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depthAttachment{};
-	depthAttachment.attachment = 4;
+	depthAttachment.attachment = 5;
 	depthAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference inputAttachments[4]{};
-	inputAttachments[0].attachment = 1;
+	inputAttachments[0].attachment = 2;
 	inputAttachments[0].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	inputAttachments[1].attachment = 2;
+	inputAttachments[1].attachment = 3;
 	inputAttachments[1].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	inputAttachments[2].attachment = 3;
+	inputAttachments[2].attachment = 4;
 	inputAttachments[2].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	inputAttachments[3].attachment = 4;
+	inputAttachments[3].attachment = 5;
 	inputAttachments[3].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	VkSubpassDescription subpasses[2]{};
@@ -88,8 +97,8 @@ void DeferredPass::recreate() {
 	subpasses[0].pDepthStencilAttachment = &depthAttachment;
 
 	subpasses[1].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpasses[1].colorAttachmentCount = 1;
-	subpasses[1].pColorAttachments = &swapchainAttachment;
+	subpasses[1].colorAttachmentCount = 2;
+	subpasses[1].pColorAttachments = outputAttachments;
 	subpasses[1].inputAttachmentCount = 4;
 	subpasses[1].pInputAttachments = inputAttachments;
 
@@ -120,7 +129,7 @@ void DeferredPass::recreate() {
 
 	VkRenderPassCreateInfo passInfo{};
 	passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	passInfo.attachmentCount = 5;
+	passInfo.attachmentCount = 6;
 	passInfo.pAttachments = attachments;
 	passInfo.subpassCount = 2;
 	passInfo.pSubpasses = subpasses;
@@ -145,6 +154,7 @@ void DeferredPass::recreate() {
 	depthClearValue.depthStencil.depth = 1.0f;
 
 	this->clearValues.clear();
+	this->clearValues.emplace_back(colourClearValue);
 	this->clearValues.emplace_back(colourClearValue);
 	this->clearValues.emplace_back(colourClearValue);
 	this->clearValues.emplace_back(colourClearValue);

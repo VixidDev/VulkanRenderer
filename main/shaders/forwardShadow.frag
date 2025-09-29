@@ -55,6 +55,7 @@ layout(push_constant) uniform PushConstants {
 } pConsts;
 
 layout(location = 0) out vec4 oColour;
+layout(location = 1) out vec4 oBrightness;
 
 float distributionFunction(vec3 normal, vec3 halfwayVector, float roughness) {
 	// Normal distribution function
@@ -202,4 +203,11 @@ void main() {
 	totalLight += emissive * pConsts.emissiveStrength;
 
 	oColour = vec4(totalLight, 1.0);
+
+	float brightness = dot(oColour.rgb, vec3(0.2126, 0.7152, 0.0722));
+	if (brightness > 0.5) {
+		oBrightness = oColour;
+	} else {
+		oBrightness = vec4(0.0, 0.0, 0.0, 1.0);
+	}
 }

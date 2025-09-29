@@ -37,6 +37,7 @@ layout(push_constant) uniform PushConstants {
 } pConsts;
 
 layout(location = 0) out vec4 oColour;
+layout(location = 1) out vec4 oBrightness;
 
 vec3 posFromDepth(float depth) {
 	vec4 clipSpace = vec4(v2fTexCoord * 2.0 - 1.0, depth, 1.0);
@@ -146,4 +147,11 @@ void main() {
 	totalLight += emissive * pConsts.emissiveStrength;
 
     oColour = vec4(totalLight, 1.0);
+
+	float brightness = dot(oColour.rgb, vec3(0.2126, 0.7152, 0.0722));
+	if (brightness > 0.5) {
+		oBrightness = oColour;
+	} else {
+		oBrightness = vec4(0.0, 0.0, 0.0, 1.0);
+	}
 }

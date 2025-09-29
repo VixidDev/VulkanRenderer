@@ -26,7 +26,9 @@
 #include "objects/impl/pipelineLayouts/LineDebugPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/DebugViewsPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/OverVisualisationPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/SingleImageSamplePipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/BloomPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/CompositionPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/MosaicPipelineLayout.hpp"
 
 #include "objects/impl/pipelines/ForwardPipeline.hpp"
 #include "objects/impl/pipelines/DeferredWritingPipeline.hpp"
@@ -37,6 +39,8 @@
 #include "objects/impl/pipelines/DebugViewsPipeline.hpp"
 #include "objects/impl/pipelines/OverVisualisationPipeline.hpp"
 #include "objects/impl/pipelines/MosaicPipeline.hpp"
+#include "objects/impl/pipelines/BloomPipeline.hpp"
+#include "objects/impl/pipelines/CompositionPipeline.hpp"
 
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/CubemapDepthTextureBuffer.hpp"
@@ -55,12 +59,15 @@
 #include "objects/impl/framebuffers/SunFramebuffer.hpp"
 #include "objects/impl/framebuffers/OutputFramebuffer.hpp"
 #include "objects/impl/framebuffers/IntermediateFramebuffer.hpp"
+#include "objects/impl/framebuffers/Intermediate2Framebuffer.hpp"
+#include "objects/impl/framebuffers/BlurFramebuffer.hpp"
 
 #include "objects/impl/descriptorSets/BufferDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ImageDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
 
 #include "postProcessing/MosaicPostProcess.hpp"
+#include "postProcessing/BloomPostProcess.hpp"
 
 #include "../vulkan/VulkanDevice.hpp"
 #include "../vulkan/VkUtils.hpp"
@@ -122,7 +129,9 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("forward", std::make_unique<ForwardPipelineLayout>(window, &this->descriptorSetLayouts, &this->shadowsEnabled));
 	this->pipelineLayouts.emplace("deferredWriting", std::make_unique<DeferredWritingPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("deferredShading", std::make_unique<DeferredShadingPipelineLayout>(window, &this->descriptorSetLayouts, &this->shadowsEnabled));
-	this->pipelineLayouts.emplace("singleImageSample", std::make_unique<SingleImageSamplePipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("bloom", std::make_unique<BloomPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("mosaic", std::make_unique<MosaicPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("composition", std::make_unique<CompositionPipelineLayout>(window, &this->descriptorSetLayouts));
 	
 	// Debug pipeline layouts
 	this->pipelineLayouts.emplace("lineDebug", std::make_unique<LineDebugPipelineLayout>(window, &this->descriptorSetLayouts));
@@ -130,6 +139,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("overVisualisation", std::make_unique<OverVisualisationPipelineLayout>(window, &this->descriptorSetLayouts));
 
 	// Pipelines
+	// (alot of the pipelines are identical other than their input pipeline layout, renderpass, and shader stages, possibly use the base class for these?)
 	// (cubemap)shadow - shadow pass stage pipelines
 	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->pipelineLayouts.at("shadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
 	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->pipelineLayouts.at("cubemapShadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
@@ -139,11 +149,13 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->pipelineLayouts.at("deferredWriting").get(), this->renderPasses.at("deferred").get(), &this->sampleCountSetting));
 	// deferredShading - pipeline stage for shading pass in deferred rendering
 	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->pipelineLayouts.at("deferredShading").get(), this->renderPasses.at("deferred").get(), &this->sampleCountSetting, &this->shadowsEnabled));
-	// mosaic - post processing effect
-	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->pipelineLayouts.at("singleImageSample").get(), this->renderPasses.at("postProcess").get()));
+	// post processing effects
+	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->pipelineLayouts.at("mosaic").get(), this->renderPasses.at("postProcess").get()));
+	this->pipelines.emplace("bloom", std::make_unique<BloomPipeline>(window, this->pipelineLayouts.at("bloom").get(), this->renderPasses.at("postProcess").get()));
+	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->pipelineLayouts.at("composition").get(), this->renderPasses.at("postProcess").get()));
 
 	// Debug pipelines
-	this->pipelines.emplace("forwardSun", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting, &this->shadowsEnabled));
+	this->pipelines.emplace("forwardSun", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->pipelineLayouts.at("debugViews").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->pipelineLayouts.at("overVisualisation").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
@@ -153,14 +165,17 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->textureBuffers.emplace("colour", std::make_unique<ColourTextureBuffer>(&this->context));
 	// brightness - buffer used to render scene brightness as input for bloom post processing
 	this->textureBuffers.emplace("brightness", std::make_unique<ColourTextureBuffer>(&this->context));
-	// intermediate - intermediate buffer used as a ping-pong texture during post processing effects
+	// intermediate - intermediate buffers used during post processing effects
 	this->textureBuffers.emplace("intermediate", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("intermediate2", std::make_unique<ColourTextureBuffer>(&this->context));
 	// depth - standard depth buffer
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
 	// gBuffers - g-buffers used in deferred rendering
 	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_A2R10G10B10_UNORM_PACK32));
 	this->textureBuffers.emplace("gBuffer2", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 	this->textureBuffers.emplace("gBuffer3", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
+	// blurOutput - output of blur in bloom post processing
+	this->textureBuffers.emplace("blurOutput", std::make_unique<ColourTextureBuffer>(&this->context));
 
 	// Debug texture buffers
 	// sunView - buffer used to render the sun view
@@ -178,6 +193,9 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// writeTo(output/intermediate) - 2 framebuffers to ping-pong writing to "colour" and "intermediate" buffers during post processing
 	this->framebuffers.emplace("writeToOutput", std::make_unique<OutputFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
 	this->framebuffers.emplace("writeToIntermediate", std::make_unique<IntermediateFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
+	this->framebuffers.emplace("writeToIntermediate2", std::make_unique<Intermediate2Framebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
+	// writeToBlur - writes to blurOutput
+	this->framebuffers.emplace("writeToBlur", std::make_unique<BlurFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -231,6 +249,12 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->textureBuffers.at("colour").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> intermediateImageDescriptorSettings = {
 		{ this->textureBuffers.at("intermediate").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+	std::vector<DescriptorImageSetting> intermediate2ImageDescriptorSettings = {
+		{ this->textureBuffers.at("intermediate2").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+	std::vector<DescriptorImageSetting> brightnessImageDescriptorSettings = {
+		{ this->textureBuffers.at("brightness").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+	std::vector<DescriptorImageSetting> blurImageDescriptorSettings = {
+		{ this->textureBuffers.at("blurOutput").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
@@ -238,8 +262,12 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSets.emplace("sunView", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, sunViewDescriptorSettings));
 	this->descriptorSets.emplace("sceneOutput", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, colourOuputDescriptorSettings));
 	this->descriptorSets.emplace("intermediate", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediateImageDescriptorSettings));
+	this->descriptorSets.emplace("intermediate2", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediate2ImageDescriptorSettings));
+	this->descriptorSets.emplace("brightness", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, brightnessImageDescriptorSettings));
+	this->descriptorSets.emplace("blurOutput", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, blurImageDescriptorSettings));
 
 	// Post processing effects
+	this->postProcessingEffects.emplace_back(std::make_pair("bloom", std::make_unique<BloomPostProcess>(this)));
 	this->postProcessingEffects.emplace_back(std::make_pair("mosaic", std::make_unique<MosaicPostProcess>(this)));
 }
 
@@ -409,6 +437,9 @@ bool Renderer::checkSwapchain() {
 		this->recreateFormatDependents();
 	if (swapChanges.changedSize || this->forceRecreate)
 		this->recreateSizeDependents();
+
+	// Always recreate swapchain image view dependents
+	this->recreateSwapViewDependents();
 
 	this->recreateSwapchain = false;
 	this->forceRecreate = false;
@@ -642,24 +673,20 @@ void Renderer::render() {
 	Framebuffer* framebuffer1 = this->framebuffers.at("writeToIntermediate").get();
 	Framebuffer* framebuffer2 = this->framebuffers.at("writeToOutput").get();
 
-	bool atLeastOneEffect = false;
+	bool useIntermediate = false;
 
 	for (const auto& [effectName, effect] : this->postProcessingEffects) {
 		if (!effect->getEnabled()) continue;
-		if (!atLeastOneEffect) atLeastOneEffect = true;
+		useIntermediate = !useIntermediate;
 
-		RendererUtils::beginRenderPass(effect->getRenderPass(), framebuffer1, this->imageIndex);
-		RendererUtils::bindGraphicPipeline(effect->getPipeline()->getHandle());
-		RendererUtils::bindGraphicDescriptorSets(effect->getPipelineLayout()->getHandle(), 0, 1, &readImage, 0, nullptr);
-		RendererUtils::drawDirect(3, 1, 0, 0);
-		RendererUtils::endRenderPass();
+		effect->apply(framebuffer1, this->imageIndex, readImage);
 
 		std::swap(readImage, writeImage);
 		std::swap(framebuffer1, framebuffer2);
 	}
 
 	// Blit image to swapchain
-	VkImage srcImage = atLeastOneEffect ? 
+	VkImage srcImage = useIntermediate ? 
 		this->textureBuffers.at("intermediate")->getImage().image : 
 		this->textureBuffers.at("colour")->getImage().image;
 	VkImage swapchainImage = this->context.window->swapImages[this->imageIndex];
@@ -1205,7 +1232,9 @@ void Renderer::recreateSizeDependents() {
 	// Recreate pipelines
 	for (auto& pipeline : this->pipelines)
 		pipeline.second->recreate();
+}
 
+void Renderer::recreateSwapViewDependents() {
 	// Recreate framebuffers
 	for (auto& framebuffer : this->framebuffers)
 		framebuffer.second->recreate();

@@ -85,14 +85,16 @@ void DeferredShadingPipeline::recreate() {
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampleInfo.rasterizationSamples = *this->sampleCount;
 
-	VkPipelineColorBlendAttachmentState blendStates[1]{};
+	VkPipelineColorBlendAttachmentState blendStates[2]{};
 	blendStates[0].blendEnable = VK_FALSE;
 	blendStates[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+	blendStates[1].blendEnable = VK_FALSE;
+	blendStates[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
 	VkPipelineColorBlendStateCreateInfo blendInfo{};
 	blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	blendInfo.logicOpEnable = VK_FALSE;
-	blendInfo.attachmentCount = 1;
+	blendInfo.attachmentCount = 2;
 	blendInfo.pAttachments = blendStates;
 
 	VkPipelineDepthStencilStateCreateInfo depthInfo{};

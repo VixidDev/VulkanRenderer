@@ -2,21 +2,7 @@
 
 PostProcessingEffect::PostProcessingEffect(Renderer* renderer) : renderer(renderer) {}
 
-void PostProcessingEffect::recreate() {}
-
-void PostProcessingEffect::apply() {}
-
-RenderPass* PostProcessingEffect::getRenderPass() {
-	return this->renderPass;
-}
-
-PipelineLayout* PostProcessingEffect::getPipelineLayout() {
-	return this->pipelineLayout;
-}
-
-Pipeline* PostProcessingEffect::getPipeline() {
-	return this->pipeline;
-}
+void PostProcessingEffect::apply(Framebuffer* framebuffer, std::uint32_t imageIndex, VkDescriptorSet readImage) {}
 
 bool& PostProcessingEffect::getEnabled() {
 	return this->enabled;

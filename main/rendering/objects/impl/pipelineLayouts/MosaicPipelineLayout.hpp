@@ -5,9 +5,9 @@
 
 #include "../../base/PipelineLayout.hpp"
 
-class SingleImageSamplePipelineLayout : public PipelineLayout {
+class MosaicPipelineLayout : public PipelineLayout {
 public:
-	SingleImageSamplePipelineLayout(VulkanWindow* window,
+	MosaicPipelineLayout(VulkanWindow* window,
 		std::map<std::string, vk::DescriptorSetLayout>* descriptorLayouts);
 
 	void recreate();

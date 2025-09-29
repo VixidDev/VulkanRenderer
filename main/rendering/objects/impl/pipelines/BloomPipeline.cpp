@@ -1,29 +1,26 @@
-#include "OverVisualisationPipeline.hpp"
+#include "BloomPipeline.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 #include "../../../PipelineCreation.hpp"
 
-OverVisualisationPipeline::OverVisualisationPipeline(
+BloomPipeline::BloomPipeline(
 	VulkanWindow* window,
 	PipelineLayout* pipelineLayout,
-	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount
-) : Pipeline(window) 
-{
+	RenderPass* renderPass
+) : Pipeline(window) {
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
-	this->sampleCount = sampleCount;
 
 	this->renderExtent = &this->window->swapchainExtent;
 
 	this->recreate();
 }
 
-void OverVisualisationPipeline::recreate() {
-	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/overVisualisation.vert.spv");
-	vk::ShaderModule frag = loadShaderModule(*this->window, "assets/main/shaders/overVisualisation.frag.spv");
+void BloomPipeline::recreate() {
+	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/fullScreen.vert.spv");
+	vk::ShaderModule frag = loadShaderModule(*this->window, "assets/main/shaders/bloom.frag.spv");
 
 	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -36,24 +33,8 @@ void OverVisualisationPipeline::recreate() {
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
 
-	VkVertexInputBindingDescription vertexInputs[1]{};
-	// Positions
-	vertexInputs[0].binding = 0;
-	vertexInputs[0].stride = sizeof(float) * 3;
-	vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-	VkVertexInputAttributeDescription vertexAttributes[1]{};
-	vertexAttributes[0].binding = 0;
-	vertexAttributes[0].location = 0;
-	vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-	vertexAttributes[0].offset = 0;
-
 	VkPipelineVertexInputStateCreateInfo inputInfo{};
 	inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	inputInfo.vertexBindingDescriptionCount = 1;
-	inputInfo.pVertexBindingDescriptions = vertexInputs;
-	inputInfo.vertexAttributeDescriptionCount = 1;
-	inputInfo.pVertexAttributeDescriptions = vertexAttributes;
 
 	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
 	assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -84,49 +65,32 @@ void OverVisualisationPipeline::recreate() {
 	rasterInfo.depthBiasEnable = VK_FALSE;
 	rasterInfo.rasterizerDiscardEnable = VK_FALSE;
 	rasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterInfo.cullMode = VK_CULL_MODE_NONE;
 	rasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterInfo.depthBiasEnable = VK_FALSE;
 	rasterInfo.lineWidth = 1.0f;
 
 	VkPipelineMultisampleStateCreateInfo multisampleInfo{};
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampleInfo.rasterizationSamples = *this->sampleCount;
+	multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-	VkPipelineColorBlendAttachmentState blendStates[2]{};
-	blendStates[0].blendEnable = VK_TRUE;
+	VkPipelineColorBlendAttachmentState blendStates[1]{};
+	blendStates[0].blendEnable = VK_FALSE;
 	blendStates[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	blendStates[0].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	blendStates[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	blendStates[0].colorBlendOp = VK_BLEND_OP_ADD;
-	blendStates[1].blendEnable = VK_TRUE;
-	blendStates[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	blendStates[1].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	blendStates[1].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	blendStates[1].colorBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendStateCreateInfo blendInfo{};
 	blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	blendInfo.logicOpEnable = VK_FALSE;
-	blendInfo.attachmentCount = 2;
+	blendInfo.attachmentCount = 1;
 	blendInfo.pAttachments = blendStates;
 
 	VkPipelineDepthStencilStateCreateInfo depthInfo{};
 	depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depthInfo.depthTestEnable = VK_TRUE;
-	depthInfo.depthWriteEnable = VK_TRUE;
+	depthInfo.depthWriteEnable = VK_FALSE;
 	depthInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	depthInfo.minDepthBounds = 0.0f;
 	depthInfo.maxDepthBounds = 1.0f;
-
-	VkDynamicState dynamicStates[1] = {
-		VK_DYNAMIC_STATE_DEPTH_TEST_ENABLE
-	};
-
-	VkPipelineDynamicStateCreateInfo dynamicInfo{};
-	dynamicInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	dynamicInfo.dynamicStateCount = 1;
-	dynamicInfo.pDynamicStates = dynamicStates;
 
 	VkGraphicsPipelineCreateInfo pipeInfo{};
 	pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -140,7 +104,7 @@ void OverVisualisationPipeline::recreate() {
 	pipeInfo.pMultisampleState = &multisampleInfo;
 	pipeInfo.pDepthStencilState = &depthInfo;
 	pipeInfo.pColorBlendState = &blendInfo;
-	pipeInfo.pDynamicState = &dynamicInfo;
+	pipeInfo.pDynamicState = nullptr;
 	pipeInfo.layout = this->pipelineLayout->getHandle();
 	pipeInfo.renderPass = this->renderPass->getRenderPassHandle();
 	pipeInfo.subpass = 0;

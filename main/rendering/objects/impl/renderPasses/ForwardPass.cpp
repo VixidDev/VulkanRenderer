@@ -20,7 +20,7 @@ void ForwardPass::recreate() {
 }
 
 void ForwardPass::recreateNonMSAA() {
-	VkAttachmentDescription attachments[2]{};
+	VkAttachmentDescription attachments[3]{};
 	// Output image
 	attachments[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -29,25 +29,35 @@ void ForwardPass::recreateNonMSAA() {
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	// Depth buffer
-	attachments[1].format = VK_FORMAT_D32_SFLOAT;
+	// Output brightness
+	attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachments[1].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkAttachmentReference subpassAttachments[1]{};
+	// Depth buffer
+	attachments[2].format = VK_FORMAT_D32_SFLOAT;
+	attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
+	attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[2].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference subpassAttachments[2]{};
 	subpassAttachments[0].attachment = 0;
 	subpassAttachments[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	subpassAttachments[1].attachment = 1;
+	subpassAttachments[1].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference depthAttachment{};
-	depthAttachment.attachment = 1;
+	depthAttachment.attachment = 2;
 	depthAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkSubpassDescription subpasses[1]{};
 	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpasses[0].colorAttachmentCount = 1;
+	subpasses[0].colorAttachmentCount = 2;
 	subpasses[0].pColorAttachments = subpassAttachments;
 	subpasses[0].pDepthStencilAttachment = &depthAttachment;
 
@@ -70,7 +80,7 @@ void ForwardPass::recreateNonMSAA() {
 
 	VkRenderPassCreateInfo passInfo{};
 	passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	passInfo.attachmentCount = 2;
+	passInfo.attachmentCount = 3;
 	passInfo.pAttachments = attachments;
 	passInfo.subpassCount = 1;
 	passInfo.pSubpasses = subpasses;
@@ -95,6 +105,7 @@ void ForwardPass::recreateNonMSAA() {
 	depthClearValue.depthStencil.depth = 1.0f;
 
 	this->clearValues.clear();
+	this->clearValues.emplace_back(colourClearValue);
 	this->clearValues.emplace_back(colourClearValue);
 	this->clearValues.emplace_back(depthClearValue);
 }
