@@ -17,6 +17,11 @@ public:
 	~ShaderStorageBuffer() = default;
 
 	ShaderStorageBuffer(VulkanContext* context, std::vector<T>* data) : context(context), ssboData(data) {
+		if (this->ssboData->size() <= 0) {
+			this->bufferSize = 0;
+			return;
+		}
+
 		this->bufferSize = this->ssboData->size() * sizeof(T);
 
 		// GPU-sided buffer
@@ -40,6 +45,8 @@ public:
 	}
 
 	void update(VkCommandBuffer cmdBuff = VK_NULL_HANDLE) override {
+		if (this->getHandle() == VK_NULL_HANDLE) return;
+
 		// Map ptr to GPU and copy to it
 		void* ptr;
 		if (const auto res = vmaMapMemory(this->context->allocator->allocator, stagingBuffer.allocation, &ptr); VK_SUCCESS != res)

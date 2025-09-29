@@ -117,42 +117,65 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSetLayouts.emplace("deferredInputAttachments", createDescriptorLayout(*window, deferredInputAttachments));
 
 	// Pipeline Layouts
+	this->pipelineLayouts.emplace("shadow", std::make_unique<ShadowPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("cubemapShadow", std::make_unique<CubemapShadowPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("forward", std::make_unique<ForwardPipelineLayout>(window, &this->descriptorSetLayouts, &this->shadowsEnabled));
 	this->pipelineLayouts.emplace("deferredWriting", std::make_unique<DeferredWritingPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("deferredShading", std::make_unique<DeferredShadingPipelineLayout>(window, &this->descriptorSetLayouts, &this->shadowsEnabled));
-	this->pipelineLayouts.emplace("shadow", std::make_unique<ShadowPipelineLayout>(window, &this->descriptorSetLayouts));
-	this->pipelineLayouts.emplace("cubemapShadow", std::make_unique<CubemapShadowPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("singleImageSample", std::make_unique<SingleImageSamplePipelineLayout>(window, &this->descriptorSetLayouts));
+	
+	// Debug pipeline layouts
 	this->pipelineLayouts.emplace("lineDebug", std::make_unique<LineDebugPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("debugViews", std::make_unique<DebugViewsPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("overVisualisation", std::make_unique<OverVisualisationPipelineLayout>(window, &this->descriptorSetLayouts));
-	this->pipelineLayouts.emplace("singleImageSample", std::make_unique<SingleImageSamplePipelineLayout>(window, &this->descriptorSetLayouts));
 
 	// Pipelines
-	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
-	this->pipelines.emplace("forwardSun", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting, &this->shadowsEnabled));
-	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->pipelineLayouts.at("deferredWriting").get(), this->renderPasses.at("deferred").get(), &this->sampleCountSetting));
-	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->pipelineLayouts.at("deferredShading").get(), this->renderPasses.at("deferred").get(), &this->sampleCountSetting, &this->shadowsEnabled));
+	// (cubemap)shadow - shadow pass stage pipelines
 	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->pipelineLayouts.at("shadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
 	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->pipelineLayouts.at("cubemapShadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
+	// forward - regular forward shading pipeline
+	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
+	// deferredWriting - pipeline stage for writing to g-buffers
+	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->pipelineLayouts.at("deferredWriting").get(), this->renderPasses.at("deferred").get(), &this->sampleCountSetting));
+	// deferredShading - pipeline stage for shading pass in deferred rendering
+	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->pipelineLayouts.at("deferredShading").get(), this->renderPasses.at("deferred").get(), &this->sampleCountSetting, &this->shadowsEnabled));
+	// mosaic - post processing effect
+	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->pipelineLayouts.at("singleImageSample").get(), this->renderPasses.at("postProcess").get()));
+
+	// Debug pipelines
+	this->pipelines.emplace("forwardSun", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting, &this->shadowsEnabled));
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->pipelineLayouts.at("debugViews").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->pipelineLayouts.at("overVisualisation").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
-	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->pipelineLayouts.at("singleImageSample").get(), this->renderPasses.at("postProcess").get()));
 
 	// Texture Buffers
+	// colour - output buffer after geometry and lighting
 	this->textureBuffers.emplace("colour", std::make_unique<ColourTextureBuffer>(&this->context));
+	// brightness - buffer used to render scene brightness as input for bloom post processing
+	this->textureBuffers.emplace("brightness", std::make_unique<ColourTextureBuffer>(&this->context));
+	// intermediate - intermediate buffer used as a ping-pong texture during post processing effects
 	this->textureBuffers.emplace("intermediate", std::make_unique<ColourTextureBuffer>(&this->context));
+	// depth - standard depth buffer
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
-	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context));
-	this->textureBuffers.emplace("gBuffer2", std::make_unique<ColourTextureBuffer>(&this->context));
-	this->textureBuffers.emplace("gBuffer3", std::make_unique<ColourTextureBuffer>(&this->context));
+	// gBuffers - g-buffers used in deferred rendering
+	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context /*,VK_FORMAT_A2R10G10B10_UNORM_PACK32*/));
+	this->textureBuffers.emplace("gBuffer2", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
+	this->textureBuffers.emplace("gBuffer3", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
+
+	// Debug texture buffers
+	// sunView - buffer used to render the sun view
 	this->textureBuffers.emplace("sunView", std::make_unique<ColourTextureBuffer>(&this->context));
 
 	// Framebuffers
+	// forward - 1 colour, 1 depth render targets
 	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("forward").get(), &this->sampleCountSetting));
+	// deferred - 4 colour (3 g-buffers, 1 colour), 1 depth render targets
 	this->framebuffers.emplace("deferred", std::make_unique<DeferredFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("deferred").get(), &this->sampleCountSetting));
+	// sun - 1 colour (sunView buffer), 1 depth render targets
 	this->framebuffers.emplace("sun", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
+	// gui - writes directly to swapchain buffer
 	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->renderPasses.at("gui").get()));
+	// writeTo(output/intermediate) - 2 framebuffers to ping-pong writing to "colour" and "intermediate" buffers during post processing
 	this->framebuffers.emplace("writeToOutput", std::make_unique<OutputFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
 	this->framebuffers.emplace("writeToIntermediate", std::make_unique<IntermediateFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
 
@@ -174,19 +197,22 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	// Samplers
 	SamplerInfo defaultSamplerInfo = {
-		VK_FILTER_LINEAR,
-		VK_FILTER_LINEAR,
-		VK_SAMPLER_ADDRESS_MODE_REPEAT,
-		VK_SAMPLER_ADDRESS_MODE_REPEAT,
-		VK_SAMPLER_ADDRESS_MODE_REPEAT };
+		.magFilter = VK_FILTER_LINEAR,
+		.minFilter = VK_FILTER_LINEAR,
+		.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+		.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+		.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+		.anisotropyEnable = VK_TRUE };
 	this->defaultSampler = VkUtils::createTextureSampler(*window, defaultSamplerInfo);
 	SamplerInfo shadowMapSamplerInfo = {
-		VK_FILTER_LINEAR,
-		VK_FILTER_LINEAR,
-		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		1, VK_COMPARE_OP_LESS_OR_EQUAL };
+		.magFilter = VK_FILTER_LINEAR,
+		.minFilter = VK_FILTER_LINEAR,
+		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+		.compareEnable = 1, 
+		.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL
+	};
 	this->shadowMapSampler = VkUtils::createTextureSampler(*window, shadowMapSamplerInfo);
 
 	// Descriptor Sets
@@ -200,7 +226,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->textureBuffers.at("gBuffer3").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
 		{ this->textureBuffers.at("depth").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE } };
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
-		{ this->textureBuffers.at("sunView").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle} };
+		{ this->textureBuffers.at("sunView").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> colourOuputDescriptorSettings = {
 		{ this->textureBuffers.at("colour").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> intermediateImageDescriptorSettings = {
@@ -594,6 +620,13 @@ void Renderer::render() {
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
 	}
+	if (this->numDirectionalLights == 0) {
+		RendererUtils::imageBarrier(this->textureBuffers.at("directionalShadow")->getImage().image,
+			0, 0,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+	}
 
 	// Scene pass
 	if (this->renderingType == 1) {
@@ -655,7 +688,8 @@ void Renderer::renderForward() {
 
 	glsl::LightsAndEmissive lightsAndEmissive = {
 		.numLights = this->numLights,
-		.emissiveStrength = this->emissiveStrength
+		.emissiveStrength = this->emissiveStrength,
+		.shadowBias = this->shadowBias
 	};
 
 	RendererUtils::bindPushConstant(
@@ -710,6 +744,8 @@ void Renderer::renderForward() {
 
 	RendererUtils::endRenderPass();
 
+	if (this->sunLightIndex == -1 || (!this->showSunView)) return;
+
 	// Update MVP uniform for sun debug view
 	glsl::Light lightStruct = this->ssbos.lights.at(this->sunLightIndex);
 	this->uniforms.mvpUniform.projection = this->sunMatrices.projection;
@@ -746,7 +782,8 @@ void Renderer::renderForward() {
 
 		glsl::LightsAndEmissive lightsAndEmissive = {
 			.numLights = this->numLights,
-			.emissiveStrength = this->emissiveStrength
+			.emissiveStrength = this->emissiveStrength,
+			.shadowBias = this->shadowBias
 		};
 
 		RendererUtils::bindPushConstant(
@@ -835,7 +872,8 @@ void Renderer::renderDeferred() {
 
 	glsl::LightsAndEmissive lightsAndEmissive = {
 		.numLights = this->numLights,
-		.emissiveStrength = this->emissiveStrength
+		.emissiveStrength = this->emissiveStrength,
+		.shadowBias = this->shadowBias
 	};
 
 	RendererUtils::bindPushConstant(

@@ -5,9 +5,9 @@
 
 layout(location = 0) in vec2 v2fTexCoord;
 
-layout(set = 0, input_attachment_index = 0, binding = 0) uniform subpassInput gBuffer1;  // normals = rgb, metalness = a
+layout(set = 0, input_attachment_index = 0, binding = 0) uniform subpassInput gBuffer1;  // normals = rgb
 layout(set = 0, input_attachment_index = 1, binding = 1) uniform subpassInput gBuffer2;  // albedo = rgb, roughtness = a
-layout(set = 0, input_attachment_index = 2, binding = 2) uniform subpassInput gBuffer3;  // emissive = rgb
+layout(set = 0, input_attachment_index = 2, binding = 2) uniform subpassInput gBuffer3;  // emissive = rgb, metalness = a
 layout(set = 0, input_attachment_index = 3, binding = 3) uniform subpassInput inputDepth;
 
 layout(set = 1, binding = 0) uniform MVP {
@@ -46,6 +46,7 @@ layout(set = 6, binding = 0) readonly buffer LightSpaceMatrices {
 layout(push_constant) uniform PushConstants {
 	int lightCount;
 	float emissiveStrength;
+	float shadowBias;
 } pConsts;
 
 layout(location = 0) out vec4 oColour;
@@ -53,9 +54,7 @@ layout(location = 0) out vec4 oColour;
 vec3 posFromDepth(float depth) {
 	vec4 clipSpace = vec4(v2fTexCoord * 2.0 - 1.0, depth, 1.0);
 	vec4 viewSpace = inverse(mvp.view) * inverse(mvp.projection) * clipSpace;
-
 	vec3 worldSpace = viewSpace.xyz / viewSpace.w;
-
 	return worldSpace;
 }
 
@@ -94,7 +93,7 @@ float geometryFunction(vec3 normal, vec3 halfwayVector, vec3 viewDir, vec3 light
 vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal, float shadow) {
 	vec3 halfwayVector = normalize(viewDir + lightDir);
 
-	float metalness = subpassLoad(gBuffer1).a;
+	float metalness = subpassLoad(gBuffer3).a;
 	float roughness_sqrt = subpassLoad(gBuffer2).a;
 	float roughness = roughness_sqrt * roughness_sqrt;
 
@@ -168,6 +167,8 @@ void main() {
     vec3 pos = posFromDepth(depth);
 
 	vec3 normal = normalize(subpassLoad(gBuffer1).rgb);
+	// Map normals from [0, 1] (gBuffer format is UNORM) back to [-1, 1]
+	//normal = normal * 2.0 - 1.0;
 
 	vec3 ambient = vec3(0.03) * subpassLoad(gBuffer2).rgb;
 	vec3 totalLight = ambient;

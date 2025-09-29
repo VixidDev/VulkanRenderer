@@ -51,6 +51,7 @@ layout(set = 6, binding = 0) readonly buffer LightSpaceMatrices {
 layout(push_constant) uniform PushConstants {
 	int lightCount;
 	float emissiveStrength;
+	float shadowBias;
 } pConsts;
 
 layout(location = 0) out vec4 oColour;
@@ -135,7 +136,7 @@ float calculateShadow(ShaderLight light) {
 		float currentDepth = length(lightToFrag) / planes.far;
 		vec3 dir = normalize(lightToFrag);
 
-		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - SHADOW_BIAS);
+		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - pConsts.shadowBias);
 		break;
 	case 1: // Directional light
 		mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[shadowMapIndex];
@@ -195,7 +196,7 @@ void main() {
 		float NdotL = max(dot(normal, lightDir), 0.0001);
 
 		totalLight += (brdfVal * NdotL) * lights[i].colour * attenuation;
-	}	
+	}
 
 	vec3 emissive = texture(uEmissive, v2fTexCoord).rgb;
 	totalLight += emissive * pConsts.emissiveStrength;

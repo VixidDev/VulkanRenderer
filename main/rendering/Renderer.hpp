@@ -113,12 +113,15 @@ public:
 
 	std::pair<vk::Image, vk::ImageView>& getDummyTexture();
 
-	int numLights = 2;
+	int numLights = 1;
 	std::uint32_t numPointLights = 0;
 	std::uint32_t numDirectionalLights = 0;
 	std::uint32_t numSpotLights = 0;
 
+	bool showSunView = false;
+
 	float emissiveStrength = 15.0f;
+	float shadowBias = 0.0001f;
 
 	float sunOrthoBounds = 22.0f;
 	float sunShadowNear = 0.1f;

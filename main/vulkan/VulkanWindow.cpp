@@ -365,38 +365,58 @@ std::unique_ptr<VulkanDevice> createDevice(VulkanWindow& window, VkPhysicalDevic
 		queueInfo.pQueuePriorities = queuePriorities;
 	}
 
-	VkPhysicalDeviceFeatures deviceFeatures{};
-	vkGetPhysicalDeviceFeatures(window.physicalDevice, &deviceFeatures);
+	VkPhysicalDeviceRobustness2FeaturesEXT robustness2Features = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT
+	};
+	VkPhysicalDeviceFeatures2 deviceFeatures = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+		.pNext = &robustness2Features
+	};
+	// Fills deviceFeatures (and any of its pNext's) with all of the GPU's possible features,
+	// we don't want to have every possible feature so we will check individual features and
+	// enable them in our own VkPhysicalDeviceFeatures2 struct
+	vkGetPhysicalDeviceFeatures2(window.physicalDevice, &deviceFeatures);
 
-	VkPhysicalDeviceFeatures enabledFeatures{};
-	if (deviceFeatures.samplerAnisotropy) {
-		enabledFeatures.samplerAnisotropy = VK_TRUE;
+	VkPhysicalDeviceRobustness2FeaturesEXT enabledRobustFeatures = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT
+	};
+	VkPhysicalDeviceFeatures2 enabledFeatures = {
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
+		.pNext = &robustness2Features
+	};
+	if (deviceFeatures.features.samplerAnisotropy) {
+		enabledFeatures.features.samplerAnisotropy = VK_TRUE;
 		std::fprintf(stderr, "Enabling device feature: samplerAnisotropy\n");
 	}
-	if (deviceFeatures.imageCubeArray) {
-		enabledFeatures.imageCubeArray = VK_TRUE;
+	if (deviceFeatures.features.imageCubeArray) {
+		enabledFeatures.features.imageCubeArray = VK_TRUE;
 		std::fprintf(stderr, "Enabling device feature: imageCubeArray\n");
+	}
+	if (deviceFeatures.features.robustBufferAccess && robustness2Features.robustBufferAccess2) {
+		enabledFeatures.features.robustBufferAccess = VK_TRUE;
+		enabledRobustFeatures.robustBufferAccess2 = VK_TRUE;
+		std::fprintf(stderr, "Enabling device feature: robustBufferAccess\n");
+		std::fprintf(stderr, "Enabling device feature: robustBufferAccess2 [robustness2]\n");
+	}
+	if (robustness2Features.nullDescriptor) {
+		enabledRobustFeatures.nullDescriptor = VK_TRUE;
+		std::fprintf(stderr, "Enabling device feature: nullDescriptor [robustness2]\n");
 	}
 
 	window.deviceFeatures = enabledFeatures;
 
 	VkDeviceCreateInfo deviceInfo{};
 	deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
+	deviceInfo.pNext = &enabledFeatures;
 	deviceInfo.queueCreateInfoCount = std::uint32_t(queueInfos.size());
 	deviceInfo.pQueueCreateInfos = queueInfos.data();
-
 	deviceInfo.enabledExtensionCount = std::uint32_t(enabledExtensions.size());
 	deviceInfo.ppEnabledExtensionNames = enabledExtensions.data();
-
-	deviceInfo.pEnabledFeatures = &enabledFeatures;
+	deviceInfo.pEnabledFeatures = nullptr;
 
 	VkDevice device = VK_NULL_HANDLE;
-	if (auto const res = vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device); VK_SUCCESS != res) {
-		throw Utils::Error("Unable to create logical device\n"
-			"vkCreateDevice() returned %s", Utils::toString(res).c_str()
-		);
-	}
+	if (auto const res = vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device); VK_SUCCESS != res)
+		throw Utils::Error("Unable to create logical device\n vkCreateDevice() returned %s", Utils::toString(res).c_str());
 
 	return std::make_unique<VulkanDevice>(device, window);
 }

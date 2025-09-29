@@ -201,6 +201,7 @@ IndexedMesh makeIndexedMesh(const TriangleSoup& triSoup, float errorTolerance, i
 		if (negative) quaternionTBN = -quaternionTBN;
 
 		// We want to map our smallest 3 values from the range [-1/sqrt(2), 1/sqrt(2)] to [0, 1023] as 1024 values is how many 10 bits can store (2^10)
+		// ([0, 1023] range will be automatically mapped to [0, 1] when uploaded to shader due to VK_FORMAT_A2R10G10B10_UNORM_PACK32 format)
 		// ([-1/sqrt(2), 1/sqrt(2)] range explained by https://github.com/niklasfrykholm/blog/blob/master/2009/the-bitsquid-low-level-animation-system.md)
 		std::uint32_t smallestIndex = 0;	
 		std::uint32_t smallest[3] = { 0, 0, 0 };

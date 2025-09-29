@@ -6,13 +6,16 @@
 #include "VulkanContext.hpp"
 
 struct SamplerInfo {
-	VkFilter minFilter;
 	VkFilter magFilter;
+	VkFilter minFilter;
 	VkSamplerAddressMode addressModeU;
 	VkSamplerAddressMode addressModeV;
 	VkSamplerAddressMode addressModeW;
+	VkBool32 anisotropyEnable = VK_FALSE;
+	float maxAnisotropy = 8.0f;
 	VkBool32 compareEnable = 0;
 	VkCompareOp compareOp = VK_COMPARE_OP_NEVER;
+	VkBorderColor borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
 };
 
 namespace VkUtils {

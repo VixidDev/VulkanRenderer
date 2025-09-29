@@ -3,7 +3,8 @@
 BufferDescriptorSet::BufferDescriptorSet(
 	VulkanWindow* window,
 	VkDescriptorSetLayout* descSetLayout,
-	std::vector<DescriptorBufferSetting> descBufferSettings) : DescriptorSet(window, descSetLayout) 
+	std::vector<DescriptorBufferSetting> descBufferSettings
+) : DescriptorSet(window, descSetLayout) 
 {
 	this->descBufferSettings = descBufferSettings;
 

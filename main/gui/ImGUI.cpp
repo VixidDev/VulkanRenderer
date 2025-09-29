@@ -123,7 +123,7 @@ void GUI::draw() {
 			if (renderer.getRenderingType())
 				ImGui::BeginDisabled();
 
-			ImGui::Checkbox("Sun View Debug", &this->showSunView);
+			ImGui::Checkbox("Sun View Debug", &renderer.showSunView);
 
 			if (renderer.getRenderingType())
 				ImGui::EndDisabled();
@@ -138,6 +138,7 @@ void GUI::draw() {
 			ImGui::Separator();
 
 			ImGui::SliderFloat("Emissive Strength", &renderer.emissiveStrength, 1.0f, 30.0f);
+			ImGui::SliderFloat("Shadow Bias", &renderer.shadowBias, 0.0001f, 0.01f, "%.5f");
 
 			ImGui::Separator();
 

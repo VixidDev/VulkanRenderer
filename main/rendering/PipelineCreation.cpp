@@ -221,9 +221,13 @@ VkDescriptorSet createBufferDescriptor(const VulkanWindow& window, VkDescriptorS
 		std::vector<VkWriteDescriptorSet> descs;
 
 		for (std::size_t i = 0; i < buffers.size(); i++) {
+			bool isStorageBuffer = buffers[i].descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+			bool needsVkWholeSize = isStorageBuffer && buffers[i].bufferHandle == VK_NULL_HANDLE;
+
 			VkDescriptorBufferInfo descBufferInfo{};
 			descBufferInfo.buffer = buffers[i].bufferHandle;
-			descBufferInfo.range = buffers[i].range;
+			descBufferInfo.offset = 0;
+			descBufferInfo.range = needsVkWholeSize ? VK_WHOLE_SIZE : buffers[i].range;
 			descBufferInfos.push_back(descBufferInfo);
 		}
 

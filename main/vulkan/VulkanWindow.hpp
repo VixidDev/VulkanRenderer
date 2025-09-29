@@ -48,7 +48,7 @@ public:
 	VkFormat swapchainFormat;
 	VkExtent2D swapchainExtent;
 
-	VkPhysicalDeviceFeatures deviceFeatures;
+	VkPhysicalDeviceFeatures2 deviceFeatures;
 
 	std::uint32_t minImageCount = 2;
 };

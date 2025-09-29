@@ -18,27 +18,31 @@ layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
 layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
 layout(set = 1, binding = 5) uniform sampler2D uEmssive;
 
-layout(location = 0) out vec4 gBuffer1; // normals = rgb, metalness = a
+layout(location = 0) out vec4 gBuffer1; // normals = rgb (format: A2R10G10B10_UNORM)
 layout(location = 1) out vec4 gBuffer2; // albedo = rgb, roughness = a
-layout(location = 2) out vec4 gBuffer3; // emissive = rgb
+layout(location = 2) out vec4 gBuffer3; // emissive = rgb, metalness = a
 
 void main() {
+	// Discard fragments that fail alpha test
+	float alphaValue = texture(uAlphaMask, v2fTexCoord).a;
+	if (alphaValue < 0.5) discard;
+
 	vec3 normal;
 	if (v2fFallbackNormal.w == 1.0) {
 		normal = v2fFallbackNormal.xyz;
 	} else {
-		normal = v2fTBN * normalize(texture(uNormalMap, v2fTexCoord).rgb * 2.0 - 1.0);
+		vec3 tangentNormal = texture(uNormalMap, v2fTexCoord).rgb;
+		tangentNormal = tangentNormal * 2.0 - 1.0;
+		normal = normalize(v2fTBN * tangentNormal);
+		// Map normals from [-1, 1] to [0, 1] since gBuffer format is UNORM
+		//normal = normal * 0.5 + 0.5;
 	}
 
 	gBuffer1.rgb = normal;
-	gBuffer1.a = texture(uMetalness, v2fTexCoord).r;
-
-	// Discard fragments that fail alpha test
-	float alphaValue = texture(uAlphaMask, v2fTexCoord).a;
-	if (alphaValue < 0.5) discard;
 
 	gBuffer2.rgb = texture(uTexColour, v2fTexCoord).rgb;
 	gBuffer2.a = texture(uRoughness, v2fTexCoord).r;
 
 	gBuffer3.rgb = texture(uEmssive, v2fTexCoord).rgb;
+	gBuffer3.a = texture(uMetalness, v2fTexCoord).r;
 }

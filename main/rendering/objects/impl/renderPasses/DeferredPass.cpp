@@ -22,27 +22,28 @@ void DeferredPass::recreate() {
 	attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	// G-Buffers
-	// normals = rgb, metalness = a
+	// normals = rgb
+	//attachments[1].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
 	attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[1].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
 	// albedo = rgb, roughness = a
-	attachments[2].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	attachments[2].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attachments[2].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[2].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[2].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[2].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[2].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-	// emissive = rgb
-	attachments[3].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	// emissive = rgb, metalness = a
+	attachments[3].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attachments[3].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[3].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	attachments[3].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	attachments[3].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[3].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 

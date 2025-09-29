@@ -128,6 +128,8 @@ namespace VkUtils {
 	}
 
 	vk::Sampler createTextureSampler(const VulkanWindow& window, SamplerInfo samplerInfo) {
+		bool deviceEnabledAnisotropy = window.deviceFeatures.features.samplerAnisotropy;
+
 		VkSamplerCreateInfo samplerCreateInfo{};
 		samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 		samplerCreateInfo.magFilter = samplerInfo.magFilter;
@@ -136,14 +138,14 @@ namespace VkUtils {
 		samplerCreateInfo.addressModeU = samplerInfo.addressModeU;
 		samplerCreateInfo.addressModeV = samplerInfo.addressModeV;
 		samplerCreateInfo.addressModeW = samplerInfo.addressModeW;
+		samplerCreateInfo.mipLodBias = 0.0f;
+		samplerCreateInfo.anisotropyEnable = deviceEnabledAnisotropy ? samplerInfo.anisotropyEnable : VK_FALSE;
+		samplerCreateInfo.maxAnisotropy = samplerInfo.maxAnisotropy;
 		samplerCreateInfo.compareEnable = samplerInfo.compareEnable;
 		samplerCreateInfo.compareOp = samplerInfo.compareOp;
-		samplerCreateInfo.anisotropyEnable = window.deviceFeatures.samplerAnisotropy;
-		samplerCreateInfo.maxAnisotropy = 8.0f;
 		samplerCreateInfo.minLod = 0.0f;
 		samplerCreateInfo.maxLod = VK_LOD_CLAMP_NONE;
-		samplerCreateInfo.mipLodBias = 0.0f;
-		samplerCreateInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+		samplerCreateInfo.borderColor = samplerInfo.borderColor;
 
 		VkSampler sampler = VK_NULL_HANDLE;
 		if (const auto res = vkCreateSampler(window.device->device, &samplerCreateInfo, nullptr, &sampler); VK_SUCCESS != res)
