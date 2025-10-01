@@ -1286,7 +1286,7 @@ RenderPass* Renderer::getRenderPass(const std::string& renderPass) {
 	try {
 		ret = this->renderPasses.at(renderPass).get();
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'renderPasses'\n", renderPass.c_str());
+		throw Utils::Error("Could not find: %s in 'renderPasses'\n", renderPass.c_str());
 	}
 
 	return ret;
@@ -1298,7 +1298,7 @@ VkDescriptorSetLayout Renderer::getDescriptorSetLayout(const std::string& descri
 	try {
 		ret = this->descriptorSetLayouts.at(descriptorSetLayout).handle;
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'renderPasses'\n", descriptorSetLayout.c_str());
+		throw Utils::Error("Could not find: %s in 'descriptorSetLayouts'\n", descriptorSetLayout.c_str());
 	}
 
 	return ret;
@@ -1310,7 +1310,7 @@ PipelineLayout* Renderer::getPipelineLayout(const std::string& pipelineLayout) {
 	try {
 		ret = this->pipelineLayouts.at(pipelineLayout).get();
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'renderPasses'\n", pipelineLayout.c_str());
+		throw Utils::Error("Could not find: %s in 'pipelineLayouts'\n", pipelineLayout.c_str());
 	}
 
 	return ret;
@@ -1322,7 +1322,7 @@ Pipeline* Renderer::getPipeline(const std::string& pipeline) {
 	try {
 		ret = this->pipelines.at(pipeline).get();
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'renderPasses'\n", pipeline.c_str());
+		throw Utils::Error("Could not find: %s in 'pipelines'\n", pipeline.c_str());
 	}
 
 	return ret;
@@ -1334,7 +1334,7 @@ Framebuffer* Renderer::getFramebuffer(const std::string& framebuffer) {
 	try {
 		ret = this->framebuffers.at(framebuffer).get();
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'renderPasses'\n", framebuffer.c_str());
+		throw Utils::Error("Could not find: %s in 'framebuffer'\n", framebuffer.c_str());
 	}
 
 	return ret;
@@ -1346,7 +1346,7 @@ TextureBuffer* Renderer::getTextureBuffer(const std::string& textureBuffer) {
 	try {
 		ret = this->textureBuffers.at(textureBuffer).get();
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'textureBuffers'\n", textureBuffer.c_str());
+		throw Utils::Error("Could not find: %s in 'textureBuffers'\n", textureBuffer.c_str());
 	}
 
 	return ret;
@@ -1358,7 +1358,7 @@ IUniformBuffer* Renderer::getUniformBuffer(const std::string& uniformBuffer) {
 	try {
 		ret = this->uniformBuffers.at(uniformBuffer).get();
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'renderPasses'\n", uniformBuffer.c_str());
+		throw Utils::Error("Could not find: %s in 'uniformBuffers'\n", uniformBuffer.c_str());
 	}
 
 	return ret;
@@ -1370,7 +1370,7 @@ IShaderStorageBuffer* Renderer::getShaderStorageBuffer(const std::string& shader
 	try {
 		ret = this->shaderStorageBuffers.at(shaderStorageBuffer).get();
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'renderPasses'\n", shaderStorageBuffer.c_str());
+		throw Utils::Error("Could not find: %s in 'shaderStorageBuffers'\n", shaderStorageBuffer.c_str());
 	}
 
 	return ret;
@@ -1382,7 +1382,7 @@ DescriptorSet* Renderer::getDescriptorSet(const std::string& descriptorSet) {
 	try {
 		ret = this->descriptorSets.at(descriptorSet).get();
 	} catch (const std::out_of_range&) {
-		std::printf("Could not find: %s in 'descriptorSets'\n", descriptorSet.c_str());
+		throw Utils::Error("Could not find: %s in 'descriptorSets'\n", descriptorSet.c_str());
 	}
 
 	return ret;
