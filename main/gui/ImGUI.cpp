@@ -166,6 +166,9 @@ void GUI::draw() {
 		if (ImGui::BeginTabItem("Post Processing")) {
 			ImGui::Text("Post Processing Effects");
 			ImGui::Checkbox("Bloom", &bloomEnabled);
+			if (bloomEnabled)
+				ImGui::SliderFloat("Threshold", &renderer.brightnessThreshold, 0.0f, 1.0f);
+
 			ImGui::Checkbox("Mosaic", &mosaicEnabled);
 
 			ImGui::EndTabItem();

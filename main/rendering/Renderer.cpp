@@ -231,6 +231,16 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL
 	};
 	this->shadowMapSampler = VkUtils::createTextureSampler(*window, shadowMapSamplerInfo);
+	// Need a separate sampler that clamps to edge when sampling from textures such as the
+	// brightness one for bloom ppe
+	SamplerInfo brightnessSamplerInfo = {
+		.magFilter = VK_FILTER_LINEAR,
+		.minFilter = VK_FILTER_LINEAR,
+		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE 
+	};
+	this->brightnessSampler = VkUtils::createTextureSampler(*window, brightnessSamplerInfo);
 
 	// Descriptor Sets
 	std::vector<DescriptorBufferSetting> mvpDescriptorSettings = {
@@ -249,11 +259,11 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	std::vector<DescriptorImageSetting> intermediateImageDescriptorSettings = {
 		{ this->getTextureBuffer("intermediate"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> intermediate2ImageDescriptorSettings = {
-		{ this->getTextureBuffer("intermediate2"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("intermediate2"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
 	std::vector<DescriptorImageSetting> brightnessImageDescriptorSettings = {
-		{ this->getTextureBuffer("brightness"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("brightness"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
 	std::vector<DescriptorImageSetting> blurImageDescriptorSettings = {
-		{ this->getTextureBuffer("blurOutput"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("blurOutput"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
@@ -716,6 +726,7 @@ void Renderer::renderForward() {
 	glsl::LightsAndEmissive lightsAndEmissive = {
 		.numLights = this->numLights,
 		.emissiveStrength = this->emissiveStrength,
+		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias
 	};
 
@@ -864,6 +875,7 @@ void Renderer::renderDeferred() {
 	glsl::LightsAndEmissive lightsAndEmissive = {
 		.numLights = this->numLights,
 		.emissiveStrength = this->emissiveStrength,
+		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias
 	};
 

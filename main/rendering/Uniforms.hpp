@@ -33,6 +33,7 @@ namespace glsl {
 	struct LightsAndEmissive {
 		int numLights;
 		float emissiveStrength;
+		float brightnessThreshold;
 		float shadowBias;
 	};
 }

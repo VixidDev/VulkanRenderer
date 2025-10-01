@@ -51,6 +51,7 @@ layout(set = 6, binding = 5) uniform sampler2D uEmissive;
 layout(push_constant) uniform PushConstants {
 	int lightCount;
 	float emissiveStrength;
+	float brightnessThreshold;
 	float shadowBias;
 } pConsts;
 
@@ -205,7 +206,7 @@ void main() {
 	oColour = vec4(totalLight, 1.0);
 
 	float brightness = dot(oColour.rgb, vec3(0.2126, 0.7152, 0.0722));
-	if (brightness > 0.5) {
+	if (brightness > pConsts.brightnessThreshold) {
 		oBrightness = oColour;
 	} else {
 		oBrightness = vec4(0.0, 0.0, 0.0, 1.0);

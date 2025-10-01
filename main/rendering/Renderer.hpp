@@ -123,6 +123,7 @@ public:
 	bool showSunView = false;
 
 	float emissiveStrength = 15.0f;
+	float brightnessThreshold = 0.75f;
 	float shadowBias = 0.0001f;
 
 	float sunOrthoBounds = 22.0f;
@@ -172,6 +173,7 @@ private:
 	// Samplers
 	vk::Sampler defaultSampler;
 	vk::Sampler shadowMapSampler;
+	vk::Sampler brightnessSampler;
 
 	// Lights pointer
 	std::vector<Light>* lights = nullptr;
