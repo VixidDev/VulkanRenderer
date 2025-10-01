@@ -11,6 +11,8 @@ Driver::Driver() : renderer(this) {};
 int Driver::init() {
 	VulkanWindow& window = *this->renderer.getContext().window;
 
+	this->timestampManager = TimestampManager(&this->renderer.getContext());
+
 	// Set GLFW user pointer
 	glfwSetWindowUserPointer(window.window, &this->state);
 
@@ -98,6 +100,10 @@ void Driver::run() {
 
 Renderer& Driver::getRenderer() {
 	return this->renderer;
+}
+
+TimestampManager& Driver::getTimestampManager() {
+	return this->timestampManager;
 }
 
 std::vector<std::pair<vk::Image, vk::ImageView>>& Driver::getSceneTextures() {

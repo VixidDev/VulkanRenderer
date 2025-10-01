@@ -12,6 +12,7 @@
 #include "rendering/lights/Light.hpp"
 #include "vulkan/objects/VkObjects.hpp"
 #include "vulkan/objects/VkImage.hpp"
+#include "rendering/management/TimestampManager.hpp"
 
 using Clock = std::chrono::steady_clock;
 using Timepoint = Clock::time_point;
@@ -30,12 +31,14 @@ public:
 	void run();
 
 	Renderer& getRenderer();
+	TimestampManager& getTimestampManager();
 
 	std::vector<std::pair<vk::Image, vk::ImageView>>& getSceneTextures();
 	std::vector<VkDescriptorSet>& getMaterialDescriptors();
 	std::vector<MeshData>& getMeshData();
 private:
 	Renderer renderer;
+	TimestampManager timestampManager;
 	GUI gui;
 	UserState state{};
 

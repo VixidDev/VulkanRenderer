@@ -195,6 +195,27 @@ void GUI::draw() {
 
 	ImGui::End();
 
+	// Performance Window
+	ImGui::Begin("Performance");
+
+	ImGui::Text("GPU times:");
+
+	// Get timestamp period
+	float timestampPeriod = renderer.getContext().window->getDeviceProperties().limits.timestampPeriod;
+
+	TimestampManager& timestampManager = this->driver->getTimestampManager();
+	TimestampReferences& gpuTimestampReferences = timestampManager.getGPUTimestampReferences();
+	for (const auto& [name, indices] : gpuTimestampReferences) {
+		std::uint64_t start = *timestampManager.getGPUTimestamp(indices.start);
+		std::uint64_t end = *timestampManager.getGPUTimestamp(indices.end);
+
+		float timeTaken = static_cast<float>(end - start) * timestampPeriod / 1000000.0f;
+
+		ImGui::Text("%s took: %.3f ms", name.c_str(), timeTaken);
+	}
+
+	ImGui::End();
+
 	// Debug Shadow Map Texture
 	if (this->showShadowMapTexture) {
 		ImGui::Begin("Shadow Map Texture");

@@ -79,6 +79,7 @@ public:
 	void recreateSwapViewDependents();
 	void setRecreateSwapchain(bool value, bool force = false);
 
+	Driver* getDriver();
 	VulkanContext& getContext();
 	Camera& getCamera();
 

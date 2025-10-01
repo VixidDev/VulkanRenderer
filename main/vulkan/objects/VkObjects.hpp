@@ -95,7 +95,6 @@ namespace vk {
 	using PipelineLayout = UniqueHandle<VkPipelineLayout, VkDevice, vkDestroyPipelineLayout>;
 
 	using ShaderModule = UniqueHandle<VkShaderModule, VkDevice, vkDestroyShaderModule>;
-
 	using CommandPool = UniqueHandle<VkCommandPool, VkDevice, vkDestroyCommandPool>;
 
 	using Fence = UniqueHandle<VkFence, VkDevice, vkDestroyFence>;
@@ -103,6 +102,8 @@ namespace vk {
 
 	using ImageView = UniqueHandle<VkImageView, VkDevice, vkDestroyImageView>;
 	using Sampler = UniqueHandle<VkSampler, VkDevice, vkDestroySampler>;
+
+	using QueryPool = UniqueHandle<VkQueryPool, VkDevice, vkDestroyQueryPool>;
 }
 
 #include "VkObjects.inl"

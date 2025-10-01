@@ -25,6 +25,11 @@ public:
 	VulkanWindow(VulkanWindow&&) noexcept;
 	VulkanWindow& operator= (VulkanWindow&&) noexcept;
 
+	void setDeviceProperties(VkPhysicalDeviceProperties deviceProperties);
+	void setDeviceFeatures(VkPhysicalDeviceFeatures2 deviceFeatures);
+
+	const VkPhysicalDeviceProperties& getDeviceProperties() const;
+	const VkPhysicalDeviceFeatures2& getDeviceFeatures() const;
 public:
 	VkInstance instance = VK_NULL_HANDLE;
 
@@ -48,9 +53,10 @@ public:
 	VkFormat swapchainFormat;
 	VkExtent2D swapchainExtent;
 
-	VkPhysicalDeviceFeatures2 deviceFeatures;
-
 	std::uint32_t minImageCount = 2;
+private:
+	VkPhysicalDeviceProperties deviceProperties;
+	VkPhysicalDeviceFeatures2 deviceFeatures;
 };
 
 struct SwapChanges {

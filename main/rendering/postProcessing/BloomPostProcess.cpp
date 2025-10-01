@@ -2,6 +2,7 @@
 
 #include "../RendererUtils.hpp"
 #include "../objects/base/DescriptorSet.hpp"
+#include "../Driver.hpp"
 
 BloomPostProcess::BloomPostProcess(Renderer* renderer) : PostProcessingEffect(renderer) {
 	// Same for both steps
@@ -27,6 +28,8 @@ BloomPostProcess::BloomPostProcess(Renderer* renderer) : PostProcessingEffect(re
 
 void BloomPostProcess::apply(Framebuffer* framebuffer, std::uint32_t imageIndex, VkDescriptorSet readImage) {
 	// Need to ping-pong between 2 framebuffers for horizontal and vertical blur passes
+
+	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("bloom", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Framebuffers to ping-pong
 	Framebuffer* framebuffer1 = this->intermediateFramebuffer;
@@ -74,4 +77,6 @@ void BloomPostProcess::apply(Framebuffer* framebuffer, std::uint32_t imageIndex,
 	RendererUtils::bindGraphicDescriptorSets(this->compositionPipelineLayout->getHandle(), 1, 1, &this->blurOutput->getHandle(), 0, nullptr); // blur output
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
+
+	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("bloom", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 }

@@ -128,7 +128,7 @@ namespace VkUtils {
 	}
 
 	vk::Sampler createTextureSampler(const VulkanWindow& window, SamplerInfo samplerInfo) {
-		bool deviceEnabledAnisotropy = window.deviceFeatures.features.samplerAnisotropy;
+		bool deviceEnabledAnisotropy = window.getDeviceFeatures().features.samplerAnisotropy;
 
 		VkSamplerCreateInfo samplerCreateInfo{};
 		samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -256,6 +256,44 @@ namespace VkUtils {
 		ibarrier.subresourceRange = range;
 
 		vkCmdPipelineBarrier(cmdBuff, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &ibarrier);
+	}
+
+	vk::QueryPool createQueryPool(const VulkanWindow& window, VkQueryType queryType, std::uint32_t queryCount) {
+		VkQueryPoolCreateInfo queryPoolInfo = {
+			.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO,
+			.queryType = queryType,
+			.queryCount = queryCount
+		};
+
+		VkQueryPool queryPool = VK_NULL_HANDLE;
+		if (const auto res = vkCreateQueryPool(window.device->device, &queryPoolInfo, nullptr, &queryPool); VK_SUCCESS != res)
+			throw Utils::Error("Unable to create query pool\nvkCreateQueryPool(): returned %s\n", Utils::toString(res).c_str());
+
+		return vk::QueryPool(window.device->device, queryPool);
+	}
+
+	void getQueryPoolResults(
+		const VulkanWindow& window, 
+		vk::QueryPool& queryPool, 
+		std::vector<std::uint64_t>& queryResults, 
+		std::uint32_t queryCount,
+		VkQueryResultFlags resultFlags) 
+	{
+		const VkResult res = vkGetQueryPoolResults(
+			window.device->device,
+			queryPool.handle,
+			0, queryCount,
+			queryCount * sizeof(std::uint64_t),
+			queryResults.data(),
+			sizeof(std::uint64_t),
+			resultFlags
+		);
+
+		if (res == VK_NOT_READY) {
+			std::fprintf(stderr, "vkGetQueryPoolResults(): returned VK_NOT_READY. Are you sure you passed the correct flags?\n");
+		} else if (res != VK_SUCCESS) {
+			throw Utils::Error("Unable to get query pool results\nvkGetQueryPoolResults(): returned '%s'\n", Utils::toString(res).c_str());
+		}
 	}
 
 }

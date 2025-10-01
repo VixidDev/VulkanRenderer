@@ -90,6 +90,10 @@ namespace RendererUtils {
 		std::uint32_t srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 		std::uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
 
+	// Queries
+	void resetQueryPool(vk::QueryPool& queryPool, std::uint32_t firstQuery, std::uint32_t queryCount);
+	void writeTimestamp(VkPipelineStageFlagBits stageFlag, vk::QueryPool& queryPool, std::uint32_t& query);
+
 	void destroyImGUI();
 
 }

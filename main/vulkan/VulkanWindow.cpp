@@ -100,6 +100,22 @@ VulkanWindow& VulkanWindow::operator=(VulkanWindow&& other) noexcept {
 	return *this;
 }
 
+void VulkanWindow::setDeviceProperties(VkPhysicalDeviceProperties deviceProperties) {
+	this->deviceProperties = deviceProperties;
+}
+
+void VulkanWindow::setDeviceFeatures(VkPhysicalDeviceFeatures2 deviceFeatures) {
+	this->deviceFeatures = deviceFeatures;
+}
+
+const VkPhysicalDeviceProperties& VulkanWindow::getDeviceProperties() const {
+	return this->deviceProperties;
+}
+
+const VkPhysicalDeviceFeatures2& VulkanWindow::getDeviceFeatures() const {
+	return this->deviceFeatures;
+}
+
 std::unique_ptr<VulkanWindow> initialiseVulkanWindow() {
 	std::unique_ptr<VulkanWindow> window = std::make_unique<VulkanWindow>();
 
@@ -183,11 +199,14 @@ std::unique_ptr<VulkanWindow> initialiseVulkanWindow() {
 	if (VK_NULL_HANDLE == window->physicalDevice)
 		throw Utils::Error("No suitable physical device found!");
 
-	{
-		VkPhysicalDeviceProperties props;
-		vkGetPhysicalDeviceProperties(window->physicalDevice, &props);
-		std::fprintf(stderr, "Selected device: %s (%d.%d.%d)\n", props.deviceName, VK_API_VERSION_MAJOR(props.apiVersion), VK_API_VERSION_MINOR(props.apiVersion), VK_API_VERSION_PATCH(props.apiVersion));
-	}
+	VkPhysicalDeviceProperties props{};
+	vkGetPhysicalDeviceProperties(window->physicalDevice, &props);
+	window->setDeviceProperties(props);
+	std::fprintf(stderr, "Selected device: %s (%d.%d.%d)\n", 
+		props.deviceName, 
+		VK_API_VERSION_MAJOR(props.apiVersion), 
+		VK_API_VERSION_MINOR(props.apiVersion), 
+		VK_API_VERSION_PATCH(props.apiVersion));
 
 	// Create a logical device
 	// Enable required extensions. The device selection method ensures that
@@ -403,7 +422,7 @@ std::unique_ptr<VulkanDevice> createDevice(VulkanWindow& window, VkPhysicalDevic
 		std::fprintf(stderr, "Enabling device feature: nullDescriptor [robustness2]\n");
 	}
 
-	window.deviceFeatures = enabledFeatures;
+	window.setDeviceFeatures(enabledFeatures);
 
 	VkDeviceCreateInfo deviceInfo{};
 	deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

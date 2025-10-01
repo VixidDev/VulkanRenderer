@@ -281,6 +281,21 @@ namespace RendererUtils {
 		VkUtils::imageBarrier(boundCommandBuffer, image, srcAccessMask, dstAccessMask, srcLayout, dstLayout, srcStageMask, dstStageMask, range, srcQueueFamilyIndex, dstQueueFamilyIndex);
 	}
 
+	void resetQueryPool(vk::QueryPool& queryPool, std::uint32_t firstQuery, std::uint32_t queryCount) {
+		checkCommandBuffer();
+
+		vkCmdResetQueryPool(boundCommandBuffer, queryPool.handle, firstQuery, queryCount);
+	}
+
+	void writeTimestamp(VkPipelineStageFlagBits stageFlag, vk::QueryPool& queryPool, std::uint32_t& query) {
+		checkCommandBuffer();
+
+		vkCmdWriteTimestamp(boundCommandBuffer, stageFlag, queryPool.handle, query);
+
+		// Automatically increment query for the next write
+		query++;
+	}
+
 	void destroyImGUI() {
 		ImGui_ImplVulkan_Shutdown();
 		ImGui_ImplGlfw_Shutdown();

@@ -625,6 +625,11 @@ void Renderer::render() {
 	// Begin command buffer
 	RendererUtils::bindCommandBuffer(this->cmdBuffers[this->frameIndex]);
 	RendererUtils::beginCommandBuffer(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	this->driver->getTimestampManager().resetGPUQueryPool();
+	this->driver->getTimestampManager().writeGPUTimestamp("entireFrame", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
+	// Timestamp start of rendering work
+	//RendererUtils::writeTimestamp(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, this->timestampQueryPool, this->queryCounter);
 
 	// Update uniform and shader storage buffers
 	RendererUtils::updateUniformBuffer(this->uniformBuffers.at("mvp"));
@@ -696,15 +701,20 @@ void Renderer::render() {
 		this->context.window->swapchainExtent, VK_FILTER_LINEAR);
 
 	// Render GUI
+	this->driver->getTimestampManager().writeGPUTimestamp("gui", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
 	RendererUtils::renderImGUI();
 	RendererUtils::endRenderPass();
+	this->driver->getTimestampManager().writeGPUTimestamp("gui", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
+	this->driver->getTimestampManager().writeGPUTimestamp("entireFrame", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 	RendererUtils::endCommandBuffer();
 }
 
 void Renderer::renderForward() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
+
+	this->driver->getTimestampManager().writeGPUTimestamp("forward", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
@@ -770,6 +780,8 @@ void Renderer::renderForward() {
 	}
 
 	RendererUtils::endRenderPass();
+
+	this->driver->getTimestampManager().writeGPUTimestamp("forward", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
 	if (this->sunLightIndex == -1 || (!this->showSunView)) return;
 
@@ -852,6 +864,8 @@ void Renderer::renderForward() {
 void Renderer::renderDeferred() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
+	this->driver->getTimestampManager().writeGPUTimestamp("deferred", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
 	RendererUtils::beginRenderPass(this->renderPasses.at("deferred").get(), this->framebuffers.at("deferred").get(), this->imageIndex);
 	
 	// Writing to G-buffers pass
@@ -931,10 +945,14 @@ void Renderer::renderDeferred() {
 	RendererUtils::drawDirect(3, 1, 0, 0);
 
 	RendererUtils::endRenderPass();
+
+	this->driver->getTimestampManager().writeGPUTimestamp("deferred", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 }
 
 void Renderer::renderDebugViews() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
+
+	this->driver->getTimestampManager().writeGPUTimestamp("debugViews", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Determine debug state flags
 	bool isOvervisualisation = this->debugState > 6;
@@ -1005,6 +1023,8 @@ void Renderer::renderDebugViews() {
 
 	RendererUtils::endRenderPass();
 
+	this->driver->getTimestampManager().writeGPUTimestamp("debugViews", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
 	// Blit image to swapchain
 	VkImage srcImage = this->textureBuffers.at("colour")->getImage().image;
 	VkImage swapchainImage = this->context.window->swapImages[this->imageIndex];
@@ -1018,11 +1038,14 @@ void Renderer::renderDebugViews() {
 	RendererUtils::renderImGUI();
 	RendererUtils::endRenderPass();
 
+	this->driver->getTimestampManager().writeGPUTimestamp("entireFrame", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 	RendererUtils::endCommandBuffer();
 }
 
 void Renderer::renderShadowMaps() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
+
+	this->driver->getTimestampManager().writeGPUTimestamp("shadows", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Some light-specific counters
 	std::uint32_t pointLightIndex = 0;
@@ -1135,6 +1158,8 @@ void Renderer::renderShadowMaps() {
 		}
 		}
 	}
+
+	this->driver->getTimestampManager().writeGPUTimestamp("shadows", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 }
 
 LightMatrices Renderer::getLightMatricesForCameraFrustum(glsl::Light& lightStruct) {
@@ -1199,6 +1224,9 @@ void Renderer::submitRender() {
 		this->recreateSwapchain = true;
 	else if (result != VK_SUCCESS)
 		throw Utils::Error("Unable to present swapchain image %u\n vkQueuePresentKHR() returned %s", this->imageIndex, Utils::toString(result).c_str());
+
+	// Read back timestamps from last frame to display in GUI
+	this->driver->getTimestampManager().readBackGPUTimestamps();
 }
 
 void Renderer::finishRendering() {
@@ -1238,6 +1266,10 @@ void Renderer::recreateSwapViewDependents() {
 	// Recreate framebuffers
 	for (auto& framebuffer : this->framebuffers)
 		framebuffer.second->recreate();
+}
+
+Driver* Renderer::getDriver() {
+	return this->driver;
 }
 
 VulkanContext& Renderer::getContext() {

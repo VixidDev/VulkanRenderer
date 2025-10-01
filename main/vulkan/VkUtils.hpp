@@ -70,4 +70,14 @@ namespace VkUtils {
 		std::uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
 	);
 
+	// Queries
+	vk::QueryPool createQueryPool(const VulkanWindow& window, VkQueryType queryType, std::uint32_t queryCount);
+	void getQueryPoolResults(
+		const VulkanWindow& window, 
+		vk::QueryPool& queryPool, 
+		std::vector<std::size_t>& queryResults,
+		std::uint32_t queryCount,
+		VkQueryResultFlags resultFlags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
+	);
+
 }
