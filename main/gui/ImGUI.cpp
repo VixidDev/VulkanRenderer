@@ -263,7 +263,7 @@ void GUI::draw() {
 	}
 
 	// Debug Sun View Texture
-	if (this->showSunView) {
+	if (renderer.showSunView) {
 		ImGui::Begin("Sun View Texture");
 
 		ImGui::Checkbox("Show Camera Frustum Bounds", &renderer.renderCameraFrustumBounds);

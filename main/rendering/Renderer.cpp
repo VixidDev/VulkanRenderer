@@ -29,6 +29,7 @@
 #include "objects/impl/pipelineLayouts/BloomPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/CompositionPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/MosaicPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/SunViewPipelineLayout.hpp"
 
 #include "objects/impl/pipelines/ForwardPipeline.hpp"
 #include "objects/impl/pipelines/DeferredWritingPipeline.hpp"
@@ -41,6 +42,7 @@
 #include "objects/impl/pipelines/MosaicPipeline.hpp"
 #include "objects/impl/pipelines/BloomPipeline.hpp"
 #include "objects/impl/pipelines/CompositionPipeline.hpp"
+#include "objects/impl/pipelines/SunViewPipeline.hpp"
 
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/CubemapDepthTextureBuffer.hpp"
@@ -134,6 +136,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("composition", std::make_unique<CompositionPipelineLayout>(window, &this->descriptorSetLayouts));
 	
 	// Debug pipeline layouts
+	this->pipelineLayouts.emplace("sunView", std::make_unique<SunViewPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("lineDebug", std::make_unique<LineDebugPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("debugViews", std::make_unique<DebugViewsPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("overVisualisation", std::make_unique<OverVisualisationPipelineLayout>(window, &this->descriptorSetLayouts));
@@ -155,6 +158,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->getPipelineLayout("composition"), this->getRenderPass("postProcess")));
 
 	// Debug pipelines
+	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->getPipelineLayout("lineDebug"), this->getRenderPass("sunView"), &this->sampleCountSetting));
 	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->getPipelineLayout("debugViews"), this->getRenderPass("forward"), &this->sampleCountSetting));
 	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("forward"), &this->sampleCountSetting));
@@ -186,7 +190,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// deferred - 4 colour (3 g-buffers, 1 colour), 1 depth render targets
 	this->framebuffers.emplace("deferred", std::make_unique<DeferredFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferred"), &this->sampleCountSetting));
 	// sun - 1 colour (sunView buffer), 1 depth render targets
-	this->framebuffers.emplace("sun", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->getRenderPass("sunView"), &this->sampleCountSetting));
+	this->framebuffers.emplace("sunView", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->getRenderPass("sunView"), &this->sampleCountSetting));
 	// gui - writes directly to swapchain buffer
 	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->getRenderPass("gui")));
 	// writeTo(output/intermediate) - 2 framebuffers to ping-pong writing to "colour" and "intermediate" buffers during post processing
@@ -751,12 +755,12 @@ void Renderer::renderForward() {
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
-	auto perMeshCallback = [this, &descriptorSets](MeshData& meshData) {
+	std::function<void(MeshData&)> perMeshCallback = [this, &descriptorSets](MeshData& meshData) {
 		// Material descriptor should always be last descriptor since its per mesh
 		RendererUtils::bindGraphicDescriptorSets(
 			this->getPipelineLayout("forward")->getHandle(), descriptorSets.size(), 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId));
-		};
+	};
 
 	// Draw non-alpha masked meshes
 	for (std::size_t i = 0; i < meshData.size(); i++) {
@@ -789,17 +793,24 @@ void Renderer::renderForward() {
 	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
 
 	// Sun position view
-	RendererUtils::beginRenderPass(this->getRenderPass("sunView"), this->getFramebuffer("sun"), this->imageIndex);
-	RendererUtils::bindGraphicPipeline(this->getPipeline("forward")->getHandle());
+	RendererUtils::beginRenderPass(this->getRenderPass("sunView"), this->getFramebuffer("sunView"), this->imageIndex);
+	RendererUtils::bindGraphicPipeline(this->getPipeline("sunView")->getHandle());
 
-	RendererUtils::bindPushConstant(
-		this->getPipelineLayout("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
+	descriptorSets.clear();
+	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
 
 	RendererUtils::bindGraphicDescriptorSets(
-		this->getPipelineLayout("forward")->getHandle(), 0, descriptorSets.size(),
+		this->getPipelineLayout("sunView")->getHandle(), 0, descriptorSets.size(),
 		descriptorSets.data());
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
+
+	perMeshCallback = [this, &descriptorSets](MeshData& meshData) {
+		// Material descriptor should always be last descriptor since its per mesh
+		RendererUtils::bindGraphicDescriptorSets(
+			this->getPipelineLayout("sunView")->getHandle(), descriptorSets.size(), 1,
+			&this->driver->getMaterialDescriptors().at(meshData.materialId));
+		};
 
 	// Draw non-alpha masked meshes
 	for (std::size_t i = 0; i < meshData.size(); i++) {
