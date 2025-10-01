@@ -13,9 +13,9 @@ DebugViewsPipelineLayout::DebugViewsPipelineLayout(VulkanWindow* window,
 void DebugViewsPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> layouts;
 	layouts.emplace_back(this->descriptorLayouts->at("uboVF").handle);     // MV matrices
-	layouts.emplace_back(this->descriptorLayouts->at("materials").handle); // Material textures
-	layouts.emplace_back(this->descriptorLayouts->at("uboF").handle);	   // Camera planes
 	layouts.emplace_back(this->descriptorLayouts->at("ssboF").handle);	   // Lights SSBO
+	layouts.emplace_back(this->descriptorLayouts->at("uboF").handle);	   // Camera planes
+	layouts.emplace_back(this->descriptorLayouts->at("materials").handle); // Material textures
 
 	VkPushConstantRange debugState = {
 		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,

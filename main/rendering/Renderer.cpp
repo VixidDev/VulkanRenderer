@@ -155,7 +155,6 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->pipelineLayouts.at("composition").get(), this->renderPasses.at("postProcess").get()));
 
 	// Debug pipelines
-	this->pipelines.emplace("forwardSun", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->pipelineLayouts.at("debugViews").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
 	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->pipelineLayouts.at("overVisualisation").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
@@ -719,10 +718,6 @@ void Renderer::renderForward() {
 	RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
 
-	RendererUtils::bindGraphicDescriptorSets(
-		this->pipelineLayouts.at("forward")->getHandle(), 0, 1,
-		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
-
 	glsl::LightsAndEmissive lightsAndEmissive = {
 		.numLights = this->numLights,
 		.emissiveStrength = this->emissiveStrength,
@@ -732,34 +727,28 @@ void Renderer::renderForward() {
 	RendererUtils::bindPushConstant(
 		this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
-	// TODO: put all shadow relevant descriptors last so no need for else branch (same for sun position view and deferred)
+	std::vector<VkDescriptorSet> descriptorSets;
+	// Add descriptors that will always be present in same order as in shader
+	descriptorSets.emplace_back(this->descriptorSets.at("mvp")->getHandle());
+	descriptorSets.emplace_back(this->descriptorSets.at("lights")->getHandle());
+
 	if (this->shadowsEnabled) {
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 2, 1,
-			&this->descriptorSets.at("pointLightShadows")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
-			&this->descriptorSets.at("directionalLightShadow")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 4, 1,
-			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 5, 1,
-			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 6, 1,
-			&this->descriptorSets.at("lightMatrices")->getHandle(), 0, nullptr);
-	} else {
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 2, 1,
-			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
+		descriptorSets.emplace_back(this->descriptorSets.at("pointLightShadows")->getHandle());
+		descriptorSets.emplace_back(this->descriptorSets.at("directionalLightShadow")->getHandle());
+		descriptorSets.emplace_back(this->descriptorSets.at("cameraPlanes")->getHandle());
+		descriptorSets.emplace_back(this->descriptorSets.at("lightMatrices")->getHandle());
 	}
+
+	RendererUtils::bindGraphicDescriptorSets(
+		this->pipelineLayouts.at("forward")->getHandle(), 0, descriptorSets.size(),
+		descriptorSets.data(), 0, nullptr);
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
-	auto perMeshCallback = [this](MeshData& meshData) {
+	auto perMeshCallback = [this, &descriptorSets](MeshData& meshData) {
+		// Material descriptor should always be last descriptor since its per mesh
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 1, 1,
+			this->pipelineLayouts.at("forward")->getHandle(), descriptorSets.size(), 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
 	};
 
@@ -795,39 +784,14 @@ void Renderer::renderForward() {
 
 	// Sun position view
 	RendererUtils::beginRenderPass(this->renderPasses.at("sunView").get(), this->framebuffers.at("sun").get(), this->imageIndex);
+	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
 
-	// Render scene
-	RendererUtils::bindGraphicPipeline(this->pipelines.at("forwardSun")->getHandle());
+	RendererUtils::bindPushConstant(
+		this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
+
 	RendererUtils::bindGraphicDescriptorSets(
-		this->pipelineLayouts.at("forward")->getHandle(), 0, 1,
-		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
-
-	if (this->shadowsEnabled) { // TODO: check for errors with sun position view ON and shadows OFF
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 2, 1,
-			&this->descriptorSets.at("pointLightShadows")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 3, 1,
-			&this->descriptorSets.at("directionalLightShadow")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 4, 1,
-			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 5, 1,
-			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), 6, 1,
-			&this->descriptorSets.at("lightMatrices")->getHandle(), 0, nullptr);
-
-		glsl::LightsAndEmissive lightsAndEmissive = {
-			.numLights = this->numLights,
-			.emissiveStrength = this->emissiveStrength,
-			.shadowBias = this->shadowBias
-		};
-
-		RendererUtils::bindPushConstant(
-			this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
-	}
+		this->pipelineLayouts.at("forward")->getHandle(), 0, descriptorSets.size(),
+		descriptorSets.data(), 0, nullptr);
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
@@ -866,9 +830,8 @@ void Renderer::renderDeferred() {
 
 	this->driver->getTimestampManager().writeGPUTimestamp("deferred", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
-	RendererUtils::beginRenderPass(this->renderPasses.at("deferred").get(), this->framebuffers.at("deferred").get(), this->imageIndex);
-	
 	// Writing to G-buffers pass
+	RendererUtils::beginRenderPass(this->renderPasses.at("deferred").get(), this->framebuffers.at("deferred").get(), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->pipelines.at("deferredWriting")->getHandle());
 
 	RendererUtils::bindGraphicDescriptorSets(
@@ -899,17 +862,9 @@ void Renderer::renderDeferred() {
 		RendererUtils::drawMesh(meshData[i], perMeshCallback);
 	}
 
-	RendererUtils::nextSubpass();
-
 	// Shading pass
+	RendererUtils::nextSubpass();
 	RendererUtils::bindGraphicPipeline(this->pipelines.at("deferredShading")->getHandle());
-
-	RendererUtils::bindGraphicDescriptorSets(
-		this->pipelineLayouts.at("deferredShading")->getHandle(), 0, 1,
-		&this->descriptorSets.at("deferredInputs")->getHandle(), 0, nullptr);
-	RendererUtils::bindGraphicDescriptorSets(
-		this->pipelineLayouts.at("deferredShading")->getHandle(), 1, 1,
-		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
 
 	glsl::LightsAndEmissive lightsAndEmissive = {
 		.numLights = this->numLights,
@@ -920,27 +875,21 @@ void Renderer::renderDeferred() {
 	RendererUtils::bindPushConstant(
 		this->pipelineLayouts.at("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
+	std::vector<VkDescriptorSet> descriptorSets;
+	descriptorSets.emplace_back(this->descriptorSets.at("deferredInputs")->getHandle());
+	descriptorSets.emplace_back(this->descriptorSets.at("mvp")->getHandle());
+	descriptorSets.emplace_back(this->descriptorSets.at("lights")->getHandle());
+
 	if (this->shadowsEnabled) {
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("deferredShading")->getHandle(), 2, 1,
-			&this->descriptorSets.at("pointLightShadows")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("deferredShading")->getHandle(), 3, 1,
-			&this->descriptorSets.at("directionalLightShadow")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("deferredShading")->getHandle(), 4, 1,
-			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("deferredShading")->getHandle(), 5, 1,
-			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("deferredShading")->getHandle(), 6, 1,
-			&this->descriptorSets.at("lightMatrices")->getHandle(), 0, nullptr);
-	} else {
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("deferredShading")->getHandle(), 2, 1,
-			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
+		descriptorSets.emplace_back(this->descriptorSets.at("pointLightShadows")->getHandle());
+		descriptorSets.emplace_back(this->descriptorSets.at("directionalLightShadow")->getHandle());
+		descriptorSets.emplace_back(this->descriptorSets.at("cameraPlanes")->getHandle());
+		descriptorSets.emplace_back(this->descriptorSets.at("lightMatrices")->getHandle());
 	}
+
+	RendererUtils::bindGraphicDescriptorSets(
+		this->pipelineLayouts.at("deferredShading")->getHandle(), 0, descriptorSets.size(),
+		descriptorSets.data(), 0, nullptr);
 
 	RendererUtils::drawDirect(3, 1, 0, 0);
 
@@ -968,18 +917,11 @@ void Renderer::renderDebugViews() {
 		RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
 	}
 
+	std::vector<VkDescriptorSet> descriptorSets;
+	descriptorSets.emplace_back(this->descriptorSets.at("mvp")->getHandle());
+
 	if (!isOvervisualisation) {
 		RendererUtils::bindGraphicPipeline(this->pipelines.at("debugViews")->getHandle());
-
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), 0, 1,
-			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), 2, 1,
-			&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
-		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), 3, 1,
-			&this->descriptorSets.at("lights")->getHandle(), 0, nullptr);
 
 		debugStatePC debugState = {
 			.lightCount = this->numLights,
@@ -989,18 +931,25 @@ void Renderer::renderDebugViews() {
 		RendererUtils::bindPushConstant(
 			this->pipelineLayouts.at("debugViews")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(debugStatePC), &debugState);
 
+		descriptorSets.emplace_back(this->descriptorSets.at("lights")->getHandle());
+		descriptorSets.emplace_back(this->descriptorSets.at("cameraPlanes")->getHandle());
+
+		RendererUtils::bindGraphicDescriptorSets(
+			this->pipelineLayouts.at("debugViews")->getHandle(), 0, descriptorSets.size(),
+			descriptorSets.data(), 0, nullptr);
+
 		RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 	} else {
 		RendererUtils::bindGraphicPipeline(this->pipelines.at("overVisualisation")->getHandle());
 
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("overVisualisation")->getHandle(), 0, 1,
-			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+			this->pipelineLayouts.at("overVisualisation")->getHandle(), 0, descriptorSets.size(),
+			descriptorSets.data(), 0, nullptr);
 	}
 
-	auto perMeshCallbackDebug = [this](MeshData& meshData) {
+	auto perMeshCallbackDebug = [this, &descriptorSets](MeshData& meshData) {
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), 1, 1,
+			this->pipelineLayouts.at("debugViews")->getHandle(), descriptorSets.size(), 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
 	};
 

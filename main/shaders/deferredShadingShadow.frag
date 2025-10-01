@@ -16,15 +16,6 @@ layout(set = 1, binding = 0) uniform MVP {
 	vec4 camPos;
 } mvp;
 
-layout(set = 2, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
-layout(set = 3, binding = 0) uniform sampler2DShadow sunShadow;
-//layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
-
-layout(set = 4, binding = 0) uniform ClipPlanes {
-	float far;
-	float near;
-} planes;
-
 struct ShaderLight {
 	vec3 position;
 	vec3 direction;
@@ -35,9 +26,18 @@ struct ShaderLight {
 	// metadata.z = intensity
 };
 
-layout(set = 5, binding = 0) readonly buffer Lights {
+layout(set = 2, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
 };
+
+layout(set = 3, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
+layout(set = 4, binding = 0) uniform sampler2DShadow sunShadow;
+//layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
+
+layout(set = 5, binding = 0) uniform ClipPlanes {
+	float far;
+	float near;
+} planes;
 
 layout(set = 6, binding = 0) readonly buffer LightSpaceMatrices {
 	mat4 lightSpaceMatrices[];

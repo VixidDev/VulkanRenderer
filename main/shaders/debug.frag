@@ -13,18 +13,6 @@ layout(set = 0, binding = 0) uniform MVP {
 	vec4 camPos;
 } mvp;
 
-layout(set = 1, binding = 0) uniform sampler2D uTexColour;
-layout(set = 1, binding = 1) uniform sampler2D uMetalness;
-layout(set = 1, binding = 2) uniform sampler2D uRoughness;
-layout(set = 1, binding = 3) uniform sampler2D uAlphaMask;
-layout(set = 1, binding = 4) uniform sampler2D uNormalMap;
-layout(set = 1, binding = 5) uniform sampler2D uEmissive;
-
-layout(set = 2, binding = 0) uniform ClipPlanes {
-	float far;
-	float near;
-} planes;
-
 struct ShaderLight {
 	vec3 position;
 	vec3 direction;
@@ -35,9 +23,21 @@ struct ShaderLight {
 	// metadata.z = intensity
 };
 
-layout(set = 3, binding = 0) readonly buffer Lights {
+layout(set = 1, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
 };
+
+layout(set = 2, binding = 0) uniform ClipPlanes {
+	float far;
+	float near;
+} planes;
+
+layout(set = 3, binding = 0) uniform sampler2D uTexColour;
+layout(set = 3, binding = 1) uniform sampler2D uMetalness;
+layout(set = 3, binding = 2) uniform sampler2D uRoughness;
+layout(set = 3, binding = 3) uniform sampler2D uAlphaMask;
+layout(set = 3, binding = 4) uniform sampler2D uNormalMap;
+layout(set = 3, binding = 5) uniform sampler2D uEmissive;
 
 layout(location = 0) out vec4 oColour;
 
