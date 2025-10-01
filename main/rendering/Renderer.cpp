@@ -141,23 +141,23 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Pipelines
 	// (alot of the pipelines are identical other than their input pipeline layout, renderpass, and shader stages, possibly use the base class for these?)
 	// (cubemap)shadow - shadow pass stage pipelines
-	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->pipelineLayouts.at("shadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
-	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->pipelineLayouts.at("cubemapShadow").get(), this->renderPasses.at("shadow").get(), &this->sampleCountSetting, &this->shadowRes));
+	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->shadowRes));
+	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->getPipelineLayout("cubemapShadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->shadowRes));
 	// forward - regular forward shading pipeline
-	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->pipelineLayouts.at("forward").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting, &this->shadowsEnabled));
+	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->getPipelineLayout("forward"), this->getRenderPass("forward"), &this->sampleCountSetting, &this->shadowsEnabled));
 	// deferredWriting - pipeline stage for writing to g-buffers
-	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->pipelineLayouts.at("deferredWriting").get(), this->renderPasses.at("deferred").get(), &this->sampleCountSetting));
+	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("deferred"), &this->sampleCountSetting));
 	// deferredShading - pipeline stage for shading pass in deferred rendering
-	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->pipelineLayouts.at("deferredShading").get(), this->renderPasses.at("deferred").get(), &this->sampleCountSetting, &this->shadowsEnabled));
+	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferred"), &this->sampleCountSetting, &this->shadowsEnabled));
 	// post processing effects
-	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->pipelineLayouts.at("mosaic").get(), this->renderPasses.at("postProcess").get()));
-	this->pipelines.emplace("bloom", std::make_unique<BloomPipeline>(window, this->pipelineLayouts.at("bloom").get(), this->renderPasses.at("postProcess").get()));
-	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->pipelineLayouts.at("composition").get(), this->renderPasses.at("postProcess").get()));
+	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("postProcess")));
+	this->pipelines.emplace("bloom", std::make_unique<BloomPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("postProcess")));
+	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->getPipelineLayout("composition"), this->getRenderPass("postProcess")));
 
 	// Debug pipelines
-	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->pipelineLayouts.at("lineDebug").get(), this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
-	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->pipelineLayouts.at("debugViews").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
-	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->pipelineLayouts.at("overVisualisation").get(), this->renderPasses.at("forward").get(), &this->sampleCountSetting));
+	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->getPipelineLayout("lineDebug"), this->getRenderPass("sunView"), &this->sampleCountSetting));
+	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->getPipelineLayout("debugViews"), this->getRenderPass("forward"), &this->sampleCountSetting));
+	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("forward"), &this->sampleCountSetting));
 
 	// Texture Buffers
 	// colour - output buffer after geometry and lighting
@@ -182,19 +182,19 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	// Framebuffers
 	// forward - 1 colour, 1 depth render targets
-	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("forward").get(), &this->sampleCountSetting));
+	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->getRenderPass("forward"), &this->sampleCountSetting));
 	// deferred - 4 colour (3 g-buffers, 1 colour), 1 depth render targets
-	this->framebuffers.emplace("deferred", std::make_unique<DeferredFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("deferred").get(), &this->sampleCountSetting));
+	this->framebuffers.emplace("deferred", std::make_unique<DeferredFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferred"), &this->sampleCountSetting));
 	// sun - 1 colour (sunView buffer), 1 depth render targets
-	this->framebuffers.emplace("sun", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("sunView").get(), &this->sampleCountSetting));
+	this->framebuffers.emplace("sun", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->getRenderPass("sunView"), &this->sampleCountSetting));
 	// gui - writes directly to swapchain buffer
-	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->renderPasses.at("gui").get()));
+	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->getRenderPass("gui")));
 	// writeTo(output/intermediate) - 2 framebuffers to ping-pong writing to "colour" and "intermediate" buffers during post processing
-	this->framebuffers.emplace("writeToOutput", std::make_unique<OutputFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
-	this->framebuffers.emplace("writeToIntermediate", std::make_unique<IntermediateFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
-	this->framebuffers.emplace("writeToIntermediate2", std::make_unique<Intermediate2Framebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
+	this->framebuffers.emplace("writeToOutput", std::make_unique<OutputFramebuffer>(window, &this->textureBuffers, this->getRenderPass("postProcess")));
+	this->framebuffers.emplace("writeToIntermediate", std::make_unique<IntermediateFramebuffer>(window, &this->textureBuffers, this->getRenderPass("postProcess")));
+	this->framebuffers.emplace("writeToIntermediate2", std::make_unique<Intermediate2Framebuffer>(window, &this->textureBuffers, this->getRenderPass("postProcess")));
 	// writeToBlur - writes to blurOutput
-	this->framebuffers.emplace("writeToBlur", std::make_unique<BlurFramebuffer>(window, &this->textureBuffers, this->renderPasses.at("postProcess").get()));
+	this->framebuffers.emplace("writeToBlur", std::make_unique<BlurFramebuffer>(window, &this->textureBuffers, this->getRenderPass("postProcess")));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -234,26 +234,26 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	// Descriptor Sets
 	std::vector<DescriptorBufferSetting> mvpDescriptorSettings = {
-		{ this->uniformBuffers.at("mvp")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
+		{ this->getUniformBuffer("mvp")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorBufferSetting> cameraPlanesDescriptorSettings = {
-		{ this->uniformBuffers.at("cameraPlanes")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
+		{ this->getUniformBuffer("cameraPlanes")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorImageSetting> deferredInputsDescriptorSettings = {
-		{ this->textureBuffers.at("gBuffer1").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
-		{ this->textureBuffers.at("gBuffer2").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
-		{ this->textureBuffers.at("gBuffer3").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
-		{ this->textureBuffers.at("depth").get(), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE } };
+		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
+		{ this->getTextureBuffer("gBuffer2"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
+		{ this->getTextureBuffer("gBuffer3"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
+		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE } };
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
-		{ this->textureBuffers.at("sunView").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("sunView"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> colourOuputDescriptorSettings = {
-		{ this->textureBuffers.at("colour").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("colour"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> intermediateImageDescriptorSettings = {
-		{ this->textureBuffers.at("intermediate").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("intermediate"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> intermediate2ImageDescriptorSettings = {
-		{ this->textureBuffers.at("intermediate2").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("intermediate2"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> brightnessImageDescriptorSettings = {
-		{ this->textureBuffers.at("brightness").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("brightness"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> blurImageDescriptorSettings = {
-		{ this->textureBuffers.at("blurOutput").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("blurOutput"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
@@ -318,24 +318,24 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 	if (this->numPointLights != 0) {
 		std::initializer_list<TextureBuffer*> pointShadowTextures = {
-			this->textureBuffers.at("pointArrayShadows").get(),
+			this->getTextureBuffer("pointArrayShadows"),
 #ifndef NDEBUG
-			this->textureBuffers.at("pointArrayShadowsDebug").get()
+			this->getTextureBuffer("pointArrayShadowsDebug")
 #endif
 		};
 
-		this->framebuffers.emplace("pointArrayShadows", std::make_unique<ArrayFramebuffer>(window, pointShadowTextures, this->renderPasses.at("shadow").get(), this->numPointLights * 6, &this->shadowRes));
+		this->framebuffers.emplace("pointArrayShadows", std::make_unique<ArrayFramebuffer>(window, pointShadowTextures, this->getRenderPass("shadow"), this->numPointLights * 6, &this->shadowRes));
 	}
 
 	if (this->numDirectionalLights != 0) {
 		std::initializer_list<TextureBuffer*> directionalShadowTextures = {
-			this->textureBuffers.at("directionalShadow").get(),
+			this->getTextureBuffer("directionalShadow"),
 #ifndef NDEBUG
-			this->textureBuffers.at("directionalShadowDebug").get()
+			this->getTextureBuffer("directionalShadowDebug")
 #endif
 		};
 
-		this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, directionalShadowTextures, this->renderPasses.at("shadow").get(), &this->shadowRes));
+		this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, directionalShadowTextures, this->getRenderPass("shadow"), &this->shadowRes));
 	}
 
 	// Light type counters (surely I can make a better system than this)
@@ -385,28 +385,28 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 	// Create descriptor sets
 	std::vector<DescriptorImageSetting> pointLightShadowsDescriptorSettings = {
-		{ this->textureBuffers.at("pointArrayShadows").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
+		{ this->getTextureBuffer("pointArrayShadows"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
 	std::vector<DescriptorImageSetting> directionalLightShadowDescriptorSettings = {
-		{ this->textureBuffers.at("directionalShadow").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
+		{ this->getTextureBuffer("directionalShadow"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
 
 	this->descriptorSets.emplace("pointLightShadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDescriptorSettings));
 	this->descriptorSets.emplace("directionalLightShadow", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowDescriptorSettings));
 
 #ifndef NDEBUG
 	std::vector<DescriptorImageSetting> pointLightShadowsDebugDescriptorSettings = {
-		{ this->textureBuffers.at("pointArrayShadowsDebug").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
+		{ this->getTextureBuffer("pointArrayShadowsDebug"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
 	std::vector<DescriptorImageSetting> directionalLightShadowDebugDescriptorSettings = {
-		{ this->textureBuffers.at("directionalShadowDebug").get(), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
+		{ this->getTextureBuffer("directionalShadowDebug"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
 
 	this->descriptorSets.emplace("pointLightShadowsDebug", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDebugDescriptorSettings));
 	this->descriptorSets.emplace("directionalLightShadowDebug", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowDebugDescriptorSettings));
 #endif
 
 	std::vector<DescriptorBufferSetting> lightSSBODescriptorSettings = {
-		{ this->shaderStorageBuffers.at("lights")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->shaderStorageBuffers.at("lights")->getBufferSize() } };
+		{ this->getShaderStorageBuffer("lights")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->getShaderStorageBuffer("lights")->getBufferSize() } };
 
 	std::vector<DescriptorBufferSetting> lightMatricesSSBODescriptorSettings = {
-		{ this->shaderStorageBuffers.at("lightMatrices")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->shaderStorageBuffers.at("lightMatrices")->getBufferSize() } };
+		{ this->getShaderStorageBuffer("lightMatrices")->getHandle(), VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, this->getShaderStorageBuffer("lightMatrices")->getBufferSize() } };
 
 	this->descriptorSets.emplace("lights", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightSSBODescriptorSettings));
 	this->descriptorSets.emplace("lightMatrices", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightMatricesSSBODescriptorSettings));
@@ -627,13 +627,10 @@ void Renderer::render() {
 	this->driver->getTimestampManager().resetGPUQueryPool();
 	this->driver->getTimestampManager().writeGPUTimestamp("entireFrame", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
-	// Timestamp start of rendering work
-	//RendererUtils::writeTimestamp(VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, this->timestampQueryPool, this->queryCounter);
-
 	// Update uniform and shader storage buffers
-	RendererUtils::updateUniformBuffer(this->uniformBuffers.at("mvp"));
-	RendererUtils::updateShaderStorageBuffer(this->shaderStorageBuffers.at("lights"));
-	RendererUtils::updateShaderStorageBuffer(this->shaderStorageBuffers.at("lightMatrices"));
+	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
+	RendererUtils::updateShaderStorageBuffer(this->getShaderStorageBuffer("lights"));
+	RendererUtils::updateShaderStorageBuffer(this->getShaderStorageBuffer("lightMatrices"));
 
 	// Debug pass (if its enabled)
 	if (this->debugView) {
@@ -643,21 +640,19 @@ void Renderer::render() {
 
 	// Shadow pass
 	if (this->shadowsEnabled) {
-		RendererUtils::updateUniformBuffer(this->uniformBuffers.at("cameraPlanes"));
+		RendererUtils::updateUniformBuffer(this->getUniformBuffer("cameraPlanes"));
 		this->renderShadowMaps();
 	}
 
 	// Transition any dummy light textures to respective layout
 	if (this->numPointLights == 0) {
-		RendererUtils::imageBarrier(this->textureBuffers.at("pointArrayShadows")->getImage().image,
-			0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("pointArrayShadows")->getImage().image, 0, 0,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
 	}
 	if (this->numDirectionalLights == 0) {
-		RendererUtils::imageBarrier(this->textureBuffers.at("directionalShadow")->getImage().image,
-			0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadow")->getImage().image, 0, 0,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
@@ -671,11 +666,11 @@ void Renderer::render() {
 	}
 
 	// Post processing effects
-	VkDescriptorSet readImage = this->descriptorSets.at("sceneOutput")->getHandle();
-	VkDescriptorSet writeImage = this->descriptorSets.at("intermediate")->getHandle();
+	VkDescriptorSet readImage = this->getDescriptorSet("sceneOutput")->getHandle();
+	VkDescriptorSet writeImage = this->getDescriptorSet("intermediate")->getHandle();
 
-	Framebuffer* framebuffer1 = this->framebuffers.at("writeToIntermediate").get();
-	Framebuffer* framebuffer2 = this->framebuffers.at("writeToOutput").get();
+	Framebuffer* framebuffer1 = this->getFramebuffer("writeToIntermediate");
+	Framebuffer* framebuffer2 = this->getFramebuffer("writeToOutput");
 
 	bool useIntermediate = false;
 
@@ -690,9 +685,9 @@ void Renderer::render() {
 	}
 
 	// Blit image to swapchain
-	VkImage srcImage = useIntermediate ? 
-		this->textureBuffers.at("intermediate")->getImage().image : 
-		this->textureBuffers.at("colour")->getImage().image;
+	VkImage srcImage = useIntermediate ?
+		this->getTextureBuffer("intermediate")->getImage().image :
+		this->getTextureBuffer("colour")->getImage().image;
 	VkImage swapchainImage = this->context.window->swapImages[this->imageIndex];
 
 	RendererUtils::blitImageToSwapchain(
@@ -701,7 +696,7 @@ void Renderer::render() {
 
 	// Render GUI
 	this->driver->getTimestampManager().writeGPUTimestamp("gui", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
-	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
+	RendererUtils::beginRenderPass(this->getRenderPass("gui"), this->getFramebuffer("gui"), this->imageIndex);
 	RendererUtils::renderImGUI();
 	RendererUtils::endRenderPass();
 	this->driver->getTimestampManager().writeGPUTimestamp("gui", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
@@ -715,8 +710,8 @@ void Renderer::renderForward() {
 
 	this->driver->getTimestampManager().writeGPUTimestamp("forward", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
-	RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
-	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
+	RendererUtils::beginRenderPass(this->getRenderPass("forward"), this->getFramebuffer("forward"), this->imageIndex);
+	RendererUtils::bindGraphicPipeline(this->getPipeline("forward")->getHandle());
 
 	glsl::LightsAndEmissive lightsAndEmissive = {
 		.numLights = this->numLights,
@@ -725,32 +720,32 @@ void Renderer::renderForward() {
 	};
 
 	RendererUtils::bindPushConstant(
-		this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
+		this->getPipelineLayout("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
 	// Add descriptors that will always be present in same order as in shader
-	descriptorSets.emplace_back(this->descriptorSets.at("mvp")->getHandle());
-	descriptorSets.emplace_back(this->descriptorSets.at("lights")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("lights")->getHandle());
 
 	if (this->shadowsEnabled) {
-		descriptorSets.emplace_back(this->descriptorSets.at("pointLightShadows")->getHandle());
-		descriptorSets.emplace_back(this->descriptorSets.at("directionalLightShadow")->getHandle());
-		descriptorSets.emplace_back(this->descriptorSets.at("cameraPlanes")->getHandle());
-		descriptorSets.emplace_back(this->descriptorSets.at("lightMatrices")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("pointLightShadows")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("directionalLightShadow")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("cameraPlanes")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("lightMatrices")->getHandle());
 	}
 
 	RendererUtils::bindGraphicDescriptorSets(
-		this->pipelineLayouts.at("forward")->getHandle(), 0, descriptorSets.size(),
-		descriptorSets.data(), 0, nullptr);
+		this->getPipelineLayout("forward")->getHandle(), 0, descriptorSets.size(),
+		descriptorSets.data());
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
 	auto perMeshCallback = [this, &descriptorSets](MeshData& meshData) {
 		// Material descriptor should always be last descriptor since its per mesh
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("forward")->getHandle(), descriptorSets.size(), 1,
-			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
-	};
+			this->getPipelineLayout("forward")->getHandle(), descriptorSets.size(), 1,
+			&this->driver->getMaterialDescriptors().at(meshData.materialId));
+		};
 
 	// Draw non-alpha masked meshes
 	for (std::size_t i = 0; i < meshData.size(); i++) {
@@ -780,18 +775,18 @@ void Renderer::renderForward() {
 	this->uniforms.mvpUniform.view = this->sunMatrices.view;
 	this->uniforms.mvpUniform.camPos = glm::vec4(lightStruct.position, 1.0f);
 
-	RendererUtils::updateUniformBuffer(this->uniformBuffers.at("mvp"));
+	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
 
 	// Sun position view
-	RendererUtils::beginRenderPass(this->renderPasses.at("sunView").get(), this->framebuffers.at("sun").get(), this->imageIndex);
-	RendererUtils::bindGraphicPipeline(this->pipelines.at("forward")->getHandle());
+	RendererUtils::beginRenderPass(this->getRenderPass("sunView"), this->getFramebuffer("sun"), this->imageIndex);
+	RendererUtils::bindGraphicPipeline(this->getPipeline("forward")->getHandle());
 
 	RendererUtils::bindPushConstant(
-		this->pipelineLayouts.at("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
+		this->getPipelineLayout("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	RendererUtils::bindGraphicDescriptorSets(
-		this->pipelineLayouts.at("forward")->getHandle(), 0, descriptorSets.size(),
-		descriptorSets.data(), 0, nullptr);
+		this->getPipelineLayout("forward")->getHandle(), 0, descriptorSets.size(),
+		descriptorSets.data());
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
@@ -813,11 +808,11 @@ void Renderer::renderForward() {
 
 	// Render frustum bounding box
 	if (this->renderCameraFrustumBounds) {
-		RendererUtils::bindGraphicPipeline(this->pipelines.at("lineDebug")->getHandle());
+		RendererUtils::bindGraphicPipeline(this->getPipeline("lineDebug")->getHandle());
 
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("lineDebug")->getHandle(), 0, 1,
-			&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+			this->getPipelineLayout("lineDebug")->getHandle(), 0, 1,
+			&this->getDescriptorSet("mvp")->getHandle());
 
 		RendererUtils::drawLineMesh(this->lineMeshData);
 	}
@@ -831,18 +826,18 @@ void Renderer::renderDeferred() {
 	this->driver->getTimestampManager().writeGPUTimestamp("deferred", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Writing to G-buffers pass
-	RendererUtils::beginRenderPass(this->renderPasses.at("deferred").get(), this->framebuffers.at("deferred").get(), this->imageIndex);
-	RendererUtils::bindGraphicPipeline(this->pipelines.at("deferredWriting")->getHandle());
+	RendererUtils::beginRenderPass(this->getRenderPass("deferred"), this->getFramebuffer("deferred"), this->imageIndex);
+	RendererUtils::bindGraphicPipeline(this->getPipeline("deferredWriting")->getHandle());
 
 	RendererUtils::bindGraphicDescriptorSets(
-		this->pipelineLayouts.at("deferredWriting")->getHandle(), 0, 1,
-		&this->descriptorSets.at("mvp")->getHandle(), 0, nullptr);
+		this->getPipelineLayout("deferredWriting")->getHandle(), 0, 1,
+		&this->getDescriptorSet("mvp")->getHandle());
 
 	auto perMeshCallback = [this](MeshData& meshData) {
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("deferredWriting")->getHandle(), 1, 1,
-			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
-	};
+			this->getPipelineLayout("deferredWriting")->getHandle(), 1, 1,
+			&this->driver->getMaterialDescriptors().at(meshData.materialId));
+		};
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
@@ -864,7 +859,7 @@ void Renderer::renderDeferred() {
 
 	// Shading pass
 	RendererUtils::nextSubpass();
-	RendererUtils::bindGraphicPipeline(this->pipelines.at("deferredShading")->getHandle());
+	RendererUtils::bindGraphicPipeline(this->getPipeline("deferredShading")->getHandle());
 
 	glsl::LightsAndEmissive lightsAndEmissive = {
 		.numLights = this->numLights,
@@ -873,23 +868,23 @@ void Renderer::renderDeferred() {
 	};
 
 	RendererUtils::bindPushConstant(
-		this->pipelineLayouts.at("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
+		this->getPipelineLayout("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
-	descriptorSets.emplace_back(this->descriptorSets.at("deferredInputs")->getHandle());
-	descriptorSets.emplace_back(this->descriptorSets.at("mvp")->getHandle());
-	descriptorSets.emplace_back(this->descriptorSets.at("lights")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("deferredInputs")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("lights")->getHandle());
 
 	if (this->shadowsEnabled) {
-		descriptorSets.emplace_back(this->descriptorSets.at("pointLightShadows")->getHandle());
-		descriptorSets.emplace_back(this->descriptorSets.at("directionalLightShadow")->getHandle());
-		descriptorSets.emplace_back(this->descriptorSets.at("cameraPlanes")->getHandle());
-		descriptorSets.emplace_back(this->descriptorSets.at("lightMatrices")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("pointLightShadows")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("directionalLightShadow")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("cameraPlanes")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("lightMatrices")->getHandle());
 	}
 
 	RendererUtils::bindGraphicDescriptorSets(
-		this->pipelineLayouts.at("deferredShading")->getHandle(), 0, descriptorSets.size(),
-		descriptorSets.data(), 0, nullptr);
+		this->getPipelineLayout("deferredShading")->getHandle(), 0, descriptorSets.size(),
+		descriptorSets.data());
 
 	RendererUtils::drawDirect(3, 1, 0, 0);
 
@@ -909,19 +904,19 @@ void Renderer::renderDebugViews() {
 	if (isOvervisualisation) {
 		// Set clear colour to a dark green to create a 'negative'-like image, but also restore
 		// the original clear colour afterwards for when we disable overvisualisation
-		VkClearValue originalValue = this->renderPasses.at("forward")->getClearValues().at(0);
-		this->renderPasses.at("forward")->getClearValues().at(0) = { {0.0f, 0.3f, 0.0f, 1.0f} };
-		RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
-		this->renderPasses.at("forward")->getClearValues().at(0) = originalValue;
+		VkClearValue originalValue = this->getRenderPass("forward")->getClearValues().at(0);
+		this->getRenderPass("forward")->getClearValues().at(0) = { {0.0f, 0.3f, 0.0f, 1.0f} };
+		RendererUtils::beginRenderPass(this->getRenderPass("forward"), this->getFramebuffer("forward"), this->imageIndex);
+		this->getRenderPass("forward")->getClearValues().at(0) = originalValue;
 	} else {
-		RendererUtils::beginRenderPass(this->renderPasses.at("forward").get(), this->framebuffers.at("forward").get(), this->imageIndex);
+		RendererUtils::beginRenderPass(this->getRenderPass("forward"), this->getFramebuffer("forward"), this->imageIndex);
 	}
 
 	std::vector<VkDescriptorSet> descriptorSets;
-	descriptorSets.emplace_back(this->descriptorSets.at("mvp")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
 
 	if (!isOvervisualisation) {
-		RendererUtils::bindGraphicPipeline(this->pipelines.at("debugViews")->getHandle());
+		RendererUtils::bindGraphicPipeline(this->getPipeline("debugViews")->getHandle());
 
 		debugStatePC debugState = {
 			.lightCount = this->numLights,
@@ -929,29 +924,29 @@ void Renderer::renderDebugViews() {
 		};
 
 		RendererUtils::bindPushConstant(
-			this->pipelineLayouts.at("debugViews")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(debugStatePC), &debugState);
+			this->getPipelineLayout("debugViews")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(debugStatePC), &debugState);
 
-		descriptorSets.emplace_back(this->descriptorSets.at("lights")->getHandle());
-		descriptorSets.emplace_back(this->descriptorSets.at("cameraPlanes")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("lights")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("cameraPlanes")->getHandle());
 
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), 0, descriptorSets.size(),
-			descriptorSets.data(), 0, nullptr);
+			this->getPipelineLayout("debugViews")->getHandle(), 0, descriptorSets.size(),
+			descriptorSets.data());
 
 		RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 	} else {
-		RendererUtils::bindGraphicPipeline(this->pipelines.at("overVisualisation")->getHandle());
+		RendererUtils::bindGraphicPipeline(this->getPipeline("overVisualisation")->getHandle());
 
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("overVisualisation")->getHandle(), 0, descriptorSets.size(),
-			descriptorSets.data(), 0, nullptr);
+			this->getPipelineLayout("overVisualisation")->getHandle(), 0, descriptorSets.size(),
+			descriptorSets.data());
 	}
 
 	auto perMeshCallbackDebug = [this, &descriptorSets](MeshData& meshData) {
 		RendererUtils::bindGraphicDescriptorSets(
-			this->pipelineLayouts.at("debugViews")->getHandle(), descriptorSets.size(), 1,
-			&this->driver->getMaterialDescriptors().at(meshData.materialId), 0, nullptr);
-	};
+			this->getPipelineLayout("debugViews")->getHandle(), descriptorSets.size(), 1,
+			&this->driver->getMaterialDescriptors().at(meshData.materialId));
+		};
 
 	for (std::size_t i = 0; i < meshData.size(); i++) {
 		if (!isOvervisualisation) {
@@ -960,7 +955,7 @@ void Renderer::renderDebugViews() {
 			// Overdraw
 			if (this->debugState == 7) {
 				RendererUtils::setDepthTestEnable(VK_FALSE);
-			} 
+			}
 			// Overshading
 			else if (this->debugState == 8) {
 				RendererUtils::setDepthTestEnable(VK_TRUE);
@@ -983,7 +978,7 @@ void Renderer::renderDebugViews() {
 		this->context.window->swapchainExtent, VK_FILTER_LINEAR);
 
 	// Render GUI
-	RendererUtils::beginRenderPass(this->renderPasses.at("gui").get(), this->framebuffers.at("gui").get(), this->imageIndex);
+	RendererUtils::beginRenderPass(this->getRenderPass("gui"), this->getFramebuffer("gui"), this->imageIndex);
 	RendererUtils::renderImGUI();
 	RendererUtils::endRenderPass();
 
@@ -1005,7 +1000,7 @@ void Renderer::renderShadowMaps() {
 		Light light = this->lights->at(i);
 
 		switch (light.getLightType()) {
-		case LightType::POINT: 
+		case LightType::POINT:
 		{
 			assert(this->numPointLights != 0 && "Trying to render a point light shadow map but numPointLights is 0?");
 
@@ -1026,7 +1021,7 @@ void Renderer::renderShadowMaps() {
 				glm::vec3(0.0f, -1.0f, 0.0f),
 				glm::vec3(0.0f, -1.0f, 0.0f),
 			};
-			
+
 			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera.getNearPlane(), this->camera.getFarPlane());
 
 			// Render to each face of the cube map
@@ -1034,10 +1029,10 @@ void Renderer::renderShadowMaps() {
 				// Calculate layer index
 				std::uint32_t layer = (pointLightIndex * 6) + face;
 
-				RendererUtils::beginRenderPass(this->renderPasses.at("shadow").get(), this->framebuffers.at("pointArrayShadows").get(), layer);
+				RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("pointArrayShadows"), layer);
 
-				RendererUtils::bindGraphicPipeline(this->pipelines.at("cubemapShadow")->getHandle());
-				
+				RendererUtils::bindGraphicPipeline(this->getPipeline("cubemapShadow")->getHandle());
+
 				glm::mat4 cubeView = glm::lookAt(light.getPosition(), light.getPosition() + directions[face], upVectors[face]);
 				glm::mat4 cubeMatrix = cubePerspective * cubeView;
 
@@ -1051,9 +1046,9 @@ void Renderer::renderShadowMaps() {
 					.farPlane = this->camera.getFarPlane()
 				};
 
-				RendererUtils::bindPushConstant(this->pipelineLayouts.at("cubemapShadow")->getHandle(),
+				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
 					VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &cubeMatrix);
-				RendererUtils::bindPushConstant(this->pipelineLayouts.at("cubemapShadow")->getHandle(),
+				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
 					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(cubemapFragmentPC), &fragPC);
 
 				RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
@@ -1071,23 +1066,23 @@ void Renderer::renderShadowMaps() {
 		{
 			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
 
-			RendererUtils::beginRenderPass(this->renderPasses.at("shadow").get(), this->framebuffers.at("directionalShadow").get(), directionalLightIndex);
+			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("directionalShadow"), directionalLightIndex);
 
-			RendererUtils::bindGraphicPipeline(this->pipelines.at("shadow")->getHandle());
+			RendererUtils::bindGraphicPipeline(this->getPipeline("shadow")->getHandle());
 
 			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at(directionalLightIndex);
 
-			RendererUtils::bindPushConstant(this->pipelineLayouts.at("shadow")->getHandle(),
+			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
 				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &lightMatrix);
 #if !defined(NDEBUG)
 			int projType = 1;
 
-			RendererUtils::bindPushConstant(this->pipelineLayouts.at("shadow")->getHandle(),
+			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
 				VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(int), &projType);
 
 			RendererUtils::bindGraphicDescriptorSets(
-				this->pipelineLayouts.at("shadow")->getHandle(), 0, 1,
-				&this->descriptorSets.at("cameraPlanes")->getHandle(), 0, nullptr);
+				this->getPipelineLayout("shadow")->getHandle(), 0, 1,
+				&this->getDescriptorSet("cameraPlanes")->getHandle());
 #endif
 			RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 

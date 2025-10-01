@@ -33,13 +33,13 @@ namespace RendererUtils {
 		VkUtils::endCommandBuffer(boundCommandBuffer);
 	}
 
-	void updateUniformBuffer(_UniformBuffer& uniformBuffer) {
+	void updateUniformBuffer(IUniformBuffer* uniformBuffer) {
 		checkCommandBuffer();
 
 		uniformBuffer->update(boundCommandBuffer);
 	}
 
-	void updateShaderStorageBuffer(_ShaderStorageBuffer& shaderStorageBuffer) {
+	void updateShaderStorageBuffer(IShaderStorageBuffer* shaderStorageBuffer) {
 		checkCommandBuffer();
 
 		shaderStorageBuffer->update(boundCommandBuffer);

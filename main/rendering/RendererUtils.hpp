@@ -12,8 +12,8 @@ namespace RendererUtils {
 	void endCommandBuffer();
 
 	// Buffers
-	void updateUniformBuffer(_UniformBuffer& uniformBuffer);
-	void updateShaderStorageBuffer(_ShaderStorageBuffer& shaderStorageBuffer);
+	void updateUniformBuffer(IUniformBuffer* uniformBuffer);
+	void updateShaderStorageBuffer(IShaderStorageBuffer* shaderStorageBuffer);
 
 	// Render passes
 	void beginRenderPass(RenderPass* renderPass, Framebuffer* framebuffer, std::uint32_t imageIndex);

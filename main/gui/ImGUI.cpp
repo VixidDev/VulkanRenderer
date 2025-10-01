@@ -206,8 +206,8 @@ void GUI::draw() {
 	TimestampManager& timestampManager = this->driver->getTimestampManager();
 	TimestampReferences& gpuTimestampReferences = timestampManager.getGPUTimestampReferences();
 	for (const auto& [name, indices] : gpuTimestampReferences) {
-		std::uint64_t start = *timestampManager.getGPUTimestamp(indices.start);
-		std::uint64_t end = *timestampManager.getGPUTimestamp(indices.end);
+		std::uint64_t start = timestampManager.getGPUTimestamp(indices.start).value_or(0);
+		std::uint64_t end = timestampManager.getGPUTimestamp(indices.end).value_or(0);
 
 		float timeTaken = static_cast<float>(end - start) * timestampPeriod / 1000000.0f;
 
