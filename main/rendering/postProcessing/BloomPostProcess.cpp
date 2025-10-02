@@ -50,7 +50,7 @@ void BloomPostProcess::apply(Framebuffer* framebuffer, std::uint32_t imageIndex,
 	// i = 8 - read: blur		  - write: intermediate
 	// i = 9 - read: intermediate - write: blur        
 
-	int iterations = 10; // Must be even
+	int iterations = this->renderer->bloomIterations * 2; // Must be even
 	bool firstPass = true;
 	for (int i = 0, direction = 0; i < iterations; i++, direction = 1 - direction) {
 		RendererUtils::beginRenderPass(this->renderPass, framebuffer1, imageIndex);

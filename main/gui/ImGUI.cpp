@@ -138,7 +138,7 @@ void GUI::draw() {
 
 			ImGui::Separator();
 
-			ImGui::SliderFloat("Emissive Strength", &renderer.emissiveStrength, 1.0f, 30.0f);
+			ImGui::SliderFloat("Emissive Strength", &renderer.emissiveStrength, 1.0f, 100.0f);
 			ImGui::SliderFloat("Shadow Bias", &renderer.shadowBias, 0.0001f, 0.01f, "%.5f");
 
 			ImGui::Separator();
@@ -166,8 +166,10 @@ void GUI::draw() {
 		if (ImGui::BeginTabItem("Post Processing")) {
 			ImGui::Text("Post Processing Effects");
 			ImGui::Checkbox("Bloom", &bloomEnabled);
-			if (bloomEnabled)
+			if (bloomEnabled) {
+				ImGui::SliderInt("Blur Iterations", &renderer.bloomIterations, 1, 10);
 				ImGui::SliderFloat("Threshold", &renderer.brightnessThreshold, 0.0f, 1.0f);
+			}
 
 			ImGui::Checkbox("Mosaic", &mosaicEnabled);
 

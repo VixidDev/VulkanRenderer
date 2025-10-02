@@ -122,8 +122,11 @@ public:
 
 	bool showSunView = false;
 
-	float emissiveStrength = 15.0f;
+	float emissiveStrength = 75.0f;
+
+	int bloomIterations = 1;
 	float brightnessThreshold = 0.75f;
+	
 	float shadowBias = 0.0001f;
 
 	float sunOrthoBounds = 22.0f;
