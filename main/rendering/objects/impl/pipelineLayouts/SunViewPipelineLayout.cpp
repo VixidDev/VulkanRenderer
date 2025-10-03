@@ -18,5 +18,5 @@ void SunViewPipelineLayout::recreate() {
 
 	std::vector<VkPushConstantRange> pushConstants;
 
-	this->pipelineLayout = createPipelineLayout(*this->window, layout, pushConstants);
+	this->pipelineLayout = createPipelineLayout(*this->window->getDevice(), layout, pushConstants);
 }

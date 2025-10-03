@@ -3,6 +3,7 @@
 #include "Error.hpp"
 #include "toString.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 #include "../../../PipelineCreation.hpp"
 
 DeferredWritingPipeline::DeferredWritingPipeline(
@@ -16,14 +17,14 @@ DeferredWritingPipeline::DeferredWritingPipeline(
 	this->renderPass = renderPass;
 	this->sampleCount = sampleCount;
 
-	this->renderExtent = &this->window->swapchainExtent;
+	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
 	this->recreate();
 }
 
 void DeferredWritingPipeline::recreate() {
-	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/forward.vert.spv");
-	vk::ShaderModule frag = loadShaderModule(*this->window, "assets/main/shaders/deferredWrite.frag.spv");
+	vk::ShaderModule vert = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forward.vert.spv");
+	vk::ShaderModule frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/deferredWrite.frag.spv");
 
 	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -166,8 +167,8 @@ void DeferredWritingPipeline::recreate() {
 	pipeInfo.subpass = 0;
 
 	VkPipeline pipe = VK_NULL_HANDLE;
-	if (const auto res = vkCreateGraphicsPipelines(this->window->device->device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &pipe); VK_SUCCESS != res)
+	if (const auto res = vkCreateGraphicsPipelines(this->window->getDevice()->getDevice(), VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &pipe); VK_SUCCESS != res)
 		throw Utils::Error("Unable to create graphics pipeline\n vkCreateGraphicsPipeline() returned %s\n", Utils::toString(res).c_str());
 
-	this->pipeline = vk::Pipeline(this->window->device->device, pipe);
+	this->pipeline = vk::Pipeline(this->window->getDevice()->getDevice(), pipe);
 }

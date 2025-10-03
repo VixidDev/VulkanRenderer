@@ -36,5 +36,5 @@ void CubemapShadowPipelineLayout::recreate() {
 	pushConstants.emplace_back(depthProjectionMatrix);
 	pushConstants.emplace_back(planeAndLightPos);
 
-	this->pipelineLayout = createPipelineLayout(*this->window, shadowLayouts, pushConstants);
+	this->pipelineLayout = createPipelineLayout(*this->window->getDevice(), shadowLayouts, pushConstants);
 }

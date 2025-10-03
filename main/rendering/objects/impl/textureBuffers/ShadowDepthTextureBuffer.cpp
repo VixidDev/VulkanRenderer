@@ -1,7 +1,8 @@
 #include "ShadowDepthTextureBuffer.hpp"
 
-#include "../../../../vulkan/VulkanContext.hpp"
 #include "../../../PipelineCreation.hpp"
+#include "../../../../vulkan/VulkanContext.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 
 ShadowDepthTextureBuffer::ShadowDepthTextureBuffer(
 	VulkanContext* context,
@@ -11,7 +12,7 @@ ShadowDepthTextureBuffer::ShadowDepthTextureBuffer(
 	this->sampleCount = sampleCount;
 
 	if (!renderExtent)
-		this->renderExtent = &this->context->window->swapchainExtent;
+		this->renderExtent = &this->context->window->getSwapchain()->getExtent();
 	else
 		this->renderExtent = renderExtent;
 

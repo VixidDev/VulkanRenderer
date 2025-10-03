@@ -36,5 +36,5 @@ void ForwardPipelineLayout::recreate() {
 	std::vector<VkPushConstantRange> pushConstants;
 	pushConstants.emplace_back(lightCount);
 
-	this->pipelineLayout = createPipelineLayout(*this->window, *this->shadowsEnabled ? forwardShadowLayouts : forwardLayouts, pushConstants);
+	this->pipelineLayout = createPipelineLayout(*this->window->getDevice(), *this->shadowsEnabled ? forwardShadowLayouts : forwardLayouts, pushConstants);
 }

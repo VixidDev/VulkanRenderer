@@ -5,6 +5,7 @@
 #include "../vulkan/objects/VkImage.hpp"
 
 class VulkanWindow;
+class VulkanDevice;
 class VulkanAllocator;
 class TextureBuffer;
 
@@ -41,12 +42,9 @@ struct TextureBufferSetting {
 	bool ignoreMipLevels = true;
 };
 
-vk::ShaderModule loadShaderModule(const VulkanWindow& window, const char* spirvPath);
-
-vk::DescriptorSetLayout createDescriptorLayout(const VulkanWindow& window, std::vector<DescriptorSetting>& descriptorSettings);
-
-vk::PipelineLayout createPipelineLayout(const VulkanWindow& window, std::vector<VkDescriptorSetLayout>& layouts, std::vector<VkPushConstantRange>& pushConstantRanges);
-
+vk::ShaderModule loadShaderModule(const VulkanDevice& device, const char* spirvPath);
+vk::DescriptorSetLayout createDescriptorLayout(const VulkanDevice& device, std::vector<DescriptorSetting>& descriptorSettings);
+vk::PipelineLayout createPipelineLayout(const VulkanDevice& device, std::vector<VkDescriptorSetLayout>& layouts, std::vector<VkPushConstantRange>& pushConstantRanges);
 std::pair<vk::Image, vk::ImageView> createTextureBuffer(const VulkanContext& context, TextureBufferSetting textureSetting);
 
 std::uint32_t computeMipLevels(std::uint32_t width, std::uint32_t height);

@@ -36,5 +36,5 @@ void DeferredShadingPipelineLayout::recreate() {
 	std::vector<VkPushConstantRange> pushConstants;
 	pushConstants.emplace_back(lightCount);
 
-	this->pipelineLayout = createPipelineLayout(*this->window, *this->shadowsEnabled ? shadowLayouts : layouts, pushConstants);
+	this->pipelineLayout = createPipelineLayout(*this->window->getDevice(), *this->shadowsEnabled ? shadowLayouts : layouts, pushConstants);
 }

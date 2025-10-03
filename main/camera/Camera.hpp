@@ -3,13 +3,13 @@
 #include <array>
 #include <glm/glm.hpp>
 
-class VulkanWindow;
+class Swapchain;
 struct GLFWwindow;
 
 class Camera {
 public:
 	Camera() = default;
-	Camera(VulkanWindow* window, float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir);
+	Camera(Swapchain* swapchain, float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir);
 
 	~Camera() = default;
 
@@ -29,7 +29,7 @@ public:
 	float getYaw();
 	float getPitch();
 private:
-	VulkanWindow* window;
+	Swapchain* swapchain;
 
 	float fov;
 	float nearPlane;

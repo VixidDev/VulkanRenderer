@@ -71,6 +71,7 @@
 #include "postProcessing/MosaicPostProcess.hpp"
 #include "postProcessing/BloomPostProcess.hpp"
 
+#include "../vulkan/Swapchain.hpp"
 #include "../vulkan/VulkanDevice.hpp"
 #include "../vulkan/VkUtils.hpp"
 #include "RendererUtils.hpp"
@@ -80,15 +81,17 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 Renderer::Renderer(Driver* driver) : driver(driver) {
-	this->context.window = initialiseVulkanWindow();
-	this->context.allocator = initialiseVulkanAllocator(*this->context.window);
+	this->context.window = std::make_unique<VulkanWindow>();
+	this->context.allocator = std::make_unique<VulkanAllocator>(this->context.window.get());
 
 	this->createDummyTexture();
 
 	VulkanWindow* window = this->context.window.get();
 	VulkanAllocator* allocator = this->context.allocator.get();
+	VulkanDevice* device = window->getDevice();
+	Swapchain* swapchain = window->getSwapchain();
 
-	this->camera = Camera(window, 90.0f, 0.01f, 256.0f, glm::vec3(0.0f, 7.0f, -12.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+	this->camera = Camera(swapchain, 90.0f, 0.01f, 256.0f, glm::vec3(0.0f, 7.0f, -12.0f), glm::vec3(0.0f, 0.0f, -1.0f));
 
 	// Render passes
 	this->renderPasses.emplace("forward", std::make_unique<ForwardPass>(window, &this->sampleCountSetting));
@@ -117,13 +120,13 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT } };
 
-	this->descriptorSetLayouts.emplace("uboV", createDescriptorLayout(*window, uniformBufferV));
-	this->descriptorSetLayouts.emplace("uboF", createDescriptorLayout(*window, uniformBufferF));
-	this->descriptorSetLayouts.emplace("uboVF", createDescriptorLayout(*window, uniformBufferVF));
-	this->descriptorSetLayouts.emplace("ssboF", createDescriptorLayout(*window, ssboF));
-	this->descriptorSetLayouts.emplace("imageF", createDescriptorLayout(*window, imageF));
-	this->descriptorSetLayouts.emplace("materials", createDescriptorLayout(*window, materialSettings));
-	this->descriptorSetLayouts.emplace("deferredInputAttachments", createDescriptorLayout(*window, deferredInputAttachments));
+	this->descriptorSetLayouts.emplace("uboV", createDescriptorLayout(*device, uniformBufferV));
+	this->descriptorSetLayouts.emplace("uboF", createDescriptorLayout(*device, uniformBufferF));
+	this->descriptorSetLayouts.emplace("uboVF", createDescriptorLayout(*device, uniformBufferVF));
+	this->descriptorSetLayouts.emplace("ssboF", createDescriptorLayout(*device, ssboF));
+	this->descriptorSetLayouts.emplace("imageF", createDescriptorLayout(*device, imageF));
+	this->descriptorSetLayouts.emplace("materials", createDescriptorLayout(*device, materialSettings));
+	this->descriptorSetLayouts.emplace("deferredInputAttachments", createDescriptorLayout(*device, deferredInputAttachments));
 
 	// Pipeline Layouts
 	this->pipelineLayouts.emplace("shadow", std::make_unique<ShadowPipelineLayout>(window, &this->descriptorSetLayouts));
@@ -209,8 +212,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->uniformBuffers.emplace("cameraPlanes", std::make_unique<UniformBuffer<glsl::CameraPlanesUniform>>(allocator, FstageFlags, &this->uniforms.cameraPlanesUniform));
 
 	// Synchronisation
-	for (std::size_t i = 0; i < window->swapViews.size(); i++) {
-		this->cmdBuffers.emplace_back(VkUtils::createCommandBuffer(*window, window->device->cmdPool));
+	for (std::size_t i = 0; i < swapchain->getViews().size(); i++) {
+		this->cmdBuffers.emplace_back(VkUtils::createCommandBuffer(*window, device->getCmdPool()));
 		this->frameDoneFences.emplace_back(VkUtils::createFence(*window, VK_FENCE_CREATE_SIGNALED_BIT));
 		this->imageAvailableSemaphores.emplace_back(VkUtils::createSemaphore(*window));
 		this->renderFinishedSemaphores.emplace_back(VkUtils::createSemaphore(*window));
@@ -290,7 +293,7 @@ Renderer::~Renderer() {
 	// through its shutdown methods before destroying our Vulkan 
 	// device instance
 	if (!this->handledImGUIShutdown) {
-		vkDeviceWaitIdle(this->context.window->device->device);
+		vkDeviceWaitIdle(this->context.window->getDevice()->getDevice());
 		RendererUtils::destroyImGUI();
 	}
 }
@@ -431,20 +434,22 @@ bool Renderer::checkSwapchain() {
 		return false;
 
 	// Handle minimisation
-	GLFWwindow* window = this->context.window->window;
+	GLFWwindow* glfwWindow = this->context.window->getGLFWwindow();
 
 	int width, height;
-	glfwGetFramebufferSize(window, &width, &height);
+	glfwGetFramebufferSize(glfwWindow, &width, &height);
 	// Loop indefinitely until framebuffer size becomes non-zero (i.e. no longer minimised)
 	while (width == 0 || height == 0) {
-		glfwGetFramebufferSize(window, &width, &height);
+		glfwGetFramebufferSize(glfwWindow, &width, &height);
 		glfwWaitEvents();
 	}
 
-	// Wait for GPU to finish processing
-	vkDeviceWaitIdle(this->context.window->device->device);
+	VulkanWindow* window = this->context.window.get();
 
-	const SwapChanges swapChanges = ::recreateSwapchain(*this->context.window);
+	// Wait for GPU to finish processing
+	vkDeviceWaitIdle(window->getDevice()->getDevice());
+
+	const SwapChanges swapChanges = window->getSwapchain()->recreate();
 
 	if (swapChanges.changedFormat || this->forceRecreate)
 		this->recreateFormatDependents();
@@ -495,7 +500,7 @@ bool Renderer::acquireSwapchainImage() {
 }
 
 void Renderer::update(float timeDelta) {
-	this->camera.update(this->context.window->window, timeDelta);
+	this->camera.update(this->context.window->getGLFWwindow(), timeDelta);
 
 	this->uniforms.mvpUniform.projection = this->camera.getProjectionMat();
 	this->uniforms.mvpUniform.view = this->camera.getViewMat();
@@ -523,6 +528,8 @@ void Renderer::update(float timeDelta) {
 			// large and results in pixelated shadows close to the camera
 			//LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
 
+			// TODO: only recompute if something relevant about the light changes that
+			// requires matrix recomputation
 			this->sunMatrices = this->getSunViewMatrices(lightStruct);
 
 			// Update light matrix
@@ -541,6 +548,9 @@ void Renderer::update(float timeDelta) {
 	// TODO: Move all this somewhere else, and only calculate it if the debug
 	// option for frustum bounds is actually enabled.
 	// Update debug frustum lines
+
+	if (!this->renderCameraFrustumBounds) return;
+
 	std::array<glm::vec4, 8> frustumCornersArr = this->camera.getFrustumCorners();
 	std::vector<glm::vec4> frustumCorners(frustumCornersArr.begin(), frustumCornersArr.end());
 	std::vector<glm::vec3> lineColours(8, glm::vec3(1.0f));
@@ -596,7 +606,7 @@ void Renderer::update(float timeDelta) {
 		BakedModelLoader::mapToGPU(*this->context.allocator, colLineGPU, colStaging, lineColours);
 		BakedModelLoader::mapToGPU(*this->context.allocator, indexLineGPU, indexStaging, lineIndices);
 
-		VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(*this->context.window, this->context.window->device->cmdPool);
+		VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(*this->context.window, this->context.window->getDevice()->getCmdPool());
 
 		VkUtils::beginCommandBuffer(uploadCmd);
 
@@ -622,7 +632,7 @@ void Renderer::update(float timeDelta) {
 		BakedModelLoader::mapToGPU(*this->context.allocator, this->lineMeshData.colBuffer, this->lineMeshData.colBufferStaging, lineColours);
 		BakedModelLoader::mapToGPU(*this->context.allocator, this->lineMeshData.indicesBuffer, this->lineMeshData.indicesBufferStaging, lineIndices);
 
-		VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(*this->context.window, this->context.window->device->cmdPool);
+		VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(*this->context.window, this->context.window->getDevice()->getCmdPool());
 
 		VkUtils::beginCommandBuffer(uploadCmd);
 
@@ -642,6 +652,8 @@ void Renderer::render() {
 	this->driver->getTimestampManager().writeGPUTimestamp("entireFrame", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Update uniform and shader storage buffers
+	// TODO: add a dirty flag feature somewhere as these buffers do not need to be updated
+	// every frame and can save on computation time
 	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
 	RendererUtils::updateShaderStorageBuffer(this->getShaderStorageBuffer("lights"));
 	RendererUtils::updateShaderStorageBuffer(this->getShaderStorageBuffer("lightMatrices"));
@@ -673,7 +685,7 @@ void Renderer::render() {
 	}
 
 	// Scene pass
-	if (this->renderingType == 1) {
+	if (this->renderingType) {
 		this->renderDeferred();
 	} else {
 		this->renderForward();
@@ -702,11 +714,11 @@ void Renderer::render() {
 	VkImage srcImage = useIntermediate ?
 		this->getTextureBuffer("intermediate")->getImage().image :
 		this->getTextureBuffer("colour")->getImage().image;
-	VkImage swapchainImage = this->context.window->swapImages[this->imageIndex];
+	VkImage swapchainImage = this->context.window->getSwapchain()->getImage(this->imageIndex);
 
 	RendererUtils::blitImageToSwapchain(
 		srcImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, swapchainImage,
-		this->context.window->swapchainExtent, VK_FILTER_LINEAR);
+		this->context.window->getSwapchain()->getExtent(), VK_FILTER_LINEAR);
 
 	// Render GUI
 	this->driver->getTimestampManager().writeGPUTimestamp("gui", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
@@ -738,6 +750,7 @@ void Renderer::renderForward() {
 		this->getPipelineLayout("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
+	descriptorSets.reserve(6);
 	// Add descriptors that will always be present in same order as in shader
 	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
 	descriptorSets.emplace_back(this->getDescriptorSet("lights")->getHandle());
@@ -894,6 +907,7 @@ void Renderer::renderDeferred() {
 		this->getPipelineLayout("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
+	descriptorSets.reserve(7);
 	descriptorSets.emplace_back(this->getDescriptorSet("deferredInputs")->getHandle());
 	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
 	descriptorSets.emplace_back(this->getDescriptorSet("lights")->getHandle());
@@ -936,6 +950,7 @@ void Renderer::renderDebugViews() {
 	}
 
 	std::vector<VkDescriptorSet> descriptorSets;
+	descriptorSets.reserve(3);
 	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
 
 	if (!isOvervisualisation) {
@@ -993,12 +1008,12 @@ void Renderer::renderDebugViews() {
 	this->driver->getTimestampManager().writeGPUTimestamp("debugViews", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
 	// Blit image to swapchain
-	VkImage srcImage = this->textureBuffers.at("colour")->getImage().image;
-	VkImage swapchainImage = this->context.window->swapImages[this->imageIndex];
+	VkImage srcImage = this->getTextureBuffer("colour")->getImage().image;
+	VkImage swapchainImage = this->context.window->getSwapchain()->getImage(this->imageIndex);
 
 	RendererUtils::blitImageToSwapchain(
 		srcImage, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, swapchainImage,
-		this->context.window->swapchainExtent, VK_FILTER_LINEAR);
+		this->context.window->getSwapchain()->getExtent(), VK_FILTER_LINEAR);
 
 	// Render GUI
 	RendererUtils::beginRenderPass(this->getRenderPass("gui"), this->getFramebuffer("gui"), this->imageIndex);
@@ -1009,6 +1024,21 @@ void Renderer::renderDebugViews() {
 	RendererUtils::endCommandBuffer();
 }
 
+// TODO: Currently this is the longest pass in the entire renderer,
+// quite clearly since we are re-rendering the entire scene multiple
+// times per shadow map EVERY frame when we clearly do not need to.
+// Some obvious optimisations here are to:
+// (GPU optimisations)
+//  1. Only render if:
+//     a) Light position changes
+//	   b) Light matrix changes
+//     c) Something in the light frustum changes (unlikely since we
+//        have no moving occluders in the scene (camera is invisible))
+//  2. Use geometry shaders to render entire scene to multiple shadow 
+//     maps at once
+// (CPU optimisations)
+//  1. Cache matrices and only recompute when something changes that
+//	   requires its recomputation
 void Renderer::renderShadowMaps() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
@@ -1028,21 +1058,21 @@ void Renderer::renderShadowMaps() {
 			assert(this->numPointLights != 0 && "Trying to render a point light shadow map but numPointLights is 0?");
 
 			constexpr glm::vec3 directions[6] = {
-				glm::vec3(1.0f, 0.0f, 0.0f),
-				glm::vec3(-1.0f, 0.0f, 0.0f),
-				glm::vec3(0.0f, 1.0f, 0.0f),
-				glm::vec3(0.0f, -1.0f, 0.0f),
-				glm::vec3(0.0f, 0.0f, 1.0f),
-				glm::vec3(0.0f, 0.0f, -1.0f),
+				glm::vec3( 1.0f,  0.0f,  0.0f),
+				glm::vec3(-1.0f,  0.0f,  0.0f),
+				glm::vec3( 0.0f,  1.0f,  0.0f),
+				glm::vec3( 0.0f, -1.0f,  0.0f),
+				glm::vec3( 0.0f,  0.0f,  1.0f),
+				glm::vec3( 0.0f,  0.0f, -1.0f),
 			};
 
 			constexpr glm::vec3 upVectors[6] = {
-				glm::vec3(0.0f, -1.0f, 0.0f),
-				glm::vec3(0.0f, -1.0f, 0.0f),
-				glm::vec3(0.0f, 0.0f, 1.0f),
-				glm::vec3(0.0f, 0.0f, -1.0f),
-				glm::vec3(0.0f, -1.0f, 0.0f),
-				glm::vec3(0.0f, -1.0f, 0.0f),
+				glm::vec3(0.0f, -1.0f,  0.0f),
+				glm::vec3(0.0f, -1.0f,  0.0f),
+				glm::vec3(0.0f,  0.0f,  1.0f),
+				glm::vec3(0.0f,  0.0f, -1.0f),
+				glm::vec3(0.0f, -1.0f,  0.0f),
+				glm::vec3(0.0f, -1.0f,  0.0f),
 			};
 
 			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera.getNearPlane(), this->camera.getFarPlane());
@@ -1059,12 +1089,7 @@ void Renderer::renderShadowMaps() {
 				glm::mat4 cubeView = glm::lookAt(light.getPosition(), light.getPosition() + directions[face], upVectors[face]);
 				glm::mat4 cubeMatrix = cubePerspective * cubeView;
 
-				struct cubemapFragmentPC {
-					glm::vec4 lightPos;
-					float farPlane;
-				};
-
-				cubemapFragmentPC fragPC = {
+				glsl::CubemapPC fragPC = {
 					.lightPos = glm::vec4(light.getPosition(), 1.0f),
 					.farPlane = this->camera.getFarPlane()
 				};
@@ -1072,7 +1097,7 @@ void Renderer::renderShadowMaps() {
 				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
 					VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &cubeMatrix);
 				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
-					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(cubemapFragmentPC), &fragPC);
+					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(glsl::CubemapPC), &fragPC);
 
 				RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
@@ -1171,6 +1196,8 @@ LightMatrices Renderer::getLightMatricesForCameraFrustum(glsl::Light& lightStruc
 }
 
 LightMatrices Renderer::getSunViewMatrices(glsl::Light& lightStruct) {
+	// TODO: think about caching these or caching something earlier the call
+	// stack to prevent even needing to call this function
 	glm::mat4 sunOrtho = glm::ortho(-this->sunOrthoBounds, this->sunOrthoBounds, this->sunOrthoBounds, -this->sunOrthoBounds, this->sunShadowNear, this->sunShadowFar);
 	glm::mat4 sunView = glm::lookAt(-lightStruct.direction * this->sunDistance, glm::vec3(0.0f, 0.0f, -20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -1197,7 +1224,7 @@ void Renderer::submitRender() {
 }
 
 void Renderer::finishRendering() {
-	vkDeviceWaitIdle(this->context.window->device->device);
+	vkDeviceWaitIdle(this->context.window->getDevice()->getDevice());
 	RendererUtils::destroyImGUI();
 	this->handledImGUIShutdown = true;
 }

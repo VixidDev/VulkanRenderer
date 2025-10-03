@@ -1,6 +1,7 @@
 #include "ForwardFramebuffer.hpp"
 
 #include "../../../PipelineCreation.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 
 ForwardFramebuffer::ForwardFramebuffer(
 	VulkanWindow* window,
@@ -12,7 +13,7 @@ ForwardFramebuffer::ForwardFramebuffer(
 	sampleCount(sampleCount), 
 	Framebuffer(window)
 {
-	this->renderExtent = &this->window->swapchainExtent;
+	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
 	this->recreate();
 }

@@ -33,6 +33,8 @@ public:
 	Renderer& getRenderer();
 	TimestampManager& getTimestampManager();
 
+	const float getTimeDelta() const;
+
 	std::vector<std::pair<vk::Image, vk::ImageView>>& getSceneTextures();
 	std::vector<VkDescriptorSet>& getMaterialDescriptors();
 	std::vector<MeshData>& getMeshData();
@@ -41,6 +43,8 @@ private:
 	TimestampManager timestampManager;
 	GUI gui;
 	UserState state{};
+
+	float timeDelta{};
 
 	BakedModel bakedModel;
 	std::vector<std::pair<vk::Image, vk::ImageView>> sceneTextures;

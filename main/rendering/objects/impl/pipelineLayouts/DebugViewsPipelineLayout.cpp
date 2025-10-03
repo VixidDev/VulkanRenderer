@@ -25,5 +25,5 @@ void DebugViewsPipelineLayout::recreate() {
 	std::vector<VkPushConstantRange> pushConstants;
 	pushConstants.emplace_back(debugState);
 
-	this->pipelineLayout = createPipelineLayout(*this->window, layouts, pushConstants);
+	this->pipelineLayout = createPipelineLayout(*this->window->getDevice(), layouts, pushConstants);
 }

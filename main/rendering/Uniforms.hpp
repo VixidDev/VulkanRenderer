@@ -36,4 +36,9 @@ namespace glsl {
 		float brightnessThreshold;
 		float shadowBias;
 	};
+
+	struct CubemapPC {
+		glm::vec4 lightPos{};
+		float farPlane;
+	};
 }

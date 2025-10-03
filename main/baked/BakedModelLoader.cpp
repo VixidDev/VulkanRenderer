@@ -1,7 +1,7 @@
 #include "BakedModelLoader.hpp"
 
-#include "../vulkan/VulkanContext.hpp"
 #include "../vulkan/objects/VkImage.hpp"
+#include "../vulkan/VulkanContext.hpp"
 #include "../vulkan/VulkanDevice.hpp"
 
 namespace BakedModelLoader {
@@ -32,7 +32,7 @@ namespace BakedModelLoader {
 		for (std::size_t i = 0; i < bakedModel.materials.size(); i++) {
 			VkDescriptorSet materialDescriptor = VkUtils::createDescriptorSet(
 				window,
-				window.device->descPool,
+				window.getDevice()->getDescPool(),
 				renderer.getDescriptorSetLayout("materials"));
 
 			VkWriteDescriptorSet desc[6]{};
@@ -124,7 +124,7 @@ namespace BakedModelLoader {
 			desc[5].pImageInfo = &emissiveInfo;
 
 			constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
-			vkUpdateDescriptorSets(window.device->device, numSets, desc, 0, nullptr);
+			vkUpdateDescriptorSets(window.getDevice()->getDevice(), numSets, desc, 0, nullptr);
 			materialDescriptors.emplace_back(materialDescriptor);
 		}
 		
@@ -211,7 +211,7 @@ namespace BakedModelLoader {
 			mapToGPU(allocator, vertexTBNGPU, tbnStaging, bakedModel.meshes[i].tangentsComp);
 			mapToGPU(allocator, vertexIndexGPU, indexStaging, bakedModel.meshes[i].indices);
 
-			VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(window, window.device->cmdPool);
+			VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(window, window.getDevice()->getCmdPool());
 
 			VkUtils::beginCommandBuffer(uploadCmd);
 

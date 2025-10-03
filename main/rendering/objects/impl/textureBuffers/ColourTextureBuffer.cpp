@@ -1,7 +1,8 @@
 #include "ColourTextureBuffer.hpp"
 
-#include "../../../../vulkan/VulkanContext.hpp"
 #include "../../../PipelineCreation.hpp"
+#include "../../../../vulkan/VulkanContext.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 
 ColourTextureBuffer::ColourTextureBuffer(
 	VulkanContext* context,
@@ -13,7 +14,7 @@ ColourTextureBuffer::ColourTextureBuffer(
 	this->sampleCount = sampleCount;
 
 	if (!renderExtent)
-		this->renderExtent = &this->context->window->swapchainExtent;
+		this->renderExtent = &this->context->window->getSwapchain()->getExtent();
 	else
 		this->renderExtent = renderExtent;
 

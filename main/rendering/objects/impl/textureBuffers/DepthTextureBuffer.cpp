@@ -1,7 +1,8 @@
 #include "DepthTextureBuffer.hpp"
 
-#include "../../../../vulkan/VulkanContext.hpp"
 #include "../../../PipelineCreation.hpp"
+#include "../../../../vulkan/VulkanContext.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 
 // Since this is almost identical to ColourTextureBuffer I could probably
 // merge them and infer the imageUsage and aspectFlags based on the given format
@@ -16,7 +17,7 @@ DepthTextureBuffer::DepthTextureBuffer(
 	this->sampleCount = sampleCount;
 	
 	if (!renderExtent)
-		this->renderExtent = &this->context->window->swapchainExtent;
+		this->renderExtent = &this->context->window->getSwapchain()->getExtent();
 	else
 		this->renderExtent = renderExtent;
 

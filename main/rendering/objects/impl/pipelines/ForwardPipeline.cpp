@@ -3,6 +3,7 @@
 #include "Error.hpp"
 #include "toString.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 #include "../../../PipelineCreation.hpp"
 
 ForwardPipeline::ForwardPipeline(
@@ -17,7 +18,7 @@ ForwardPipeline::ForwardPipeline(
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
 
-	this->renderExtent = &this->window->swapchainExtent;
+	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
 	this->shadowsEnabled = shadowsEnabled;
 
@@ -25,13 +26,13 @@ ForwardPipeline::ForwardPipeline(
 }
 
 void ForwardPipeline::recreate() {
-	vk::ShaderModule vert = loadShaderModule(*this->window, "assets/main/shaders/forward.vert.spv");
+	vk::ShaderModule vert = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forward.vert.spv");
 	vk::ShaderModule frag;
 
 	if (*this->shadowsEnabled) {
-		frag = loadShaderModule(*this->window, "assets/main/shaders/forwardShadow.frag.spv");
+		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forwardShadow.frag.spv");
 	} else {
-		frag = loadShaderModule(*this->window, "assets/main/shaders/forward.frag.spv");
+		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forward.frag.spv");
 	}
 
 	VkPipelineShaderStageCreateInfo stages[2]{};
@@ -185,8 +186,8 @@ void ForwardPipeline::recreate() {
 	pipeInfo.subpass = 0;
 
 	VkPipeline pipe = VK_NULL_HANDLE;
-	if (const auto res = vkCreateGraphicsPipelines(this->window->device->device, VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &pipe); VK_SUCCESS != res)
+	if (const auto res = vkCreateGraphicsPipelines(this->window->getDevice()->getDevice(), VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &pipe); VK_SUCCESS != res)
 		throw Utils::Error("Unable to create graphics pipeline\n vkCreateGraphicsPipeline() returned %s\n", Utils::toString(res).c_str());
 
-	this->pipeline = vk::Pipeline(this->window->device->device, pipe);
+	this->pipeline = vk::Pipeline(this->window->getDevice()->getDevice(), pipe);
 }

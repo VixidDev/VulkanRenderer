@@ -14,7 +14,7 @@ public:
 		std::initializer_list<TextureBuffer*> textureBuffers,
 		RenderPass* renderPass,
 		std::uint32_t arraySize,
-		VkExtent2D* shadowMapResolution);
+		VkExtent2D* renderExtent);
 
 	void recreate();
 private:

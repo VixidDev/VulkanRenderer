@@ -12,13 +12,15 @@ ArrayFramebuffer::ArrayFramebuffer(
 	std::initializer_list<TextureBuffer*> textureBuffers,
 	RenderPass* renderPass,
 	std::uint32_t arraySize,
-	VkExtent2D* shadowMapResolution
+	VkExtent2D* renderExtent
 ) : arraySize(arraySize),  
 	textureBuffers(textureBuffers), 
 	renderPass(renderPass), 
 	Framebuffer(window) 
 {
-	this->renderExtent = shadowMapResolution;
+	// TODO: change instances like these to check for nullptr
+	// as renderExtent and set to swapchain extent
+	this->renderExtent = renderExtent;
 
 	this->recreate();
 }
@@ -47,9 +49,9 @@ void ArrayFramebuffer::recreate() {
 		}
 
 		VkFramebuffer fb = VK_NULL_HANDLE;
-		if (const auto res = vkCreateFramebuffer(this->window->device->device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)
+		if (const auto res = vkCreateFramebuffer(this->window->getDevice()->getDevice(), &fbInfo, nullptr, &fb); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create framebuffer for swap chain image %zu\n vkCreateFramebuffer() returned %s", i, Utils::toString(res).c_str());
 
-		this->framebuffers.emplace_back(vk::Framebuffer(this->window->device->device, fb));
+		this->framebuffers.emplace_back(vk::Framebuffer(this->window->getDevice()->getDevice(), fb));
 	}
 }

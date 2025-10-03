@@ -5,16 +5,16 @@
 
 #include "../Driver.hpp"
 #include "../input/Mouse.hpp"
-#include "../vulkan/VulkanWindow.hpp"
+#include "../vulkan/Swapchain.hpp"
 
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 
-Camera::Camera(VulkanWindow* window, float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir) :
-	window(window), fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(position), frontDir(frontDir) 
+Camera::Camera(Swapchain* swapchain, float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir) :
+	swapchain(swapchain), fov(fov), nearPlane(nearPlane), farPlane(farPlane), position(position), frontDir(frontDir)
 {
-	float width = static_cast<float>(this->window->swapchainExtent.width);
-	float height = static_cast<float>(this->window->swapchainExtent.height);
+	float width = static_cast<float>(this->swapchain->getExtent().width);
+	float height = static_cast<float>(this->swapchain->getExtent().height);
 	const float aspectRatio = width / height;
 
 	// Initialise the transformation matrices for the first time
@@ -33,10 +33,11 @@ Camera::Camera(VulkanWindow* window, float fov, float nearPlane, float farPlane,
 }
 
 void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
-	float width = static_cast<float>(window->swapchainExtent.width);
-	float height = static_cast<float>(window->swapchainExtent.height);
+	float width = static_cast<float>(this->swapchain->getExtent().width);
+	float height = static_cast<float>(this->swapchain->getExtent().height);
 	const float aspectRatio = width / height;
 
+	// TODO: cache these and only recompute on paramter change
 	this->projection = glm::perspective(
 		glm::radians(this->fov),
 		aspectRatio,

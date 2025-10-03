@@ -1,6 +1,7 @@
 #include "DeferredFramebuffer.hpp"
 
 #include "../../../PipelineCreation.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 
 DeferredFramebuffer::DeferredFramebuffer(
 	VulkanWindow* window,
@@ -12,7 +13,7 @@ DeferredFramebuffer::DeferredFramebuffer(
 	sampleCount(sampleCount),
 	Framebuffer(window) 
 {
-	this->renderExtent = &this->window->swapchainExtent;
+	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
 	this->recreate();
 }

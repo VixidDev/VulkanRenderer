@@ -1,7 +1,5 @@
 #pragma once
 
-#include <volk/volk.h>
-
 #include "objects/VkObjects.hpp"
 #include "VulkanContext.hpp"
 

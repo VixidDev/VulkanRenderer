@@ -50,7 +50,7 @@ namespace vk {
 
 	Image loadImage(char const* path, const VulkanContext& context, VkFormat format, std::uint8_t channels) {
 		const VulkanAllocator& allocator = *context.allocator;
-		VkCommandPool cmdPool = context.window->device->cmdPool;
+		VkCommandPool cmdPool = context.window->getDevice()->getCmdPool();
 
 		stbi_set_flip_vertically_on_load(1);
 
@@ -182,7 +182,7 @@ namespace vk {
 
 	Image createDummyImage(const VulkanContext& context, VkFormat format) {
 		const VulkanAllocator& allocator = *context.allocator;
-		VkCommandPool cmdPool = context.window->device->cmdPool;
+		VkCommandPool cmdPool = context.window->getDevice()->getCmdPool();
 
 		constexpr std::uint8_t data[4] = { 0, 0, 0, 0 };
 
@@ -242,10 +242,10 @@ namespace vk {
 		viewInfo.subresourceRange = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, VK_REMAINING_MIP_LEVELS, 0, 1 };
 
 		VkImageView view = VK_NULL_HANDLE;
-		if (const auto res = vkCreateImageView(context.window->device->device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
+		if (const auto res = vkCreateImageView(context.window->getDevice()->getDevice(), &viewInfo, nullptr, &view); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create image view\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
 
-		return ImageView(context.window->device->device, view);
+		return ImageView(context.window->getDevice()->getDevice(), view);
 	}
 
 	std::uint32_t computeMipLevelCount(std::uint32_t width, std::uint32_t height) {

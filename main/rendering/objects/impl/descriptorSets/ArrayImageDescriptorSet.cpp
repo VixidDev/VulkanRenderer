@@ -20,7 +20,7 @@ void ArrayImageDescriptorSet::derivedRecreate() {
 		ArrayTextureBuffer* arrayTextureBuffer = dynamic_cast<ArrayTextureBuffer*>(descImageSetting.textureBuffer);
 
 		for (vk::ImageView& imageView : arrayTextureBuffer->getFramebufferViews()) {
-			VkDescriptorSet imageDescriptor = VkUtils::createDescriptorSet(*this->window, this->window->device->descPool, *this->descSetLayout);
+			VkDescriptorSet imageDescriptor = VkUtils::createDescriptorSet(*this->window, this->window->getDevice()->getDescPool(), *this->descSetLayout);
 			{
 				VkDescriptorImageInfo descImageInfo = {
 					.sampler = descImageSetting.sampler,
@@ -37,7 +37,7 @@ void ArrayImageDescriptorSet::derivedRecreate() {
 					.pImageInfo = &descImageInfo
 				};
 
-				vkUpdateDescriptorSets(this->window->device->device, 1, &desc, 0, nullptr);
+				vkUpdateDescriptorSets(this->window->getDevice()->getDevice(), 1, &desc, 0, nullptr);
 			}
 
 			this->descriptorSets.emplace_back(imageDescriptor);

@@ -6,10 +6,11 @@
 #include "toString.hpp"
 #include "../vulkan/VulkanWindow.hpp"
 #include "../vulkan/VulkanDevice.hpp"
+#include "../vulkan/Swapchain.hpp"
 #include "objects/base/TextureBuffer.hpp"
 #include "objects/base/UniformBuffer.hpp"
 
-vk::ShaderModule loadShaderModule(const VulkanWindow& window, const char* spirvPath) {
+vk::ShaderModule loadShaderModule(const VulkanDevice& device, const char* spirvPath) {
 	assert(spirvPath);
 
 	if (std::FILE* fin = std::fopen(spirvPath, "rb")) {
@@ -44,17 +45,17 @@ vk::ShaderModule loadShaderModule(const VulkanWindow& window, const char* spirvP
 		moduleInfo.pCode = code.data();
 
 		VkShaderModule smod = VK_NULL_HANDLE;
-		if (const auto res = vkCreateShaderModule(window.device->device, &moduleInfo, nullptr, &smod); VK_SUCCESS != res) {
+		if (const auto res = vkCreateShaderModule(device.getDevice(), &moduleInfo, nullptr, &smod); VK_SUCCESS != res) {
 			throw Utils::Error("Unable to create shader module from %s\n vkShaderCreateShaderModule() returned %s", spirvPath, Utils::toString(res).c_str());
 		}
 
-		return vk::ShaderModule(window.device->device, smod);
+		return vk::ShaderModule(device.getDevice(), smod);
 	}
 
 	throw Utils::Error("Cannot open '%s' for reading", spirvPath);
 }
 
-vk::DescriptorSetLayout createDescriptorLayout(const VulkanWindow& window, std::vector<DescriptorSetting>& descriptorSettings) {
+vk::DescriptorSetLayout createDescriptorLayout(const VulkanDevice& device, std::vector<DescriptorSetting>& descriptorSettings) {
 	std::vector<VkDescriptorSetLayoutBinding> layoutBindings;
 
 	for (std::size_t i = 0; i < descriptorSettings.size(); i++) {
@@ -73,13 +74,13 @@ vk::DescriptorSetLayout createDescriptorLayout(const VulkanWindow& window, std::
 	layoutInfo.pBindings = layoutBindings.data();
 
 	VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-	if (const auto res = vkCreateDescriptorSetLayout(window.device->device, &layoutInfo, nullptr, &layout); VK_SUCCESS != res)
+	if (const auto res = vkCreateDescriptorSetLayout(device.getDevice(), &layoutInfo, nullptr, &layout); VK_SUCCESS != res)
 		throw Utils::Error("Unable to create descriptor set layout\n vkCreateDescriptorSetLayout() returned %s", Utils::toString(res).c_str());
 
-	return vk::DescriptorSetLayout(window.device->device, layout);
+	return vk::DescriptorSetLayout(device.getDevice(), layout);
 }
 
-vk::PipelineLayout createPipelineLayout(const VulkanWindow& aWindow, std::vector<VkDescriptorSetLayout>& aDescriptorSetLayouts, std::vector<VkPushConstantRange>& aPushConstantRanges) {
+vk::PipelineLayout createPipelineLayout(const VulkanDevice& device, std::vector<VkDescriptorSetLayout>& aDescriptorSetLayouts, std::vector<VkPushConstantRange>& aPushConstantRanges) {
 	VkPipelineLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	layoutInfo.setLayoutCount = static_cast<std::uint32_t>(aDescriptorSetLayouts.size());
@@ -88,11 +89,11 @@ vk::PipelineLayout createPipelineLayout(const VulkanWindow& aWindow, std::vector
 	layoutInfo.pPushConstantRanges = aPushConstantRanges.data();
 
 	VkPipelineLayout layout = VK_NULL_HANDLE;
-	if (const auto res = vkCreatePipelineLayout(aWindow.device->device, &layoutInfo, nullptr, &layout); VK_SUCCESS != res) {
+	if (const auto res = vkCreatePipelineLayout(device.getDevice(), &layoutInfo, nullptr, &layout); VK_SUCCESS != res) {
 		throw Utils::Error("Unable to create pipeline layout\n vkCreatePipelineLayout() returned %s", Utils::toString(res).c_str());
 	}
 
-	return vk::PipelineLayout(aWindow.device->device, layout);
+	return vk::PipelineLayout(device.getDevice(), layout);
 }
 
 // Should only be used for render pass attachments
@@ -140,10 +141,10 @@ std::pair<vk::Image, vk::ImageView> createTextureBuffer(const VulkanContext& con
 	viewInfo.subresourceRange = VkImageSubresourceRange{ aBufferSetting.viewAspectFlags, 0, 1, 0, aBufferSetting.subresourceLayerCount };
 
 	VkImageView view = VK_NULL_HANDLE;
-	if (const auto res = vkCreateImageView(context.window->device->device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
+	if (const auto res = vkCreateImageView(context.window->getDevice()->getDevice(), &viewInfo, nullptr, &view); VK_SUCCESS != res)
 		throw Utils::Error("Unable to create image view.\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
 
-	return { std::move(Image), vk::ImageView(context.window->device->device, view) };
+	return { std::move(Image), vk::ImageView(context.window->getDevice()->getDevice(), view) };
 }
 
 std::uint32_t computeMipLevels(std::uint32_t width, std::uint32_t height) {
@@ -161,7 +162,7 @@ void createFramebuffers(
 {
 	assert(framebuffers.empty());
 
-	for (std::size_t i = 0; i < window.swapViews.size(); ++i) {
+	for (std::size_t i = 0; i < window.getSwapchain()->getViews().size(); ++i) {
 		VkFramebufferCreateInfo fbInfo{};
 		fbInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
 		fbInfo.flags = 0;
@@ -173,17 +174,17 @@ void createFramebuffers(
 		fbInfo.layers = 1;
 
 		VkFramebuffer fb = VK_NULL_HANDLE;
-		if (const auto res = vkCreateFramebuffer(window.device->device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)
+		if (const auto res = vkCreateFramebuffer(window.getDevice()->getDevice(), &fbInfo, nullptr, &fb); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create framebuffer for swap chain image %zu\n vkCreateFramebuffer() returned %s", i, Utils::toString(res).c_str());
 
-		framebuffers.emplace_back(vk::Framebuffer(window.device->device, fb));
+		framebuffers.emplace_back(vk::Framebuffer(window.getDevice()->getDevice(), fb));
 	}
 
-	assert(window.swapViews.size() == framebuffers.size());
+	assert(window.getSwapchain()->getViews().size() == framebuffers.size());
 }
 
 VkDescriptorSet createImageDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorImageSetting>& imageViews) {
-	VkDescriptorSet imageDescriptor = VkUtils::createDescriptorSet(window, window.device->descPool, descSetLayout);
+	VkDescriptorSet imageDescriptor = VkUtils::createDescriptorSet(window, window.getDevice()->getDescPool(), descSetLayout);
 	{
 		std::vector<VkDescriptorImageInfo> descImageInfos;
 		std::vector<VkWriteDescriptorSet> descs;
@@ -208,14 +209,14 @@ VkDescriptorSet createImageDescriptor(const VulkanWindow& window, VkDescriptorSe
 		}
 
 		std::size_t numSets = descs.size();
-		vkUpdateDescriptorSets(window.device->device, numSets, descs.data(), 0, nullptr);
+		vkUpdateDescriptorSets(window.getDevice()->getDevice(), numSets, descs.data(), 0, nullptr);
 	}
 
 	return imageDescriptor;
 }
 
 VkDescriptorSet createBufferDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorBufferSetting>& buffers) {
-	VkDescriptorSet bufferDescriptor = VkUtils::createDescriptorSet(window, window.device->descPool, descSetLayout);
+	VkDescriptorSet bufferDescriptor = VkUtils::createDescriptorSet(window, window.getDevice()->getDescPool(), descSetLayout);
 	{
 		std::vector<VkDescriptorBufferInfo> descBufferInfos;
 		std::vector<VkWriteDescriptorSet> descs;
@@ -243,7 +244,7 @@ VkDescriptorSet createBufferDescriptor(const VulkanWindow& window, VkDescriptorS
 		}
 
 		std::size_t numSets = descs.size();
-		vkUpdateDescriptorSets(window.device->device, numSets, descs.data(), 0, nullptr);
+		vkUpdateDescriptorSets(window.getDevice()->getDevice(), numSets, descs.data(), 0, nullptr);
 	}
 
 	return bufferDescriptor;

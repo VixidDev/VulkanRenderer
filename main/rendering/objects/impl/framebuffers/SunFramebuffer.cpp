@@ -1,17 +1,19 @@
 #include "SunFramebuffer.hpp"
 
 #include "../../../PipelineCreation.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 
 SunFramebuffer::SunFramebuffer(
 	VulkanWindow* window,
 	std::map<std::string, _TextureBuffer>* textureBuffers,
 	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount) : Framebuffer(window) {
+	VkSampleCountFlagBits* sampleCount) : Framebuffer(window) 
+{
 	this->textureBuffers = textureBuffers;
 	this->renderPass = renderPass;
 	this->sampleCount = sampleCount;
 
-	this->renderExtent = &this->window->swapchainExtent;
+	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
 	this->recreate();
 }

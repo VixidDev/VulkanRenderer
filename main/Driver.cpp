@@ -14,12 +14,12 @@ int Driver::init() {
 	this->timestampManager = TimestampManager(&this->renderer.getContext());
 
 	// Set GLFW user pointer
-	glfwSetWindowUserPointer(window.window, &this->state);
+	glfwSetWindowUserPointer(window.getGLFWwindow(), &this->state);
 
 	// Set GLFW callbacks
-	glfwSetKeyCallback(window.window, &Callbacks::onKey);
-	glfwSetMouseButtonCallback(window.window, &Callbacks::onMouseButton);
-	glfwSetCursorPosCallback(window.window, &Callbacks::onMouseMove);
+	glfwSetKeyCallback(window.getGLFWwindow(), &Callbacks::onKey);
+	glfwSetMouseButtonCallback(window.getGLFWwindow(), &Callbacks::onMouseButton);
+	glfwSetCursorPosCallback(window.getGLFWwindow(), &Callbacks::onMouseMove);
 
 	// Init GUI
 	this->gui = GUI(this);
@@ -73,15 +73,16 @@ void Driver::run() {
 
 	Timepoint previous = Clock::now();
 
-	while (!glfwWindowShouldClose(window.window)) {
+	while (!glfwWindowShouldClose(window.getGLFWwindow())) {
 		// Calculate time delta
 		const Timepoint now = Clock::now();
-		const float timeDelta = std::chrono::duration_cast<Seconds>(now - previous).count();
+		this->timeDelta = std::chrono::duration_cast<Seconds>(now - previous).count();
 		previous = now;
 
 		// Poll IO events
 		glfwPollEvents();
 
+		this->gui.calculateFPS(this->timeDelta);
 		this->gui.prepare();
 	
 		if (this->renderer.checkSwapchain())
@@ -90,7 +91,7 @@ void Driver::run() {
 		if (this->renderer.acquireSwapchainImage())
 			continue;
 		
-		this->renderer.update(timeDelta);
+		this->renderer.update(this->timeDelta);
 		this->renderer.render();
 		this->renderer.submitRender();
 	}
@@ -104,6 +105,10 @@ Renderer& Driver::getRenderer() {
 
 TimestampManager& Driver::getTimestampManager() {
 	return this->timestampManager;
+}
+
+const float Driver::getTimeDelta() const {
+	return this->timeDelta;
 }
 
 std::vector<std::pair<vk::Image, vk::ImageView>>& Driver::getSceneTextures() {

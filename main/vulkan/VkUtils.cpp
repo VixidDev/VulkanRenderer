@@ -8,6 +8,7 @@
 #include "Error.hpp"
 #include "toString.hpp"
 #include "VulkanDevice.hpp"
+#include "Swapchain.hpp"
 
 namespace VkUtils {
 
@@ -19,7 +20,7 @@ namespace VkUtils {
 		cbufInfo.commandBufferCount = 1;
 
 		VkCommandBuffer cbuff = VK_NULL_HANDLE;
-		if (const auto res = vkAllocateCommandBuffers(window.device->device, &cbufInfo, &cbuff); VK_SUCCESS != res) {
+		if (const auto res = vkAllocateCommandBuffers(window.getDevice()->getDevice(), &cbufInfo, &cbuff); VK_SUCCESS != res) {
 			throw Utils::Error("Unable to allocate command buffers\n vkAllocateCommandBuffers() returned %s", Utils::toString(res).c_str());
 		}
 
@@ -51,13 +52,13 @@ namespace VkUtils {
 		submitInfo.commandBufferCount = 1;
 		submitInfo.pCommandBuffers = &cmdBuff;
 
-		if (const auto res = vkQueueSubmit(window.graphicsQueue, 1, &submitInfo, uploadComplete.handle); VK_SUCCESS != res)
+		if (const auto res = vkQueueSubmit(window.getDevice()->getGraphicsQueue(), 1, &submitInfo, uploadComplete.handle); VK_SUCCESS != res)
 			throw Utils::Error("Unable to queue submit\n vkQueueSubmit() returned %s", Utils::toString(res).c_str());
 
-		if (const auto res = vkWaitForFences(window.device->device, 1, &uploadComplete.handle, VK_TRUE, std::numeric_limits<std::uint64_t>::max()); VK_SUCCESS != res)
+		if (const auto res = vkWaitForFences(window.getDevice()->getDevice(), 1, &uploadComplete.handle, VK_TRUE, std::numeric_limits<std::uint64_t>::max()); VK_SUCCESS != res)
 			throw Utils::Error("Unable to wait for fences\n vkWaitForFences() returned %s", Utils::toString(res).c_str());
 
-		vkFreeCommandBuffers(window.device->device, window.device.get()->cmdPool, 1, &cmdBuff);
+		vkFreeCommandBuffers(window.getDevice()->getDevice(), window.getDevice()->getCmdPool(), 1, &cmdBuff);
 	}
 
 	vk::Fence createFence(const VulkanWindow& window, VkFenceCreateFlags createFlags) {
@@ -66,11 +67,11 @@ namespace VkUtils {
 		fenceInfo.flags = createFlags;
 
 		VkFence fence = VK_NULL_HANDLE;
-		if (const auto res = vkCreateFence(window.device->device, &fenceInfo, nullptr, &fence); VK_SUCCESS != res) {
+		if (const auto res = vkCreateFence(window.getDevice()->getDevice(), &fenceInfo, nullptr, &fence); VK_SUCCESS != res) {
 			throw Utils::Error("Unable to create fence\n vkCreateFence() returned %s", Utils::toString(res).c_str());
 		}
 
-		return vk::Fence(window.device->device, fence);
+		return vk::Fence(window.getDevice()->getDevice(), fence);
 	}
 
 	vk::Semaphore createSemaphore(const VulkanWindow& window) {
@@ -78,26 +79,26 @@ namespace VkUtils {
 		semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
 		VkSemaphore semaphore = VK_NULL_HANDLE;
-		if (const auto res = vkCreateSemaphore(window.device->device, &semaphoreInfo, nullptr, &semaphore); VK_SUCCESS != res)
+		if (const auto res = vkCreateSemaphore(window.getDevice()->getDevice(), &semaphoreInfo, nullptr, &semaphore); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create semaphore\n vkCreateSemaphore() returned %s", Utils::toString(res).c_str());
 
-		return vk::Semaphore(window.device->device, semaphore);
+		return vk::Semaphore(window.getDevice()->getDevice(), semaphore);
 	}
 
 	void waitForFences(const VulkanWindow& window, std::vector<vk::Fence>& fences, std::size_t frameIndex) {
-		if (const auto res = vkWaitForFences(window.device->device, 1, &fences[frameIndex].handle, VK_TRUE, std::numeric_limits<std::uint64_t>::max()); VK_SUCCESS != res)
+		if (const auto res = vkWaitForFences(window.getDevice()->getDevice(), 1, &fences[frameIndex].handle, VK_TRUE, std::numeric_limits<std::uint64_t>::max()); VK_SUCCESS != res)
 			throw Utils::Error("Unable to wait for frame fence %u\n vkWaitForFences() returned %s", frameIndex, Utils::toString(res).c_str());
 	}
 
 	void resetFences(const VulkanWindow& window, std::vector<vk::Fence>& fences, std::size_t frameIndex) {
-		if (const auto res = vkResetFences(window.device->device, 1, &fences[frameIndex].handle); VK_SUCCESS != res)
+		if (const auto res = vkResetFences(window.getDevice()->getDevice(), 1, &fences[frameIndex].handle); VK_SUCCESS != res)
 			throw Utils::Error("Unable to reset frame fence %u\n vkResetFences() returned %s", frameIndex, Utils::toString(res).c_str());
 	}
 
 	VkResult acquireNextSwapchainImage(const VulkanWindow& window, std::vector<vk::Semaphore>& semaphores, std::size_t frameIndex, std::uint32_t& imageIndex) {
 		const VkResult acquireResult = vkAcquireNextImageKHR(
-			window.device->device,
-			window.swapchain,
+			window.getDevice()->getDevice(),
+			window.getSwapchain()->getHandle(),
 			std::numeric_limits<std::uint64_t>::max(),
 			semaphores[frameIndex].handle,
 			VK_NULL_HANDLE,
@@ -121,14 +122,14 @@ namespace VkUtils {
 		allocInfo.pSetLayouts = &descSetLayout;
 
 		VkDescriptorSet dset = VK_NULL_HANDLE;
-		if (const auto res = vkAllocateDescriptorSets(window.device->device, &allocInfo, &dset); VK_SUCCESS != res)
+		if (const auto res = vkAllocateDescriptorSets(window.getDevice()->getDevice(), &allocInfo, &dset); VK_SUCCESS != res)
 			throw Utils::Error("Unable to allocate descriptor set\n vkAllocateDescriptorSets() returned %s", Utils::toString(res).c_str());
 
 		return dset;
 	}
 
 	vk::Sampler createTextureSampler(const VulkanWindow& window, SamplerInfo samplerInfo) {
-		bool deviceEnabledAnisotropy = window.getDeviceFeatures().features.samplerAnisotropy;
+		bool deviceEnabledAnisotropy = window.getDevice()->getDeviceFeatures().features.samplerAnisotropy;
 
 		VkSamplerCreateInfo samplerCreateInfo{};
 		samplerCreateInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -148,10 +149,10 @@ namespace VkUtils {
 		samplerCreateInfo.borderColor = samplerInfo.borderColor;
 
 		VkSampler sampler = VK_NULL_HANDLE;
-		if (const auto res = vkCreateSampler(window.device->device, &samplerCreateInfo, nullptr, &sampler); VK_SUCCESS != res)
+		if (const auto res = vkCreateSampler(window.getDevice()->getDevice(), &samplerCreateInfo, nullptr, &sampler); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create sampler\n vkCreateSampler() returned %s", Utils::toString(res).c_str());
 
-		return vk::Sampler(window.device->device, sampler);
+		return vk::Sampler(window.getDevice()->getDevice(), sampler);
 	}
 
 	vk::Sampler createDefaultSampler(const VulkanWindow& window) {
@@ -168,10 +169,10 @@ namespace VkUtils {
 		samplerInfo.mipLodBias = 0.0f;
 
 		VkSampler sampler = VK_NULL_HANDLE;
-		if (const auto res = vkCreateSampler(window.device->device, &samplerInfo, nullptr, &sampler); VK_SUCCESS != res)
+		if (const auto res = vkCreateSampler(window.getDevice()->getDevice(), &samplerInfo, nullptr, &sampler); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create sampler\n vkCreateSampler() returned %s", Utils::toString(res).c_str());
 
-		return vk::Sampler(window.device->device, sampler);
+		return vk::Sampler(window.getDevice()->getDevice(), sampler);
 	}
 
 	vk::Sampler createShadowSampler(const VulkanWindow& window) {
@@ -189,10 +190,10 @@ namespace VkUtils {
 		samplerInfo.mipLodBias = 0.0f;
 
 		VkSampler sampler = VK_NULL_HANDLE;
-		if (const auto res = vkCreateSampler(window.device->device, &samplerInfo, nullptr, &sampler); VK_SUCCESS != res)
+		if (const auto res = vkCreateSampler(window.getDevice()->getDevice(), &samplerInfo, nullptr, &sampler); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create sampler\n vkCreateSampler() returned %s", Utils::toString(res).c_str());
 
-		return vk::Sampler(window.device->device, sampler);
+		return vk::Sampler(window.getDevice()->getDevice(), sampler);
 	}
 
 	void bufferBarrier(
@@ -205,8 +206,7 @@ namespace VkUtils {
 		VkDeviceSize size,
 		VkDeviceSize offset,
 		uint32_t srcQueueFamilyIndex,
-		uint32_t dstQueueFamilyIndex) 
-	{
+		uint32_t dstQueueFamilyIndex) {
 		VkBufferMemoryBarrier bbarrier{};
 		bbarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 		bbarrier.srcAccessMask = srcAccessMask;
@@ -242,8 +242,7 @@ namespace VkUtils {
 		VkPipelineStageFlags dstStageMask,
 		VkImageSubresourceRange range,
 		std::uint32_t srcQueueFamilyIndex,
-		std::uint32_t dstQueueFamilyIndex) 
-	{
+		std::uint32_t dstQueueFamilyIndex) {
 		VkImageMemoryBarrier ibarrier{};
 		ibarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		ibarrier.image = image;
@@ -266,21 +265,20 @@ namespace VkUtils {
 		};
 
 		VkQueryPool queryPool = VK_NULL_HANDLE;
-		if (const auto res = vkCreateQueryPool(window.device->device, &queryPoolInfo, nullptr, &queryPool); VK_SUCCESS != res)
+		if (const auto res = vkCreateQueryPool(window.getDevice()->getDevice(), &queryPoolInfo, nullptr, &queryPool); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create query pool\nvkCreateQueryPool(): returned %s\n", Utils::toString(res).c_str());
 
-		return vk::QueryPool(window.device->device, queryPool);
+		return vk::QueryPool(window.getDevice()->getDevice(), queryPool);
 	}
 
 	void getQueryPoolResults(
-		const VulkanWindow& window, 
-		vk::QueryPool& queryPool, 
-		std::vector<std::uint64_t>& queryResults, 
+		const VulkanWindow& window,
+		vk::QueryPool& queryPool,
+		std::vector<std::uint64_t>& queryResults,
 		std::uint32_t queryCount,
-		VkQueryResultFlags resultFlags) 
-	{
+		VkQueryResultFlags resultFlags) {
 		const VkResult res = vkGetQueryPoolResults(
-			window.device->device,
+			window.getDevice()->getDevice(),
 			queryPool.handle,
 			0, queryCount,
 			queryCount * sizeof(std::uint64_t),

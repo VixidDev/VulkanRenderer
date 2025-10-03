@@ -15,7 +15,7 @@ public:
 		TextureBuffer* textureBuffer,
 		RenderPass* renderPass,
 		std::uint32_t arraySize,
-		VkExtent2D* shadowMapResolution);
+		VkExtent2D* renderExtent);
 
 	void recreate();
 private:

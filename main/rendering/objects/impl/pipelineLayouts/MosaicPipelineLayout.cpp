@@ -15,5 +15,5 @@ void MosaicPipelineLayout::recreate() {
 
 	std::vector<VkPushConstantRange> pushConstants;
 
-	this->pipelineLayout = createPipelineLayout(*this->window, layouts, pushConstants);
+	this->pipelineLayout = createPipelineLayout(*this->window->getDevice(), layouts, pushConstants);
 }

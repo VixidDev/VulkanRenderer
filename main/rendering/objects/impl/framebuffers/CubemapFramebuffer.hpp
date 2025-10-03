@@ -14,7 +14,7 @@ public:
 		VulkanWindow* window,
 		TextureBuffer* textureBuffer,
 		RenderPass* renderPass,
-		VkExtent2D* shadowMapResolution);
+		VkExtent2D* renderExtent);
 
 	void recreate();
 private:

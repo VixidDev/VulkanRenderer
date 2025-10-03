@@ -39,6 +39,7 @@ void BloomPostProcess::apply(Framebuffer* framebuffer, std::uint32_t imageIndex,
 	VkDescriptorSet renderTarget1 = this->blurOutput->getHandle();
 	VkDescriptorSet renderTarget2 = this->intermediate2Output->getHandle();
 
+	// Ping-pong example for 10 iterations (just to help visualise destination render targets)
 	// i = 0 - read: brightness   - write: intermediate
 	// i = 1 - read: intermediate - write: blur        
 	// i = 2 - read: blur		  - write: intermediate

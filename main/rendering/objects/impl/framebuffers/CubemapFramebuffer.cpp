@@ -12,11 +12,11 @@ CubemapFramebuffer::CubemapFramebuffer(
 	VulkanWindow* window,
 	TextureBuffer* textureBuffer,
 	RenderPass* renderPass,
-	VkExtent2D* shadowMapResolution) : Framebuffer(window) {
+	VkExtent2D* renderExtent) : Framebuffer(window) {
 	this->textureBuffer = textureBuffer;
 	this->renderPass = renderPass;
 
-	this->renderExtent = shadowMapResolution;
+	this->renderExtent = renderExtent;
 
 	this->recreate();
 }
@@ -41,12 +41,12 @@ void CubemapFramebuffer::recreate() {
 		imageView[0] = dynamic_cast<CubemapDepthTextureBuffer*>(this->textureBuffer)->getFramebufferViews()[i].handle;
 
 		VkFramebuffer fb = VK_NULL_HANDLE;
-		if (const auto res = vkCreateFramebuffer(this->window->device->device, &fbInfo, nullptr, &fb); VK_SUCCESS != res)
+		if (const auto res = vkCreateFramebuffer(this->window->getDevice()->getDevice(), &fbInfo, nullptr, &fb); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create framebuffer for swap chain image %zu\n vkCreateFramebuffer() returned %s", i, Utils::toString(res).c_str());
-		
+
 		// NOTE: This must not be indexed via the imageIndex, rather indexed by the face being rendered to.
 		// While this is counter-intuitive to how framebuffers are indexed in the Renderer.cpp I elected to do this
 		// to avoid complicating specific objects and requiring downcasting just to correctly use the object.
-		this->framebuffers.emplace_back(vk::Framebuffer(this->window->device->device, fb));
+		this->framebuffers.emplace_back(vk::Framebuffer(this->window->getDevice()->getDevice(), fb));
 	}
 }

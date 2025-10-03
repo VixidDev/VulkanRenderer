@@ -55,11 +55,11 @@ void PostProcessPass::recreate() {
 	passInfo.pDependencies = deps;
 
 	VkRenderPass rpass = VK_NULL_HANDLE;
-	if (const auto res = vkCreateRenderPass(this->window->device->device, &passInfo, nullptr, &rpass); VK_SUCCESS != res) {
+	if (const auto res = vkCreateRenderPass(this->window->getDevice()->getDevice(), &passInfo, nullptr, &rpass); VK_SUCCESS != res) {
 		throw Utils::Error("Unable to create render pass\n vkCreateRenderPass() returned %s\n", Utils::toString(res).c_str());
 	}
 
-	this->renderPass = vk::RenderPass(this->window->device->device, rpass);
+	this->renderPass = vk::RenderPass(this->window->getDevice()->getDevice(), rpass);
 
 	VkClearValue colourClearValue{};
 	colourClearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };

@@ -3,6 +3,7 @@
 #include "../../../PipelineCreation.hpp"
 #include "../../../../vulkan/VulkanContext.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
@@ -18,7 +19,7 @@ ArrayColourTextureBuffer::ArrayColourTextureBuffer(
 	this->format = format;
 
 	if (!renderExtent)
-		this->renderExtent = &this->context->window->swapchainExtent;
+		this->renderExtent = &this->context->window->getSwapchain()->getExtent();
 	else
 		this->renderExtent = renderExtent;
 
@@ -74,10 +75,10 @@ void ArrayColourTextureBuffer::recreate() {
 	}
 
 	VkImageView view = VK_NULL_HANDLE;
-	if (const auto res = vkCreateImageView(this->context->window->device->device, &viewInfo, nullptr, &view); VK_SUCCESS != res)
+	if (const auto res = vkCreateImageView(this->context->window->getDevice()->getDevice(), &viewInfo, nullptr, &view); VK_SUCCESS != res)
 		throw Utils::Error("Unable to create image view.\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
 
-	this->descriptorView = vk::ImageView(this->context->window->device->device, view);
+	this->descriptorView = vk::ImageView(this->context->window->getDevice()->getDevice(), view);
 
 	// If array size is 0, we most likely are not writing to this texture via a framebuffer
 	if (this->arraySize == 0) {
@@ -96,10 +97,10 @@ void ArrayColourTextureBuffer::recreate() {
 		viewInfo.subresourceRange.baseArrayLayer = element;
 
 		VkImageView framebufferView = VK_NULL_HANDLE;
-		if (const auto res = vkCreateImageView(this->context->window->device->device, &viewInfo, nullptr, &framebufferView); VK_SUCCESS != res)
+		if (const auto res = vkCreateImageView(this->context->window->getDevice()->getDevice(), &viewInfo, nullptr, &framebufferView); VK_SUCCESS != res)
 			throw Utils::Error("Unable to create image view.\n vkCreateImageView() returned %s", Utils::toString(res).c_str());
 
-		this->framebufferViews.emplace_back(vk::ImageView(this->context->window->device->device, framebufferView));
+		this->framebufferViews.emplace_back(vk::ImageView(this->context->window->getDevice()->getDevice(), framebufferView));
 	}
 
 	TextureBuffer::recreate();

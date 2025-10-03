@@ -37,5 +37,5 @@ void ShadowPipelineLayout::recreate() {
 	pushConstants.emplace_back(projectionType);
 #endif
 
-	this->pipelineLayout = createPipelineLayout(*this->window, shadowLayouts, pushConstants);
+	this->pipelineLayout = createPipelineLayout(*this->window->getDevice(), shadowLayouts, pushConstants);
 }

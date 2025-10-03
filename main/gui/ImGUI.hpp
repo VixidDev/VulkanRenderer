@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include <volk/volk.h>
 
 class Driver;
@@ -13,6 +15,8 @@ public:
 
 	void init(VkRenderPass guiRenderPass);
 	void prepare();
+
+	void calculateFPS(float timeDelta);
 private:
 	Driver* driver = nullptr;
 
@@ -25,6 +29,11 @@ private:
 	int spotLightShadowIndex = 0;
 
 	int selectedLight = 0;
+
+	int frames = 0;
+	int avgFps = 0;
+	float avgFrameTime = 0.0f, secondTimer = 1.0f;
+	std::vector<float> frameTimes;
 
 	void draw();
 };

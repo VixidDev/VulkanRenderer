@@ -1,6 +1,7 @@
 #include "Intermediate2Framebuffer.hpp"
 
 #include "../../../PipelineCreation.hpp"
+#include "../../../../vulkan/Swapchain.hpp"
 
 Intermediate2Framebuffer::Intermediate2Framebuffer(
 	VulkanWindow* window,
@@ -8,8 +9,9 @@ Intermediate2Framebuffer::Intermediate2Framebuffer(
 	RenderPass* renderPass
 ) : textureBuffers(textureBuffers),
 	renderPass(renderPass),
-	Framebuffer(window) {
-	this->renderExtent = &this->window->swapchainExtent;
+	Framebuffer(window) 
+{
+	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
 	this->recreate();
 }

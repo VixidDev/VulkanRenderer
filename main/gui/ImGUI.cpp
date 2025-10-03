@@ -9,10 +9,14 @@
 #include "../Driver.hpp"
 #include "../rendering/Renderer.hpp"
 #include "../vulkan/VulkanDevice.hpp"
+#include "../vulkan/Swapchain.hpp"
 
 #include "../rendering/objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
+#include <numeric>
 
-GUI::GUI(Driver* driver) : driver(driver) {}
+GUI::GUI(Driver* driver) : driver(driver) {
+	this->frameTimes.reserve(1000);
+}
 
 void GUI::init(VkRenderPass guiRenderPass) {
 	IMGUI_CHECKVERSION();
@@ -22,21 +26,22 @@ void GUI::init(VkRenderPass guiRenderPass) {
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
 	VulkanWindow* window = this->driver->getRenderer().getContext().window.get();
-	GLFWwindow* glfwWindow = window->window;
+	VulkanDevice* device = window->getDevice();
+	GLFWwindow* glfwWindow = window->getGLFWwindow();
 
 	ImGui_ImplGlfw_InitForVulkan(glfwWindow, true);
 
 	ImGui_ImplVulkan_InitInfo initInfo{};
-	initInfo.Instance = window->instance;
-	initInfo.PhysicalDevice = window->physicalDevice;
-	initInfo.Device = window->device->device;
-	initInfo.QueueFamily = window->graphicsFamilyIndex;
-	initInfo.Queue = window->graphicsQueue;
-	initInfo.DescriptorPool = window->device->descPool;
+	initInfo.Instance = window->getInstance();
+	initInfo.PhysicalDevice = device->getPhysicalDevice();
+	initInfo.Device = device->getDevice();
+	initInfo.QueueFamily = device->getGraphicsFamilyIndex();
+	initInfo.Queue = device->getGraphicsQueue();
+	initInfo.DescriptorPool = device->getDescPool();
 	initInfo.RenderPass = guiRenderPass;
 	initInfo.Subpass = 0;
 	initInfo.MinImageCount = 2;
-	initInfo.ImageCount = window->minImageCount;
+	initInfo.ImageCount = window->getSwapchain()->getMinImageCount();
 	initInfo.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 	initInfo.CheckVkResultFn = [](VkResult err) {
 		if (err != VK_SUCCESS)
@@ -81,6 +86,19 @@ void GUI::draw() {
 
 	if (ImGui::BeginTabBar("Main Debug Menu")) {
 		if (ImGui::BeginTabItem("Main")) {
+			// Present mode
+			ImGui::Text("Present Mode:");
+			
+			const std::vector<std::string>& presentModeStrings = renderer.getContext().window->getSwapchain()->getPresentModeStrings();
+			int& presentMode = renderer.getContext().window->getSwapchain()->getPresentMode();
+			for (std::size_t i = 0; i < presentModeStrings.size(); i++) {
+				if (ImGui::RadioButton(presentModeStrings[i].c_str(), &presentMode, i)) {
+					renderer.setRecreateSwapchain(true, true);
+				}
+			}
+
+			ImGui::Separator();
+
 			// Renderer type
 			ImGui::Text("Rendering type:");
 			ImGui::RadioButton("Forward", &renderer.getRenderingType(), 0); ImGui::SameLine();
@@ -203,10 +221,16 @@ void GUI::draw() {
 	// Performance Window
 	ImGui::Begin("Performance");
 
+	float frameTime = this->driver->getTimeDelta();
+	ImGui::Text("FPS: %d - Avg FPS: %d", static_cast<int>(1 / frameTime), this->avgFps);
+	ImGui::Text("Frame Time: %.3f ms - Avg Frame Time: %.3f ms", frameTime * 1000.0f, this->avgFrameTime * 1000.0f);
+
+	ImGui::Separator();
+
 	ImGui::Text("GPU times:");
 
 	// Get timestamp period
-	float timestampPeriod = renderer.getContext().window->getDeviceProperties().limits.timestampPeriod;
+	float timestampPeriod = renderer.getContext().window->getDevice()->getDeviceProperties().limits.timestampPeriod;
 
 	TimestampManager& timestampManager = this->driver->getTimestampManager();
 	TimestampReferences& gpuTimestampReferences = timestampManager.getGPUTimestampReferences();
@@ -274,5 +298,19 @@ void GUI::draw() {
 		ImGui::Image((ImTextureID)renderer.getDescriptorSet("sunView")->getHandle(), ImVec2(static_cast<float>(this->sunViewSize[0]), static_cast<float>(this->sunViewSize[1])));
 
 		ImGui::End();
+	}
+}
+
+void GUI::calculateFPS(float timeDelta) {
+	this->frames++;
+	this->frameTimes.emplace_back(timeDelta);
+
+	this->secondTimer -= timeDelta;
+	if (this->secondTimer <= 0.0f) {
+		this->avgFrameTime = std::reduce(this->frameTimes.begin(), this->frameTimes.end()) / this->frames;
+		this->avgFps = 1 / this->avgFrameTime;
+		this->frameTimes.clear();
+		this->frames = 0;
+		this->secondTimer = 1.0f;
 	}
 }

@@ -5,7 +5,8 @@
 BloomPipelineLayout::BloomPipelineLayout(VulkanWindow* window,
 	std::map<std::string, vk::DescriptorSetLayout>* descriptorLayouts
 ) : descriptorLayouts(descriptorLayouts),
-	PipelineLayout(window) {
+	PipelineLayout(window) 
+{
 	this->recreate();
 }
 
@@ -21,5 +22,5 @@ void BloomPipelineLayout::recreate() {
 	std::vector<VkPushConstantRange> pushConstants;
 	pushConstants.emplace_back(directionPushConstant);
 
-	this->pipelineLayout = createPipelineLayout(*this->window, layouts, pushConstants);
+	this->pipelineLayout = createPipelineLayout(*this->window->getDevice(), layouts, pushConstants);
 }
