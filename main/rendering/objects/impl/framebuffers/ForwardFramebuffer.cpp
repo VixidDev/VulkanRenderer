@@ -24,7 +24,7 @@ void ForwardFramebuffer::recreate() {
 	bool usingMSAA = !(*this->sampleCount & VK_SAMPLE_COUNT_1_BIT);
 
 	std::vector<VkImageView> views;
-	views.emplace_back(this->textureBuffers->at("colour")->getImageView().handle);
+	views.emplace_back(this->textureBuffers->at("HDR")->getImageView().handle);
 	views.emplace_back(this->textureBuffers->at("brightness")->getImageView().handle);
 	views.emplace_back(this->textureBuffers->at("depth")->getImageView().handle);
 

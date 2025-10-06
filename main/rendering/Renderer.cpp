@@ -17,6 +17,7 @@
 #include "objects/impl/renderPasses/GUIPass.hpp"
 #include "objects/impl/renderPasses/SunViewPass.hpp"
 #include "objects/impl/renderPasses/PostProcessPass.hpp"
+#include "objects/impl/renderPasses/TonemapPass.hpp"
 
 #include "objects/impl/pipelineLayouts/ForwardPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/DeferredWritingPipelineLayout.hpp"
@@ -30,6 +31,7 @@
 #include "objects/impl/pipelineLayouts/CompositionPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/MosaicPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/SunViewPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/TonemapPipelineLayout.hpp"
 
 #include "objects/impl/pipelines/ForwardPipeline.hpp"
 #include "objects/impl/pipelines/DeferredWritingPipeline.hpp"
@@ -43,6 +45,8 @@
 #include "objects/impl/pipelines/BloomPipeline.hpp"
 #include "objects/impl/pipelines/CompositionPipeline.hpp"
 #include "objects/impl/pipelines/SunViewPipeline.hpp"
+#include "objects/impl/pipelines/TonemapPipeline.hpp"
+#include "objects/impl/pipelines/FXAAPipeline.hpp"
 
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/CubemapDepthTextureBuffer.hpp"
@@ -59,17 +63,16 @@
 #include "objects/impl/framebuffers/ArrayFramebuffer.hpp"
 #include "objects/impl/framebuffers/GUIFramebuffer.hpp"
 #include "objects/impl/framebuffers/SunFramebuffer.hpp"
-#include "objects/impl/framebuffers/OutputFramebuffer.hpp"
-#include "objects/impl/framebuffers/IntermediateFramebuffer.hpp"
-#include "objects/impl/framebuffers/Intermediate2Framebuffer.hpp"
-#include "objects/impl/framebuffers/BlurFramebuffer.hpp"
+#include "objects/impl/framebuffers/WriteToTargetFramebuffer.hpp"
 
 #include "objects/impl/descriptorSets/BufferDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ImageDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
 
-#include "postProcessing/MosaicPostProcess.hpp"
 #include "postProcessing/BloomPostProcess.hpp"
+#include "postProcessing/TonemapPostProcess.hpp"
+#include "postProcessing/FXAAPostProcess.hpp"
+#include "postProcessing/MosaicPostProcess.hpp"
 
 #include "../vulkan/Swapchain.hpp"
 #include "../vulkan/VulkanDevice.hpp"
@@ -100,6 +103,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->renderPasses.emplace("gui", std::make_unique<GUIPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("sunView", std::make_unique<SunViewPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("postProcess", std::make_unique<PostProcessPass>(window));
+	this->renderPasses.emplace("tonemap", std::make_unique<TonemapPass>(window));
 
 	// Descriptor Set Layouts
 	std::vector<DescriptorSetting> uniformBufferV = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT } };
@@ -137,6 +141,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("bloom", std::make_unique<BloomPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("mosaic", std::make_unique<MosaicPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("composition", std::make_unique<CompositionPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("tonemap", std::make_unique<TonemapPipelineLayout>(window, &this->descriptorSetLayouts));
 	
 	// Debug pipeline layouts
 	this->pipelineLayouts.emplace("sunView", std::make_unique<SunViewPipelineLayout>(window, &this->descriptorSetLayouts));
@@ -159,6 +164,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("postProcess")));
 	this->pipelines.emplace("bloom", std::make_unique<BloomPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("postProcess")));
 	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->getPipelineLayout("composition"), this->getRenderPass("postProcess")));
+	this->pipelines.emplace("tonemap", std::make_unique<TonemapPipeline>(window, this->getPipelineLayout("tonemap"), this->getRenderPass("tonemap")));
+	this->pipelines.emplace("fxaa", std::make_unique<FXAAPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("tonemap")));
 
 	// Debug pipelines
 	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
@@ -167,13 +174,16 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("forward"), &this->sampleCountSetting));
 
 	// Texture Buffers
-	// colour - output buffer after geometry and lighting
-	this->textureBuffers.emplace("colour", std::make_unique<ColourTextureBuffer>(&this->context));
+	// HDR - output buffer after geometry and lighting (HDR rendering)
+	// LDR - output to be used after tonemapping and subsequent post processing effects
+	this->textureBuffers.emplace("HDR", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("LDR", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 	// brightness - buffer used to render scene brightness as input for bloom post processing
 	this->textureBuffers.emplace("brightness", std::make_unique<ColourTextureBuffer>(&this->context));
 	// intermediate - intermediate buffers used during post processing effects
-	this->textureBuffers.emplace("intermediate", std::make_unique<ColourTextureBuffer>(&this->context));
-	this->textureBuffers.emplace("intermediate2", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("intermediateHDR", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("intermediateHDR2", std::make_unique<ColourTextureBuffer>(&this->context));
+	this->textureBuffers.emplace("intermediateLDR", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 	// depth - standard depth buffer
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
 	// gBuffers - g-buffers used in deferred rendering
@@ -196,12 +206,13 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->framebuffers.emplace("sunView", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->getRenderPass("sunView"), &this->sampleCountSetting));
 	// gui - writes directly to swapchain buffer
 	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->getRenderPass("gui")));
-	// writeTo(output/intermediate) - 2 framebuffers to ping-pong writing to "colour" and "intermediate" buffers during post processing
-	this->framebuffers.emplace("writeToOutput", std::make_unique<OutputFramebuffer>(window, &this->textureBuffers, this->getRenderPass("postProcess")));
-	this->framebuffers.emplace("writeToIntermediate", std::make_unique<IntermediateFramebuffer>(window, &this->textureBuffers, this->getRenderPass("postProcess")));
-	this->framebuffers.emplace("writeToIntermediate2", std::make_unique<Intermediate2Framebuffer>(window, &this->textureBuffers, this->getRenderPass("postProcess")));
-	// writeToBlur - writes to blurOutput
-	this->framebuffers.emplace("writeToBlur", std::make_unique<BlurFramebuffer>(window, &this->textureBuffers, this->getRenderPass("postProcess")));
+	// writeTo - framebuffers used to write to a single render target, usually used to ping-pong writing to buffers during post processing
+	this->framebuffers.emplace("writeToHDR", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("HDR"), this->getRenderPass("postProcess")));
+	this->framebuffers.emplace("writeToLDR", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("LDR"), this->getRenderPass("tonemap")));
+	this->framebuffers.emplace("writeToIntermediateHDR", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("intermediateHDR"), this->getRenderPass("postProcess")));
+	this->framebuffers.emplace("writeToIntermediateHDR2", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("intermediateHDR2"), this->getRenderPass("postProcess")));
+	this->framebuffers.emplace("writeToIntermediateLDR", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("intermediateLDR"), this->getRenderPass("tonemap")));
+	this->framebuffers.emplace("writeToBlur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("blurOutput"), this->getRenderPass("postProcess")));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -238,8 +249,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL
 	};
 	this->shadowMapSampler = VkUtils::createTextureSampler(*window, shadowMapSamplerInfo);
-	// Need a separate sampler that clamps to edge when sampling from textures such as the
-	// brightness one for bloom ppe
+	// Need a separate sampler that clamps to edge when sampling from textures such as
+	// brightness for bloom ppe
 	SamplerInfo brightnessSamplerInfo = {
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
@@ -250,6 +261,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->brightnessSampler = VkUtils::createTextureSampler(*window, brightnessSamplerInfo);
 
 	// Descriptor Sets
+	// (this looks unbearably messy, surely there is a nicer way of defining what makes up a descriptor
+	// set than this)
 	std::vector<DescriptorBufferSetting> mvpDescriptorSettings = {
 		{ this->getUniformBuffer("mvp")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorBufferSetting> cameraPlanesDescriptorSettings = {
@@ -261,12 +274,16 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE } };
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
 		{ this->getTextureBuffer("sunView"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
-	std::vector<DescriptorImageSetting> colourOuputDescriptorSettings = {
-		{ this->getTextureBuffer("colour"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
-	std::vector<DescriptorImageSetting> intermediateImageDescriptorSettings = {
-		{ this->getTextureBuffer("intermediate"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
-	std::vector<DescriptorImageSetting> intermediate2ImageDescriptorSettings = {
-		{ this->getTextureBuffer("intermediate2"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
+	std::vector<DescriptorImageSetting> HDROuputDescriptorSettings = {
+		{ this->getTextureBuffer("HDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+	std::vector<DescriptorImageSetting> LDROuputDescriptorSettings = {
+		{ this->getTextureBuffer("LDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+	std::vector<DescriptorImageSetting> intermediateHDRImageDescriptorSettings = {
+		{ this->getTextureBuffer("intermediateHDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+	std::vector<DescriptorImageSetting> intermediateHDR2ImageDescriptorSettings = {
+		{ this->getTextureBuffer("intermediateHDR2"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
+	std::vector<DescriptorImageSetting> intermediateLDRImageDescriptorSettings = {
+		{ this->getTextureBuffer("intermediateLDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 	std::vector<DescriptorImageSetting> brightnessImageDescriptorSettings = {
 		{ this->getTextureBuffer("brightness"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
 	std::vector<DescriptorImageSetting> blurImageDescriptorSettings = {
@@ -276,14 +293,18 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
 	this->descriptorSets.emplace("deferredInputs", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("deferredInputAttachments").handle, deferredInputsDescriptorSettings));
 	this->descriptorSets.emplace("sunView", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, sunViewDescriptorSettings));
-	this->descriptorSets.emplace("sceneOutput", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, colourOuputDescriptorSettings));
-	this->descriptorSets.emplace("intermediate", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediateImageDescriptorSettings));
-	this->descriptorSets.emplace("intermediate2", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediate2ImageDescriptorSettings));
+	this->descriptorSets.emplace("HDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, HDROuputDescriptorSettings));
+	this->descriptorSets.emplace("LDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, LDROuputDescriptorSettings));
+	this->descriptorSets.emplace("intermediateHDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediateHDRImageDescriptorSettings));
+	this->descriptorSets.emplace("intermediateHDR2", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediateHDR2ImageDescriptorSettings));
+	this->descriptorSets.emplace("intermediateLDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediateLDRImageDescriptorSettings));
 	this->descriptorSets.emplace("brightness", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, brightnessImageDescriptorSettings));
 	this->descriptorSets.emplace("blurOutput", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, blurImageDescriptorSettings));
 
 	// Post processing effects
 	this->postProcessingEffects.emplace_back(std::make_pair("bloom", std::make_unique<BloomPostProcess>(this)));
+	this->postProcessingEffects.emplace_back(std::make_pair("tonemap", std::make_unique<TonemapPostProcess>(this)));
+	this->postProcessingEffects.emplace_back(std::make_pair("fxaa", std::make_unique<FXAAPostProcess>(this)));
 	this->postProcessingEffects.emplace_back(std::make_pair("mosaic", std::make_unique<MosaicPostProcess>(this)));
 }
 
@@ -692,28 +713,66 @@ void Renderer::render() {
 	}
 
 	// Post processing effects
-	VkDescriptorSet readImage = this->getDescriptorSet("sceneOutput")->getHandle();
-	VkDescriptorSet writeImage = this->getDescriptorSet("intermediate")->getHandle();
+	VkDescriptorSet readHDR = this->getDescriptorSet("HDR")->getHandle();
+	VkDescriptorSet readLDR = this->getDescriptorSet("LDR")->getHandle();
+	VkDescriptorSet writeHDR = this->getDescriptorSet("intermediateHDR")->getHandle();
+	VkDescriptorSet writeLDR = this->getDescriptorSet("intermediateLDR")->getHandle();
 
-	Framebuffer* framebuffer1 = this->getFramebuffer("writeToIntermediate");
-	Framebuffer* framebuffer2 = this->getFramebuffer("writeToOutput");
+	// HDR framebuffers
+	WriteToTargetFramebuffer* framebufferHDR1 = dynamic_cast<WriteToTargetFramebuffer*>(this->getFramebuffer("writeToHDR"));
+	WriteToTargetFramebuffer* framebufferHDR2 = dynamic_cast<WriteToTargetFramebuffer*>(this->getFramebuffer("writeToIntermediateHDR"));
+	// LDR framebuffers
+	WriteToTargetFramebuffer* framebufferLDR1 = dynamic_cast<WriteToTargetFramebuffer*>(this->getFramebuffer("writeToLDR"));
+	WriteToTargetFramebuffer* framebufferLDR2 = dynamic_cast<WriteToTargetFramebuffer*>(this->getFramebuffer("writeToIntermediateLDR"));
 
-	bool useIntermediate = false;
+	// Construct pairs to ping-pong
+	VkDescriptorSetPair readImages{ readHDR, readLDR };
+	VkDescriptorSetPair writeImages{ writeHDR, writeLDR };
+
+	WriteToFramebufferPair framebuffers1{ framebufferHDR2, framebufferLDR2 }; // Intermediate HDR/LDR
+	WriteToFramebufferPair framebuffers2{ framebufferHDR1, framebufferLDR1 }; // HDR/LDR
+
+	// Swaps
+	// 0: - read: hdr, ldr				write: intermediate_hdr/ldr
+	// 1: - read: intermediate_hdr/ldr  write: hdr, ldr
+	// 2: - read: hdr, ldr				write: intermediate_hdr/ldr
+	// 3: - read: intermediate_hdr/ldr  write: hdr, ldr
+
+	// Example scenarios to visualise the read and write targets
+	// Scenario 1 - All PPE on
+	// 0: bloom   - read: hdr				write: intermediate_hdr
+	// 1: tonemap - read: intermediate_hdr  write: ldr
+	// 2: fxaa    - read: ldr				write: intermediate_ldr
+	// 3: moasic  - read: intermediate_ldr  write: ldr
+
+	// Scenario 2 - No bloom
+	// 0: tonemap - read: hdr				write: intermediate_ldr
+	// 1: fxaa    - read: intermediate_ldr  write: ldr
+	// 2: mosaic  - read: ldr				write: intermediate_ldr
+
+	// Scenario 3 - Just mosaic (tonemapping is forced on whenever
+	// an LDR dependent (fxaa or mosaic) pass is enabled)
+	// 0: tonemap - read: hdr				write: intermediate_ldr
+	// 1: mosaic  - read: intermediate_ldr  write: ldr
+
+	// Scenario 4 - Just tonemapping
+	// 0: tonemap - read: hdr				write: intermediate_ldr
+
+	// Need to keep track of the last written to texture buffer so we know
+	// which to blit to the swapchain image
+	TextureBuffer* lastWrittenToImage = this->getTextureBuffer("HDR");
 
 	for (const auto& [effectName, effect] : this->postProcessingEffects) {
 		if (!effect->getEnabled()) continue;
-		useIntermediate = !useIntermediate;
 
-		effect->apply(framebuffer1, this->imageIndex, readImage);
+		lastWrittenToImage = effect->apply(framebuffers1, this->imageIndex, readImages);
 
-		std::swap(readImage, writeImage);
-		std::swap(framebuffer1, framebuffer2);
+		std::swap(readImages, writeImages);
+		std::swap(framebuffers1, framebuffers2);
 	}
 
 	// Blit image to swapchain
-	VkImage srcImage = useIntermediate ?
-		this->getTextureBuffer("intermediate")->getImage().image :
-		this->getTextureBuffer("colour")->getImage().image;
+	VkImage srcImage = lastWrittenToImage->getImage().image;
 	VkImage swapchainImage = this->context.window->getSwapchain()->getImage(this->imageIndex);
 
 	RendererUtils::blitImageToSwapchain(

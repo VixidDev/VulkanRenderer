@@ -2,7 +2,9 @@
 
 PostProcessingEffect::PostProcessingEffect(Renderer* renderer) : renderer(renderer) {}
 
-void PostProcessingEffect::apply(Framebuffer* framebuffer, std::uint32_t imageIndex, VkDescriptorSet readImage) {}
+TextureBuffer* PostProcessingEffect::apply(WriteToFramebufferPair framebuffers, std::uint32_t imageIndex, VkDescriptorSetPair readImages) {
+	return nullptr;
+}
 
 bool& PostProcessingEffect::getEnabled() {
 	return this->enabled;

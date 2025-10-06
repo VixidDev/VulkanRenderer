@@ -1,17 +1,17 @@
-#include "MosaicPostProcess.hpp"
+#include "FXAAPostProcess.hpp"
 
 #include "../RendererUtils.hpp"
 #include "../objects/impl/framebuffers/WriteToTargetFramebuffer.hpp"
 #include "../Driver.hpp"
 
-MosaicPostProcess::MosaicPostProcess(Renderer* renderer) : PostProcessingEffect(renderer) {
+FXAAPostProcess::FXAAPostProcess(Renderer* renderer) : PostProcessingEffect(renderer) {
 	this->renderPass = this->renderer->getRenderPass("postProcess");
 	this->pipelineLayout = this->renderer->getPipelineLayout("mosaic");
-	this->pipeline = this->renderer->getPipeline("mosaic");
+	this->pipeline = this->renderer->getPipeline("fxaa");
 }
 
-TextureBuffer* MosaicPostProcess::apply(WriteToFramebufferPair framebuffers, std::uint32_t imageIndex, VkDescriptorSetPair readImages) {
-	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("mosaic", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+TextureBuffer* FXAAPostProcess::apply(WriteToFramebufferPair framebuffers, std::uint32_t imageIndex, VkDescriptorSetPair readImages) {
+	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("fxaa", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	RendererUtils::beginRenderPass(this->renderPass, framebuffers.second, imageIndex);
 	RendererUtils::bindGraphicPipeline(this->pipeline->getHandle());
@@ -19,7 +19,7 @@ TextureBuffer* MosaicPostProcess::apply(WriteToFramebufferPair framebuffers, std
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
 
-	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("mosaic", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("fxaa", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
 	return framebuffers.second->getRenderTarget();
 }

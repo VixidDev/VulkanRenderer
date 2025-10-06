@@ -10,7 +10,6 @@ layout(push_constant) uniform PushConstant {
 layout(location = 0) out vec4 linearDepth;
 
 void main() {
-	// For now light pos is hardcoded. Will be dynamic later
 	float distToLight = length(worldPos - pConsts.lightPos);
 	gl_FragDepth = distToLight / pConsts.farPlane;
 

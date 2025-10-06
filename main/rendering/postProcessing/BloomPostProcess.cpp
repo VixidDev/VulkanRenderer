@@ -2,6 +2,7 @@
 
 #include "../RendererUtils.hpp"
 #include "../objects/base/DescriptorSet.hpp"
+#include "../objects/impl/framebuffers/WriteToTargetFramebuffer.hpp"
 #include "../Driver.hpp"
 
 BloomPostProcess::BloomPostProcess(Renderer* renderer) : PostProcessingEffect(renderer) {
@@ -17,16 +18,16 @@ BloomPostProcess::BloomPostProcess(Renderer* renderer) : PostProcessingEffect(re
 	this->compositionPipeline = this->renderer->getPipeline("composition");
 
 	// Framebuffers for writing to targets
-	this->intermediateFramebuffer = this->renderer->getFramebuffer("writeToIntermediate2");
+	this->intermediateFramebuffer = this->renderer->getFramebuffer("writeToIntermediateHDR2");
 	this->blurFramebuffer = this->renderer->getFramebuffer("writeToBlur");
 
 	// Descriptor sets for binding samplers
 	this->brightnessOutput = this->renderer->getDescriptorSet("brightness");
-	this->intermediate2Output = this->renderer->getDescriptorSet("intermediate2");
+	this->intermediateOutput = this->renderer->getDescriptorSet("intermediateHDR2");
 	this->blurOutput = this->renderer->getDescriptorSet("blurOutput");
 }
 
-void BloomPostProcess::apply(Framebuffer* framebuffer, std::uint32_t imageIndex, VkDescriptorSet readImage) {
+TextureBuffer* BloomPostProcess::apply(WriteToFramebufferPair framebuffers, std::uint32_t imageIndex, VkDescriptorSetPair readImages) {
 	// Need to ping-pong between 2 framebuffers for horizontal and vertical blur passes
 
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("bloom", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
@@ -37,20 +38,18 @@ void BloomPostProcess::apply(Framebuffer* framebuffer, std::uint32_t imageIndex,
 
 	// Render targets
 	VkDescriptorSet renderTarget1 = this->blurOutput->getHandle();
-	VkDescriptorSet renderTarget2 = this->intermediate2Output->getHandle();
+	VkDescriptorSet renderTarget2 = this->intermediateOutput->getHandle();
 
-	// Ping-pong example for 10 iterations (just to help visualise destination render targets)
-	// i = 0 - read: brightness   - write: intermediate
-	// i = 1 - read: intermediate - write: blur        
-	// i = 2 - read: blur		  - write: intermediate
-	// i = 3 - read: intermediate - write: blur        
-	// i = 4 - read: blur		  - write: intermediate
-	// i = 5 - read: intermediate - write: blur        
-	// i = 6 - read: blur		  - write: intermediate
-	// i = 7 - read: intermediate - write: blur        
-	// i = 8 - read: blur		  - write: intermediate
-	// i = 9 - read: intermediate - write: blur        
+	// Ping-pong example for 6 iterations (just to help visualise destination render targets)
+	// i = 0 - read: brightness			- write: intermediate_hdr
+	// i = 1 - read: intermediate_hdr	- write: blur        
+	// i = 2 - read: blur				- write: intermediate_hdr
+	// i = 3 - read: intermediate_hdr	- write: blur        
+	// i = 4 - read: blur				- write: intermediate_hdr
+	// i = 5 - read: intermediate_hdr	- write: blur           
 
+	// In practice any value of bloomIterations over 1 costs way too much 
+	// computation time for such little visual benefit gained from doing so
 	int iterations = this->renderer->bloomIterations * 2; // Must be even
 	bool firstPass = true;
 	for (int i = 0, direction = 0; i < iterations; i++, direction = 1 - direction) {
@@ -70,14 +69,17 @@ void BloomPostProcess::apply(Framebuffer* framebuffer, std::uint32_t imageIndex,
 
 	// Combine blurred image with scene image
 
-	// Write to 'intermediate' using 'sceneOutput' and 'brightness' as input
+	// Write to HDR intermediate using 'HDR' and 'brightness' as input
 	// (Could just make a composition post process and directly call that with the input images)
-	RendererUtils::beginRenderPass(this->renderPass, framebuffer, imageIndex);
+	RendererUtils::beginRenderPass(this->renderPass, framebuffers.first, imageIndex);
 	RendererUtils::bindGraphicPipeline(this->compositionPipeline->getHandle());
-	RendererUtils::bindGraphicDescriptorSets(this->compositionPipelineLayout->getHandle(), 0, 1, &readImage, 0, nullptr); // scene image
+	RendererUtils::bindGraphicDescriptorSets(this->compositionPipelineLayout->getHandle(), 0, 1, &readImages.first, 0, nullptr); // scene image
 	RendererUtils::bindGraphicDescriptorSets(this->compositionPipelineLayout->getHandle(), 1, 1, &this->blurOutput->getHandle(), 0, nullptr); // blur output
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
 
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("bloom", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+	// Return last written to render target
+	return framebuffers.first->getRenderTarget();
 }

@@ -1,6 +1,7 @@
 #include "ImGUI.hpp"
 
 #include <algorithm>
+#include <numeric>
 
 #include "../imgui/imgui.h"
 #include "../imgui/backends/imgui_impl_glfw.h"
@@ -11,8 +12,9 @@
 #include "../vulkan/VulkanDevice.hpp"
 #include "../vulkan/Swapchain.hpp"
 
+// Concrete types
 #include "../rendering/objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
-#include <numeric>
+#include "../rendering/postProcessing/TonemapPostProcess.hpp"
 
 GUI::GUI(Driver* driver) : driver(driver) {
 	this->frameTimes.reserve(1000);
@@ -79,8 +81,10 @@ void GUI::draw() {
 	//ImGui::ShowDemoWindow();
 
 	// I dont like this, but it is what it is
-	bool& bloomEnabled = renderer.getPostProcessingEffects()[0].second->getEnabled();
-	bool& mosaicEnabled = renderer.getPostProcessingEffects()[1].second->getEnabled();
+	auto& bloomPPE = renderer.getPostProcessingEffects()[0].second;
+	auto& tonemapPPE = renderer.getPostProcessingEffects()[1].second;
+	auto& fxaaPPE = renderer.getPostProcessingEffects()[2].second;
+	auto& mosaicPEE = renderer.getPostProcessingEffects()[3].second;
 
 	ImGui::Begin("Debug Menu");
 
@@ -138,7 +142,7 @@ void GUI::draw() {
 				ImGui::BeginDisabled();
 
 			ImGui::Checkbox("Shadow Map Texture", &this->showShadowMapTexture);
-
+#ifndef NDEBUG
 			if (renderer.getRenderingType())
 				ImGui::BeginDisabled();
 
@@ -146,7 +150,7 @@ void GUI::draw() {
 
 			if (renderer.getRenderingType())
 				ImGui::EndDisabled();
-
+#endif
 			if (renderer.getDebugView())
 				ImGui::EndDisabled();
 
@@ -183,16 +187,39 @@ void GUI::draw() {
 		}
 		if (ImGui::BeginTabItem("Post Processing")) {
 			ImGui::Text("Post Processing Effects");
-			ImGui::Checkbox("Bloom", &bloomEnabled);
-			if (bloomEnabled) {
+			ImGui::Checkbox("Bloom", &bloomPPE->getEnabled());
+			if (bloomPPE->getEnabled()) {
 				ImGui::SliderInt("Blur Iterations", &renderer.bloomIterations, 1, 10);
 				ImGui::SliderFloat("Threshold", &renderer.brightnessThreshold, 0.0f, 1.0f);
 			}
 
-			ImGui::Checkbox("Mosaic", &mosaicEnabled);
+			ImGui::Checkbox("Tonemap", &tonemapPPE->getEnabled());
+			if (tonemapPPE->getEnabled()) {
+				TonemapPostProcess* tonemapImpl = dynamic_cast<TonemapPostProcess*>(tonemapPPE.get());
+				ImGui::RadioButton("Filmic", &tonemapImpl->getTonemap(), Tonemap::FILMIC);
+				ImGui::RadioButton("Uncharted", &tonemapImpl->getTonemap(), Tonemap::UNCHARTED);
+				ImGui::RadioButton("ACES", &tonemapImpl->getTonemap(), Tonemap::ACES);
+				ImGui::RadioButton("AgX", &tonemapImpl->getTonemap(), Tonemap::AGX);
+				ImGui::RadioButton("Khronos PBR", &tonemapImpl->getTonemap(), Tonemap::KHRONOS_PBR);
+				ImGui::SliderFloat("Exposure", &tonemapImpl->getExposure(), 0.0f, 5.0f);
+			}
+
+			ImGui::Checkbox("FXAA", &fxaaPPE->getEnabled());
+			if (fxaaPPE->getEnabled()) {
+				// Need tonemapping enabled because FXAA needs an LDR input
+				// and our tonemapping pass does the HDR->LDR conversion
+				tonemapPPE->getEnabled() = true;
+			}
+
+			ImGui::Checkbox("Mosaic", &mosaicPEE->getEnabled());
+			if (mosaicPEE->getEnabled()) {
+				// Same reasoning as above
+				tonemapPPE->getEnabled() = true;
+			}
 
 			ImGui::EndTabItem();
 		}
+#ifndef NDEBUG
 		if (ImGui::BeginTabItem("Debug")) {
 			ImGui::Checkbox("Enable Debug View", &renderer.getDebugView());
 
@@ -211,6 +238,7 @@ void GUI::draw() {
 
 			ImGui::EndTabItem();
 		}
+#endif
 		ImGui::EndTabBar();
 	}
 

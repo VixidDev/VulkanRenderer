@@ -2,9 +2,9 @@
 
 #include "../objects/base/PostProcessingEffect.hpp"
 
-class MosaicPostProcess : public PostProcessingEffect {
+class FXAAPostProcess : public PostProcessingEffect {
 public:
-	MosaicPostProcess(Renderer* renderer);
+	FXAAPostProcess(Renderer* renderer);
 
 	TextureBuffer* apply(WriteToFramebufferPair framebuffers, std::uint32_t imageIndex, VkDescriptorSetPair readImages) override;
 private:

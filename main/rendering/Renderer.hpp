@@ -48,6 +48,9 @@ using _ShaderStorageBuffer = std::unique_ptr<IShaderStorageBuffer>;
 using _DescriptorSet = std::unique_ptr<DescriptorSet>;
 using _PostProcessingEffect = std::unique_ptr<PostProcessingEffect>;
 
+using VkDescriptorSetPair = std::pair<VkDescriptorSet, VkDescriptorSet>;
+using WriteToFramebufferPair = std::pair<WriteToTargetFramebuffer*, WriteToTargetFramebuffer*>;
+
 class Renderer {
 public:
 	Renderer() = default;
