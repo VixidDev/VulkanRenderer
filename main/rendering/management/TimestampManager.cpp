@@ -15,6 +15,16 @@ void TimestampManager::resetGPUQueryPool() {
 	this->gpuTimestampReferences.clear();
 }
 
+void TimestampManager::flushCPUTimestamps() {
+	// Save references and timestamps to be read by ImGui so we can reset the actual counters
+	this->lastFrameCpuTimestampReferences = this->cpuTimestampReferences;
+	this->lastFrameCpuTimestamps = this->cpuTimestamps;
+
+	this->cpuQueryCounter = 0;
+	this->cpuTimestampReferences.clear();
+	this->cpuTimestamps.clear();
+}
+
 void TimestampManager::writeGPUTimestamp(std::string reference, VkPipelineStageFlagBits stageFlag) {
 	for (auto& [name, indexReference] : this->gpuTimestampReferences) {
 		if (name == reference) {
@@ -31,6 +41,26 @@ void TimestampManager::writeGPUTimestamp(std::string reference, VkPipelineStageF
 
 	this->gpuTimestampReferences.emplace_back(reference, IndexReference{ static_cast<int>(this->gpuQueryCounter), -1 });
 	RendererUtils::writeTimestamp(stageFlag, this->gpuQueryPool, this->gpuQueryCounter);
+}
+
+void TimestampManager::writeCPUTimestamp(std::string reference, std::uint64_t timestamp) {
+	for (auto& [name, indexReference] : this->cpuTimestampReferences) {
+		if (name == reference) {
+			if (indexReference.end != -1) {
+				std::fprintf(stderr, "TimestampManager: cpuTimestampReferences already contains reference to %s. Ignoring this write.\n", reference.c_str());
+				return;
+			}
+
+			this->cpuTimestamps.emplace_back(timestamp);
+			indexReference.end = this->cpuQueryCounter;
+			this->cpuQueryCounter++;
+			return;
+		}
+	}
+
+	this->cpuTimestamps.emplace_back(timestamp);
+	this->cpuTimestampReferences.emplace_back(reference, IndexReference{ this->cpuQueryCounter, -1 });
+	this->cpuQueryCounter++;
 }
 
 void TimestampManager::readBackGPUTimestamps() {
@@ -58,7 +88,7 @@ std::optional<std::uint64_t> TimestampManager::getCPUTimestamp(int index) {
 	std::optional<std::uint64_t> res{};
 
 	try {
-		res = this->cpuTimestamps.at(index);
+		res = this->lastFrameCpuTimestamps.at(index);
 	} catch (const std::out_of_range&) {
 		std::fprintf(stderr, "Index: %d is out of range for cpuTimestamps!\n", index);
 	}
@@ -71,5 +101,5 @@ TimestampReferences& TimestampManager::getGPUTimestampReferences() {
 }
 
 TimestampReferences& TimestampManager::getCPUTimestampReferences() {
-	return this->cpuTimestampReferences;
+	return this->lastFrameCpuTimestampReferences;
 }

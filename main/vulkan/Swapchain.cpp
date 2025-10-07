@@ -64,7 +64,7 @@ SwapChanges Swapchain::recreate(bool firstTime) {
 	if (const VkResult res = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &this->surfaceCaps); VK_SUCCESS != res)
 		throw Utils::Error("Unable to get surface capabilities\n vkGetPhysicalDeviceSurfaceCapabilitiesKHR() returned %s", Utils::toString(res).c_str());
 
-	this->minImageCount = this->surfaceCaps.minImageCount + 1;
+	this->minImageCount = this->surfaceCaps.minImageCount + 2;
 	if (this->surfaceCaps.maxImageCount > 0 && minImageCount > this->surfaceCaps.maxImageCount)
 		this->minImageCount = this->surfaceCaps.maxImageCount;
 

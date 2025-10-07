@@ -63,7 +63,7 @@ int Driver::loadScene() {
 int Driver::uploadInitialToGPU() {
 	VulkanContext& context = this->renderer.getContext();
 	
-	this->meshData = BakedModelLoader::uploadToGPU(context, bakedModel);
+	this->meshData = BakedModelLoader::uploadToGPU(context, this->bakedModel);
 
 	return SUCCESS;
 }
@@ -79,21 +79,37 @@ void Driver::run() {
 		this->timeDelta = std::chrono::duration_cast<Seconds>(now - previous).count();
 		previous = now;
 
+		this->timestampManager.writeCPUTimestamp("entireFrame", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+
 		// Poll IO events
 		glfwPollEvents();
 
 		this->gui.calculateFPS(this->timeDelta);
+		this->timestampManager.writeCPUTimestamp("guiPrepare", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
 		this->gui.prepare();
-	
+		this->timestampManager.writeCPUTimestamp("guiPrepare", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+
 		if (this->renderer.checkSwapchain())
 			continue;
 
 		if (this->renderer.acquireSwapchainImage())
 			continue;
-		
+
+		this->timestampManager.writeCPUTimestamp("renderUpdate", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
 		this->renderer.update(this->timeDelta);
+		this->timestampManager.writeCPUTimestamp("renderUpdate", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+
+		this->timestampManager.writeCPUTimestamp("render", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
 		this->renderer.render();
+		this->timestampManager.writeCPUTimestamp("render", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+
+		this->timestampManager.writeCPUTimestamp("submitRender", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
 		this->renderer.submitRender();
+		this->timestampManager.writeCPUTimestamp("submitRender", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+
+		this->timestampManager.writeCPUTimestamp("entireFrame", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+	
+		this->timestampManager.flushCPUTimestamps();
 	}
 
 	this->renderer.finishRendering();
@@ -117,6 +133,10 @@ std::vector<std::pair<vk::Image, vk::ImageView>>& Driver::getSceneTextures() {
 
 std::vector<VkDescriptorSet>& Driver::getMaterialDescriptors() {
 	return this->materialDescriptors;
+}
+
+std::vector<Light>& Driver::getLights() {
+	return this->lights;
 }
 
 std::vector<MeshData>& Driver::getMeshData() {

@@ -22,9 +22,10 @@ public:
 	TimestampManager(VulkanContext* context);
 
 	void resetGPUQueryPool();
+	void flushCPUTimestamps();
 
 	void writeGPUTimestamp(std::string reference, VkPipelineStageFlagBits stageFlag);
-	void writeCPUTimestamp();
+	void writeCPUTimestamp(std::string reference, std::uint64_t timestamp);
 
 	void readBackGPUTimestamps();
 
@@ -39,10 +40,14 @@ private:
 
 	vk::QueryPool gpuQueryPool;
 	std::uint32_t gpuQueryCounter{};
+	int cpuQueryCounter{};
 
 	std::vector<std::uint64_t> gpuTimestamps;
 	std::vector<std::uint64_t> cpuTimestamps;
 
 	TimestampReferences gpuTimestampReferences;
 	TimestampReferences cpuTimestampReferences;
+
+	TimestampReferences lastFrameCpuTimestampReferences;
+	std::vector<std::uint64_t> lastFrameCpuTimestamps;
 };

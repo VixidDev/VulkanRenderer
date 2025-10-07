@@ -1,4 +1,4 @@
-#include "ImGUI.hpp"
+﻿#include "ImGUI.hpp"
 
 #include <algorithm>
 #include <numeric>
@@ -78,7 +78,7 @@ static void HelpMarker(const char* desc) {
 void GUI::draw() {
 	Renderer& renderer = this->driver->getRenderer();
 
-	//ImGui::ShowDemoWindow();
+	ImGui::ShowDemoWindow();
 
 	// I dont like this, but it is what it is
 	auto& bloomPPE = renderer.getPostProcessingEffects()[0].second;
@@ -126,14 +126,20 @@ void GUI::draw() {
 			ImGui::Separator();
 
 			// Camera debug
-			Camera& camera = renderer.getCamera();
+			Camera* camera = renderer.getCamera();
 
 			ImGui::Text("Camera Debug");
-			ImGui::Text("Pos: %f %f %f", camera.getPosition().x, camera.getPosition().y, camera.getPosition().z);
-			ImGui::Text("Yaw: %f - Pitch %f", camera.getYaw(), camera.getPitch());
-			ImGui::SliderFloat("Camera FOV", &camera.getFov(), 1.0f, 145.0f);
-			ImGui::SliderFloat("Camera Near Plane", &camera.getNearPlane(), 0.0001f, 1.0f, "%.5f");
-			ImGui::SliderFloat("Camera Far Plane", &camera.getFarPlane(), 1.0f, 1024.0f);
+			ImGui::Text("Pos: %f %f %f", camera->getPosition().x, camera->getPosition().y, camera->getPosition().z);
+			ImGui::Text("Yaw: %f - Pitch %f", camera->getYaw(), camera->getPitch());
+			if (ImGui::SliderFloat("Camera FOV", &camera->getFov(), 1.0f, 145.0f)) {
+				camera->markProjectionDirty();
+			}
+			if (ImGui::SliderFloat("Camera Near Plane", &camera->getNearPlane(), 0.0001f, 1.0f, "%.5f")) {
+				camera->markProjectionDirty();
+			}
+			if (ImGui::SliderFloat("Camera Far Plane", &camera->getFarPlane(), 1.0f, 1024.0f)) {
+				camera->markProjectionDirty();
+			}
 
 			ImGui::EndTabItem();
 		}
@@ -165,11 +171,26 @@ void GUI::draw() {
 
 			ImGui::Separator();
 
+			std::vector<Light>& lights = this->driver->getLights();
+			Light& sunLight = lights[renderer.getSunLightIndex()];
+
 			ImGui::Text("Sun Light Debug");
-			ImGui::SliderFloat("Ortho bounds", &renderer.sunOrthoBounds, 0.1f, 50.0f);
-			ImGui::SliderFloat("Near plane", &renderer.sunShadowNear, 0.001f, 10.0f);
-			ImGui::SliderFloat("Far plane", &renderer.sunShadowFar, 1.0f, 1024.0f);
-			ImGui::SliderFloat("Sun distance", &renderer.sunDistance, 1.0f, 100.0f);
+			if (ImGui::SliderFloat("Ortho bounds", &renderer.sunOrthoBounds, 0.1f, 50.0f)) {
+				renderer.getSunMatrices().projection.markDirty();
+				sunLight.markDirty();
+			}
+			if (ImGui::SliderFloat("Near plane", &renderer.sunShadowNear, 0.001f, 10.0f)) {
+				renderer.getSunMatrices().projection.markDirty();
+				sunLight.markDirty();
+			}
+			if (ImGui::SliderFloat("Far plane", &renderer.sunShadowFar, 1.0f, 1024.0f)) {
+				renderer.getSunMatrices().projection.markDirty();
+				sunLight.markDirty();
+			}
+			if (ImGui::SliderFloat("Sun distance", &renderer.sunDistance, 1.0f, 100.0f)) {
+				renderer.getSunMatrices().view.markDirty();
+				sunLight.markDirty();
+			}
 
 			ImGui::Separator();
 
@@ -253,22 +274,85 @@ void GUI::draw() {
 	ImGui::Text("FPS: %d - Avg FPS: %d", static_cast<int>(1 / frameTime), this->avgFps);
 	ImGui::Text("Frame Time: %.3f ms - Avg Frame Time: %.3f ms", frameTime * 1000.0f, this->avgFrameTime * 1000.0f);
 
+	TimestampManager& timestampManager = this->driver->getTimestampManager();
+	TimestampReferences& cpuTimestampReferences = timestampManager.getCPUTimestampReferences();
+
+	this->calculateAvgCpuTimestamps();
+
+	ImGui::Text("CPU Times:");
+	if (ImGui::BeginTable("cpuTimes", 3)) {
+		ImGui::TableSetupColumn("Pass");
+		ImGui::TableSetupColumn("Time took (ms)");
+		ImGui::TableSetupColumn("Time took (ms) (1s avg)");
+		ImGui::TableHeadersRow();
+
+		for (std::size_t i = 0; i < cpuTimestampReferences.size(); i++) {
+			const auto& [name, indices] = cpuTimestampReferences[i];
+			std::uint64_t start = timestampManager.getCPUTimestamp(indices.start).value_or(0);
+			std::uint64_t end   = timestampManager.getCPUTimestamp(indices.end).value_or(0);
+			
+			float timeTaken = static_cast<float>(end - start) / 1000000.0f; // Convert nanoseconds to milliseconds
+			float avgTimeTaken = 0.0f;
+
+			if (this->avgCpuTimeToReport.contains(name)) {
+				avgTimeTaken = this->avgCpuTimeToReport[name];
+			} else {
+				avgTimeTaken = static_cast<float>(this->avgCpuTimes[name].first / std::max(1, this->avgCpuTimes[name].second)) / 1000000.0f;
+				this->avgCpuTimeToReport.emplace(name, avgTimeTaken);
+			}
+
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::Text("%s", name.c_str());
+			ImGui::TableSetColumnIndex(1);
+			ImGui::Text("%.3f", timeTaken);
+			ImGui::TableSetColumnIndex(2);
+			ImGui::Text("%.3f", avgTimeTaken);
+		}
+
+		ImGui::EndTable();
+	}
+
 	ImGui::Separator();
 
-	ImGui::Text("GPU times:");
-
+	TimestampReferences& gpuTimestampReferences = timestampManager.getGPUTimestampReferences();
 	// Get timestamp period
 	float timestampPeriod = renderer.getContext().window->getDevice()->getDeviceProperties().limits.timestampPeriod;
 
-	TimestampManager& timestampManager = this->driver->getTimestampManager();
-	TimestampReferences& gpuTimestampReferences = timestampManager.getGPUTimestampReferences();
-	for (const auto& [name, indices] : gpuTimestampReferences) {
-		std::uint64_t start = timestampManager.getGPUTimestamp(indices.start).value_or(0);
-		std::uint64_t end = timestampManager.getGPUTimestamp(indices.end).value_or(0);
+	this->calculateAvgGpuTimestamps();
 
-		float timeTaken = static_cast<float>(end - start) * timestampPeriod / 1000000.0f;
+	ImGui::Text("GPU Times:");
+	if (ImGui::BeginTable("gpuTimes", 3)) {
+		ImGui::TableSetupColumn("Pass");
+		ImGui::TableSetupColumn("Time took (ms)");
+		ImGui::TableSetupColumn("Time took (ms) (1s avg)");
+		ImGui::TableHeadersRow();
 
-		ImGui::Text("%s took: %.3f ms", name.c_str(), timeTaken);
+		for (std::size_t i = 0; i < gpuTimestampReferences.size(); i++) {
+			const auto& [name, indices] = gpuTimestampReferences[i];
+			std::uint64_t start = timestampManager.getGPUTimestamp(indices.start).value_or(0);
+			std::uint64_t end = timestampManager.getGPUTimestamp(indices.end).value_or(0);
+
+			float timeTaken = static_cast<float>(end - start) * timestampPeriod / 1000000.0f; // Convert nanoseconds to milliseconds
+			float avgTimeTaken = 0.0f;
+
+			if (this->avgGpuTimeToReport.contains(name)) {
+				avgTimeTaken = this->avgGpuTimeToReport[name];
+			} else {
+				avgTimeTaken = static_cast<float>(this->avgGpuTimes[name].first / std::max(1, this->avgGpuTimes[name].second)) * timestampPeriod / 1000000.0f;
+				this->avgGpuTimeToReport.emplace(name, avgTimeTaken);
+			}
+
+			ImGui::TableNextRow();
+			ImGui::TableSetColumnIndex(0);
+			ImGui::Text("%s", name.c_str());
+			ImGui::TableSetColumnIndex(1);
+			ImGui::Text("%.3f", timeTaken);
+			ImGui::TableSetColumnIndex(2);
+			ImGui::Text("%.3f", avgTimeTaken);
+		}
+
+		ImGui::EndTable();
 	}
 
 	ImGui::End();
@@ -327,6 +411,47 @@ void GUI::draw() {
 
 		ImGui::End();
 	}
+	if (this->secondTimer <= 0.0f) {
+		this->avgCpuTimes.clear();
+		this->avgGpuTimes.clear();
+		this->avgCpuTimeToReport.clear();
+		this->avgGpuTimeToReport.clear();
+		this->secondTimer = 1.0f;
+	}
+}
+
+void GUI::calculateAvgCpuTimestamps() {
+	TimestampManager& timestampManager = this->driver->getTimestampManager();
+	TimestampReferences& cpuTimestampReferences = timestampManager.getCPUTimestampReferences();
+
+	for (const auto& [name, indices] : cpuTimestampReferences) {
+		std::uint64_t start = timestampManager.getCPUTimestamp(indices.start).value_or(0);
+		std::uint64_t end = timestampManager.getCPUTimestamp(indices.end).value_or(0);
+
+		if (this->avgCpuTimes.contains(name)) {
+			this->avgCpuTimes[name].first += end - start;
+			this->avgCpuTimes[name].second++;
+		} else {
+			this->avgCpuTimes.emplace(name, std::make_pair(end - start, 1));
+		}
+	}
+}
+
+void GUI::calculateAvgGpuTimestamps() {
+	TimestampManager& timestampManager = this->driver->getTimestampManager();
+	TimestampReferences& gpuTimestampReferences = timestampManager.getGPUTimestampReferences();
+
+	for (const auto& [name, indices] : gpuTimestampReferences) {
+		std::uint64_t start = timestampManager.getGPUTimestamp(indices.start).value_or(0);
+		std::uint64_t end = timestampManager.getGPUTimestamp(indices.end).value_or(0);
+
+		if (this->avgGpuTimes.contains(name)) {
+			this->avgGpuTimes[name].first += end - start;
+			this->avgGpuTimes[name].second++;
+		} else {
+			this->avgGpuTimes.emplace(name, std::make_pair(end - start, 1));
+		}
+	}
 }
 
 void GUI::calculateFPS(float timeDelta) {
@@ -339,6 +464,5 @@ void GUI::calculateFPS(float timeDelta) {
 		this->avgFps = 1 / this->avgFrameTime;
 		this->frameTimes.clear();
 		this->frames = 0;
-		this->secondTimer = 1.0f;
 	}
 }

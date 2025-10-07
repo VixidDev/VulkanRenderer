@@ -3,6 +3,8 @@
 #include <array>
 #include <glm/glm.hpp>
 
+#include "Cache.hpp"
+
 class Swapchain;
 struct GLFWwindow;
 
@@ -10,10 +12,20 @@ class Camera {
 public:
 	Camera() = default;
 	Camera(Swapchain* swapchain, float fov, float nearPlane, float farPlane, glm::vec3 position, glm::vec3 frontDir);
-
 	~Camera() = default;
 
+	// Delete move and copy since projection
+	// and view Cache capture a reference during
+	// construction
+	Camera(const Camera&) = delete;
+	Camera& operator=(const Camera&) = delete;
+	Camera(Camera&&) = delete;
+	Camera& operator=(Camera&&) = delete;
+
 	void update(GLFWwindow* window, float timeDelta);
+
+	void markProjectionDirty();
+	void markViewDirty();
 
 	float& getFov();
 	float& getNearPlane();
@@ -21,8 +33,8 @@ public:
 	glm::vec3 getPosition();
 	glm::vec3 getFrontDir();
 
-	glm::mat4 getProjectionMat();
-	glm::mat4 getViewMat();
+	glm::mat4 getProjection();
+	glm::mat4 getView();
 
 	std::array<glm::vec4, 8> getFrustumCorners();
 
@@ -37,8 +49,8 @@ private:
 	glm::vec3 position;
 	glm::vec3 frontDir;
 
-	glm::mat4 projection{};
-	glm::mat4 view{};
+	Cache<glm::mat4> projection;
+	Cache<glm::mat4> view;
 
 	float sensitivity = 0.25f;
 

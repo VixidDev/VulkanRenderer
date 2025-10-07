@@ -1,5 +1,7 @@
 #include "VulkanWindow.hpp"
 
+#include <chrono>
+
 #include "ContextHelpers.hpp"
 #include "VulkanDevice.hpp"
 #include "Swapchain.hpp"
@@ -253,6 +255,8 @@ Swapchain* VulkanWindow::getSwapchain() const {
 	return this->swapchain.get();
 }
 
+//std::chrono::steady_clock::time_point after = std::chrono::high_resolution_clock::now();
+
 VkResult submitAndPresent(
 	VulkanWindow& window, 
 	std::vector<VkCommandBuffer>& cmdBuffers, 
@@ -288,5 +292,15 @@ VkResult submitAndPresent(
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.pResults = nullptr;
 
-	return vkQueuePresentKHR(window.getDevice()->getPresentQueue(), &presentInfo);
+	//auto before = std::chrono::high_resolution_clock::now();
+
+	//auto entireFrame = std::chrono::duration_cast<std::chrono::duration<float, std::ratio<1>>>(before - after).count() * 1000.0f;
+	//std::fprintf(stderr, "rest of frame took: %.4f ms\n", entireFrame);
+
+	VkResult res = vkQueuePresentKHR(window.getDevice()->getPresentQueue(), &presentInfo);
+	//after = std::chrono::high_resolution_clock::now();
+	//auto difference = std::chrono::duration_cast<std::chrono::duration<float, std::ratio<1>>>(after - before).count() * 1000.0f;
+	//std::fprintf(stderr, "vkQueuePresentKHR took: %.4f ms\n", difference);
+
+	return res;
 }

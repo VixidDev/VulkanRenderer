@@ -17,6 +17,7 @@
 using Clock = std::chrono::steady_clock;
 using Timepoint = Clock::time_point;
 using Seconds = std::chrono::duration<float, std::ratio<1>>;
+using Nanoseconds = std::chrono::nanoseconds;
 
 class Driver {
 public:
@@ -37,6 +38,7 @@ public:
 
 	std::vector<std::pair<vk::Image, vk::ImageView>>& getSceneTextures();
 	std::vector<VkDescriptorSet>& getMaterialDescriptors();
+	std::vector<Light>& getLights();
 	std::vector<MeshData>& getMeshData();
 private:
 	Renderer renderer;

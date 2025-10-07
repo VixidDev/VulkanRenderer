@@ -94,7 +94,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	VulkanDevice* device = window->getDevice();
 	Swapchain* swapchain = window->getSwapchain();
 
-	this->camera = Camera(swapchain, 90.0f, 0.01f, 256.0f, glm::vec3(0.0f, 7.0f, -12.0f), glm::vec3(0.0f, 0.0f, -1.0f));
+	// Create camera in-place
+	this->camera = std::make_unique<Camera>(swapchain, 90.0f, 0.01f, 256.0f, glm::vec3(0.0f, 7.0f, -12.0f), glm::vec3(0.0f, 0.0f, -1.0f));
 
 	// Render passes
 	this->renderPasses.emplace("forward", std::make_unique<ForwardPass>(window, &this->sampleCountSetting));
@@ -382,7 +383,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 	// Populate ssbos
 	for (std::size_t i = 0; i < lights->size(); i++) {
-		Light light = lights->at(i);
+		Light& light = lights->at(i);
 
 		glsl::Light lightStruct = {
 			.position = light.getPosition(),
@@ -400,10 +401,15 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		}
 		case LightType::DIRECTIONAL:
 		{
-			//LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
-			this->sunMatrices = this->getSunViewMatrices(lightStruct);
+			this->sunMatrices.projection = Cache<glm::mat4>([this]() {
+				return glm::ortho(-this->sunOrthoBounds, this->sunOrthoBounds, this->sunOrthoBounds, -this->sunOrthoBounds, this->sunShadowNear, this->sunShadowFar);
+			});
+			this->sunMatrices.view = Cache<glm::mat4>([this, &light]() {
+				return glm::lookAt(-light.getDirection() * this->sunDistance, glm::vec3(0.0f, 0.0f, -20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+			});
+
 			this->sunLightIndex = i;
-			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection * this->sunMatrices.view);
+			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection.get() * this->sunMatrices.view.get());
 			break;
 		}
 		case LightType::SPOT:
@@ -480,6 +486,11 @@ bool Renderer::checkSwapchain() {
 	// Always recreate swapchain image view dependents
 	this->recreateSwapViewDependents();
 
+	// Mark all lights as dirty to re-render the shadow maps
+	for (Light& light : *this->lights) {
+		light.markDirty();
+	}
+
 	this->recreateSwapchain = false;
 	this->forceRecreate = false;
 
@@ -521,13 +532,13 @@ bool Renderer::acquireSwapchainImage() {
 }
 
 void Renderer::update(float timeDelta) {
-	this->camera.update(this->context.window->getGLFWwindow(), timeDelta);
+	this->camera->update(this->context.window->getGLFWwindow(), timeDelta);
 
-	this->uniforms.mvpUniform.projection = this->camera.getProjectionMat();
-	this->uniforms.mvpUniform.view = this->camera.getViewMat();
-	this->uniforms.mvpUniform.camPos = glm::vec4(this->camera.getPosition(), 1.0f);
-	this->uniforms.cameraPlanesUniform._far = this->camera.getFarPlane();
-	this->uniforms.cameraPlanesUniform._near = this->camera.getNearPlane();
+	this->uniforms.mvpUniform.projection = this->camera->getProjection();
+	this->uniforms.mvpUniform.view = this->camera->getView();
+	this->uniforms.mvpUniform.camPos = glm::vec4(this->camera->getPosition(), 1.0f);
+	this->uniforms.cameraPlanesUniform._far = this->camera->getFarPlane();
+	this->uniforms.cameraPlanesUniform._near = this->camera->getNearPlane();
 
 	// Update any light data
 	int directionalLightIndex = 0;
@@ -551,10 +562,10 @@ void Renderer::update(float timeDelta) {
 
 			// TODO: only recompute if something relevant about the light changes that
 			// requires matrix recomputation
-			this->sunMatrices = this->getSunViewMatrices(lightStruct);
+			//this->sunMatrices = this->getSunViewMatrices(lightStruct);
 
 			// Update light matrix
-			this->ssbos.lightMatrices.at(directionalLightIndex) = this->sunMatrices.projection * this->sunMatrices.view;
+			this->ssbos.lightMatrices.at(directionalLightIndex) = this->sunMatrices.projection.get() * this->sunMatrices.view.get();
 
 			directionalLightIndex++;
 			break;
@@ -572,7 +583,7 @@ void Renderer::update(float timeDelta) {
 
 	if (!this->renderCameraFrustumBounds) return;
 
-	std::array<glm::vec4, 8> frustumCornersArr = this->camera.getFrustumCorners();
+	std::array<glm::vec4, 8> frustumCornersArr = this->camera->getFrustumCorners();
 	std::vector<glm::vec4> frustumCorners(frustumCornersArr.begin(), frustumCornersArr.end());
 	std::vector<glm::vec3> lineColours(8, glm::vec3(1.0f));
 	std::vector<std::uint32_t> lineIndices = {
@@ -858,8 +869,8 @@ void Renderer::renderForward() {
 
 	// Update MVP uniform for sun debug view
 	glsl::Light lightStruct = this->ssbos.lights.at(this->sunLightIndex);
-	this->uniforms.mvpUniform.projection = this->sunMatrices.projection;
-	this->uniforms.mvpUniform.view = this->sunMatrices.view;
+	this->uniforms.mvpUniform.projection = this->sunMatrices.projection.get();
+	this->uniforms.mvpUniform.view = this->sunMatrices.view.get();
 	this->uniforms.mvpUniform.camPos = glm::vec4(lightStruct.position, 1.0f);
 
 	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
@@ -1109,7 +1120,10 @@ void Renderer::renderShadowMaps() {
 
 	// For each light
 	for (std::size_t i = 0; i < this->lights->size(); i++) {
-		Light light = this->lights->at(i);
+		Light& light = this->lights->at(i);
+
+		// Check if we need to re-render this lights shadow map
+		if (!light.isDirty()) continue;
 
 		switch (light.getLightType()) {
 		case LightType::POINT:
@@ -1134,7 +1148,7 @@ void Renderer::renderShadowMaps() {
 				glm::vec3(0.0f, -1.0f,  0.0f),
 			};
 
-			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera.getNearPlane(), this->camera.getFarPlane());
+			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera->getNearPlane(), this->camera->getFarPlane());
 
 			// Render to each face of the cube map
 			for (std::size_t face = 0; face < 6; face++) {
@@ -1150,7 +1164,7 @@ void Renderer::renderShadowMaps() {
 
 				glsl::CubemapPC fragPC = {
 					.lightPos = glm::vec4(light.getPosition(), 1.0f),
-					.farPlane = this->camera.getFarPlane()
+					.farPlane = this->camera->getFarPlane()
 				};
 
 				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
@@ -1208,59 +1222,11 @@ void Renderer::renderShadowMaps() {
 			break;
 		}
 		}
+
+		light.markClean();
 	}
 
 	this->driver->getTimestampManager().writeGPUTimestamp("shadows", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
-}
-
-LightMatrices Renderer::getLightMatricesForCameraFrustum(glsl::Light& lightStruct) {
-	std::array<glm::vec4, 8> frustumCorners = this->camera.getFrustumCorners();
-	
-	// Get frustum center
-	glm::vec3 frustumCenter(0.0f);
-	for (const glm::vec3& corner : frustumCorners)
-		frustumCenter += corner;
-	frustumCenter /= static_cast<float>(frustumCorners.size());
-
-	// Calc light pos
-	lightStruct.position = frustumCenter - lightStruct.direction * 50.0f;
-
-	// Construct light view matrix
-	glm::mat4 lightView = glm::lookAt(lightStruct.position, frustumCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-
-	// Get AABB of the transformed frustum
-	glm::vec3 min(FLT_MAX);
-	glm::vec3 max(-FLT_MAX);
-	for (const glm::vec4& corner : frustumCorners) {
-		glm::vec3 transformedCorner = lightView * corner;
-		min = glm::min(min, transformedCorner);
-		max = glm::max(max, transformedCorner);
-	}
-
-	// Add padding to depth
-	if (min.z < 0)
-		min.z *= zMult;
-	else
-		min.z /= zMult;
-
-	if (max.z < 0)
-		max.z /= zMult;
-	else
-		max.z *= zMult;
-
-	// Construct light projection matrix
-	glm::mat4 lightOrtho = glm::ortho(min.x, max.x, max.y, min.y, min.z, max.z);
-
-	return { lightOrtho, lightView };
-}
-
-LightMatrices Renderer::getSunViewMatrices(glsl::Light& lightStruct) {
-	// TODO: think about caching these or caching something earlier the call
-	// stack to prevent even needing to call this function
-	glm::mat4 sunOrtho = glm::ortho(-this->sunOrthoBounds, this->sunOrthoBounds, this->sunOrthoBounds, -this->sunOrthoBounds, this->sunShadowNear, this->sunShadowFar);
-	glm::mat4 sunView = glm::lookAt(-lightStruct.direction * this->sunDistance, glm::vec3(0.0f, 0.0f, -20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-	return { sunOrtho, sunView };
 }
 
 void Renderer::submitRender() {
@@ -1329,8 +1295,8 @@ VulkanContext& Renderer::getContext() {
 	return this->context;
 }
 
-Camera& Renderer::getCamera() {
-	return this->camera;
+Camera* Renderer::getCamera() {
+	return this->camera.get();
 }
 
 RenderPass* Renderer::getRenderPass(const std::string& renderPass) {
@@ -1495,6 +1461,14 @@ bool& Renderer::getMosaicEnabled() {
 
 std::pair<vk::Image, vk::ImageView>& Renderer::getDummyTexture() {
 	return this->dummyTexture;
+}
+
+LightMatrices& Renderer::getSunMatrices() {
+	return this->sunMatrices;
+}
+
+std::uint32_t Renderer::getSunLightIndex() {
+	return this->sunLightIndex;
 }
 
 void Renderer::setRecreateSwapchain(bool value, bool force) {

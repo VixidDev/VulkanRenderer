@@ -5,6 +5,7 @@
 #include <cstdio>
 
 #include "Uniforms.hpp"
+#include "Cache.hpp"
 #include "lights/Light.hpp"
 #include "../baked/BakedModel.hpp"
 #include "../camera/Camera.hpp"
@@ -32,8 +33,8 @@ struct SSBOs {
 };
 
 struct LightMatrices {
-	glm::mat4 projection;
-	glm::mat4 view;
+	Cache<glm::mat4> projection;
+	Cache<glm::mat4> view;
 };
 
 class Driver;
@@ -84,7 +85,7 @@ public:
 
 	Driver* getDriver();
 	VulkanContext& getContext();
-	Camera& getCamera();
+	Camera* getCamera();
 
 	RenderPass* getRenderPass(const std::string& renderPass);
 	VkDescriptorSetLayout getDescriptorSetLayout(const std::string& descriptorSetLayout);
@@ -117,6 +118,8 @@ public:
 	bool& getMosaicEnabled();
 
 	std::pair<vk::Image, vk::ImageView>& getDummyTexture();
+	LightMatrices& getSunMatrices();
+	std::uint32_t getSunLightIndex();
 
 	int numLights = 1;
 	std::uint32_t numPointLights = 0;
@@ -130,7 +133,7 @@ public:
 	int bloomIterations = 1;
 	float brightnessThreshold = 0.75f;
 	
-	float shadowBias = 0.0001f;
+	float shadowBias = 0.0004f;
 
 	float sunOrthoBounds = 22.0f;
 	float sunShadowNear = 0.1f;
@@ -146,13 +149,11 @@ private:
 	void renderDeferred();
 	void renderDebugViews();
 	void renderShadowMaps();
-	LightMatrices getLightMatricesForCameraFrustum(glsl::Light& lightStruct);
-	LightMatrices getSunViewMatrices(glsl::Light& lightStruct);
 
 	Driver* driver;
 	VulkanContext context;
 
-	Camera camera;
+	std::unique_ptr<Camera> camera;
 
 	// Vulkan object maps
 	std::map<std::string, _RenderPass> renderPasses;
