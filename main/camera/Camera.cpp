@@ -22,6 +22,9 @@ Camera::Camera(Swapchain* swapchain, float fov, float nearPlane, float farPlane,
 		mat[1][1] *= -1.0f;
 		return mat;
 	});
+	this->invProjection = Cache<glm::mat4>([this]() {
+		return glm::inverse(this->getProjection());
+	});
 	this->view = Cache<glm::mat4>([this]() {
 		return glm::lookAt(this->position, this->position + this->frontDir, glm::vec3(0.0f, 1.0f, 0.0f));
 	});
@@ -119,6 +122,7 @@ void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
 
 void Camera::markProjectionDirty() {
 	this->projection.markDirty();
+	this->invProjection.markDirty();
 }
 
 void Camera::markViewDirty() {
@@ -147,6 +151,10 @@ glm::vec3 Camera::getFrontDir() {
 
 glm::mat4 Camera::getProjection() {
 	return this->projection.get();
+}
+
+glm::mat4 Camera::getInvProjection() {
+	return this->invProjection.get();
 }
 
 glm::mat4 Camera::getView() {

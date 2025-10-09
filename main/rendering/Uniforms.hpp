@@ -15,6 +15,16 @@ namespace glsl {
 		float _near;
 	};
 
+	struct ProjectiveUniform {
+		glm::mat4 projection = glm::mat4(1.0f);
+		glm::mat4 invProjection = glm::mat4(1.0f);
+	};
+
+	struct SSAOUniform {
+		glm::vec4 samples[64];
+		float radius;
+	};
+
 	struct Light {
 		// Add padding to struct since in the shader we are using
 		// std140 memory layout which forces alignment to 16 byte boundaries
@@ -35,6 +45,7 @@ namespace glsl {
 		float emissiveStrength;
 		float brightnessThreshold;
 		float shadowBias;
+		int ssaoEnabled;
 	};
 
 	struct CubemapPC {

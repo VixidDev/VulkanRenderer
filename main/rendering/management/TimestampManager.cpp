@@ -43,7 +43,9 @@ void TimestampManager::writeGPUTimestamp(std::string reference, VkPipelineStageF
 	RendererUtils::writeTimestamp(stageFlag, this->gpuQueryPool, this->gpuQueryCounter);
 }
 
-void TimestampManager::writeCPUTimestamp(std::string reference, std::uint64_t timestamp) {
+void TimestampManager::writeCPUTimestamp(std::string reference) {
+	std::uint64_t timestamp = std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count();
+
 	for (auto& [name, indexReference] : this->cpuTimestampReferences) {
 		if (name == reference) {
 			if (indexReference.end != -1) {

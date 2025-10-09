@@ -149,8 +149,8 @@ namespace vk {
 		return ret;
 	}
 
-	Image createImage(const VulkanAllocator& allocator, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usageFlags) {
-		const auto mipLevels = computeMipLevelCount(width, height);
+	Image createImage(const VulkanAllocator& allocator, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usageFlags, bool useMips) {
+		const auto mipLevels = useMips ? computeMipLevelCount(width, height) : 1;
 
 		VkImageCreateInfo imageInfo{};
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -188,7 +188,7 @@ namespace vk {
 
 		vk::Buffer staging = createBuffer(
 			allocator,
-			4, // 1 byte
+			4,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
@@ -200,7 +200,7 @@ namespace vk {
 		vmaUnmapMemory(allocator.allocator, staging.allocation);
 
 		Image ret = createImage(allocator, 1, 1, format,
-			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, false);
 
 		VkCommandBuffer cbuff = VkUtils::createCommandBuffer(*context.window, cmdPool);
 		VkUtils::beginCommandBuffer(cbuff);

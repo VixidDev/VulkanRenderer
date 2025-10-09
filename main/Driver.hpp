@@ -17,7 +17,6 @@
 using Clock = std::chrono::steady_clock;
 using Timepoint = Clock::time_point;
 using Seconds = std::chrono::duration<float, std::ratio<1>>;
-using Nanoseconds = std::chrono::nanoseconds;
 
 class Driver {
 public:

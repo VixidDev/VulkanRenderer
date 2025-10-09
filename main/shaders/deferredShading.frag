@@ -35,6 +35,7 @@ layout(push_constant) uniform PushConstants {
 	float emissiveStrength;
 	float brightnessThreshold;
 	float shadowBias;
+	int ssaoEnabled;
 } pConsts;
 
 layout(location = 0) out vec4 oColour;

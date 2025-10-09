@@ -27,17 +27,21 @@ layout(set = 1, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
 };
 
-layout(set = 2, binding = 0) uniform sampler2D uTexColour;
-layout(set = 2, binding = 1) uniform sampler2D uMetalness;
-layout(set = 2, binding = 2) uniform sampler2D uRoughness;
-layout(set = 2, binding = 3) uniform sampler2D uAlphaMask;
-layout(set = 2, binding = 4) uniform sampler2D uNormalMap;
-layout(set = 2, binding = 5) uniform sampler2D uEmissive;
+layout(set = 2, binding = 0) uniform sampler2D uSSAO;
+
+layout(set = 3, binding = 0) uniform sampler2D uTexColour;
+layout(set = 3, binding = 1) uniform sampler2D uMetalness;
+layout(set = 3, binding = 2) uniform sampler2D uRoughness;
+layout(set = 3, binding = 3) uniform sampler2D uAlphaMask;
+layout(set = 3, binding = 4) uniform sampler2D uNormalMap;
+layout(set = 3, binding = 5) uniform sampler2D uEmissive;
 
 layout(push_constant) uniform PushConstants {
 	int lightCount;
 	float emissiveStrength;
 	float brightnessThreshold;
+	float shadowBias;
+	int ssaoEnabled;
 } pConsts;
 
 layout(location = 0) out vec4 oColour;
@@ -108,8 +112,10 @@ void main() {
 		normal = normalize(v2fTBN * tangentNormal);
 	}
 
+	float ssao = pConsts.ssaoEnabled == 1 ? texture(uSSAO, v2fTexCoord).r : 1.0;
+
 	vec3 ambient = vec3(0.03) * texture(uTexColour, v2fTexCoord).rgb;
-	vec3 totalLight = ambient;
+	vec3 totalLight = ambient * ssao;
 
 	// Iterate over all lights
 	for (int i = 0; i < pConsts.lightCount; i++) {

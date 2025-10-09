@@ -4,6 +4,7 @@
 #include <map>
 #include <string>
 #include <optional>
+#include <chrono>
 
 #include "../vulkan/objects/VkObjects.hpp"
 
@@ -15,6 +16,8 @@ struct IndexReference {
 };
 
 using TimestampReferences = std::vector<std::pair<std::string, IndexReference>>;
+using Clock = std::chrono::steady_clock;
+using Nanoseconds = std::chrono::nanoseconds;
 
 class TimestampManager {
 public:
@@ -25,7 +28,7 @@ public:
 	void flushCPUTimestamps();
 
 	void writeGPUTimestamp(std::string reference, VkPipelineStageFlagBits stageFlag);
-	void writeCPUTimestamp(std::string reference, std::uint64_t timestamp);
+	void writeCPUTimestamp(std::string reference);
 
 	void readBackGPUTimestamps();
 

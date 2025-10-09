@@ -79,15 +79,15 @@ void Driver::run() {
 		this->timeDelta = std::chrono::duration_cast<Seconds>(now - previous).count();
 		previous = now;
 
-		this->timestampManager.writeCPUTimestamp("entireFrame", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("entireFrame");
 
 		// Poll IO events
 		glfwPollEvents();
 
 		this->gui.calculateFPS(this->timeDelta);
-		this->timestampManager.writeCPUTimestamp("guiPrepare", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("guiPrepare");
 		this->gui.prepare();
-		this->timestampManager.writeCPUTimestamp("guiPrepare", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("guiPrepare");
 
 		if (this->renderer.checkSwapchain())
 			continue;
@@ -95,19 +95,19 @@ void Driver::run() {
 		if (this->renderer.acquireSwapchainImage())
 			continue;
 
-		this->timestampManager.writeCPUTimestamp("renderUpdate", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("renderUpdate");
 		this->renderer.update(this->timeDelta);
-		this->timestampManager.writeCPUTimestamp("renderUpdate", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("renderUpdate");
 
-		this->timestampManager.writeCPUTimestamp("render", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("render");
 		this->renderer.render();
-		this->timestampManager.writeCPUTimestamp("render", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("render");
 
-		this->timestampManager.writeCPUTimestamp("submitRender", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("submitRender");
 		this->renderer.submitRender();
-		this->timestampManager.writeCPUTimestamp("submitRender", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("submitRender");
 
-		this->timestampManager.writeCPUTimestamp("entireFrame", std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count());
+		this->timestampManager.writeCPUTimestamp("entireFrame");
 	
 		this->timestampManager.flushCPUTimestamps();
 	}

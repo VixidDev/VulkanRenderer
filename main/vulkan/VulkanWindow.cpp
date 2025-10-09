@@ -111,6 +111,7 @@ VulkanWindow::VulkanWindow() {
 	// Create VulkanDevice
 	this->device = std::make_unique<VulkanDevice>(this->instance, this->surface);
 
+	// Create Swapchain
 	this->swapchain = std::make_unique<Swapchain>(this);
 }
 

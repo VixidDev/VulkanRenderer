@@ -22,9 +22,13 @@
 #include "objects/base/DescriptorSet.hpp"
 #include "objects/base/PostProcessingEffect.hpp"
 
+#include "preProcess/SSAOPreProcess.hpp"
+
 struct Uniforms {
 	glsl::MVPUniform mvpUniform;
 	glsl::CameraPlanesUniform cameraPlanesUniform;
+	glsl::ProjectiveUniform projectiveUniform;
+	glsl::SSAOUniform ssaoUniform;
 };
 
 struct SSBOs {
@@ -48,6 +52,8 @@ using _UniformBuffer = std::unique_ptr<IUniformBuffer>;
 using _ShaderStorageBuffer = std::unique_ptr<IShaderStorageBuffer>;
 using _DescriptorSet = std::unique_ptr<DescriptorSet>;
 using _PostProcessingEffect = std::unique_ptr<PostProcessingEffect>;
+
+using _SSAOPreProcess = std::unique_ptr<SSAOPreProcess>;
 
 using VkDescriptorSetPair = std::pair<VkDescriptorSet, VkDescriptorSet>;
 using WriteToFramebufferPair = std::pair<WriteToTargetFramebuffer*, WriteToTargetFramebuffer*>;
@@ -96,6 +102,8 @@ public:
 	IUniformBuffer* getUniformBuffer(const std::string& uniformBuffer);
 	IShaderStorageBuffer* getShaderStorageBuffer(const std::string& shaderStorageBuffer);
 	DescriptorSet* getDescriptorSet(const std::string& descriptorSet);
+
+	SSAOPreProcess* getSSAOPreProcess();
 
 	std::vector<std::pair<std::string, _PostProcessingEffect>>& getPostProcessingEffects();
 
@@ -166,6 +174,9 @@ private:
 	std::map<std::string, _ShaderStorageBuffer> shaderStorageBuffers;
 	std::map<std::string, _DescriptorSet> descriptorSets;
 
+	// Pre processing effects
+	_SSAOPreProcess ssaoEffect;
+
 	// Post processing effects
 	std::vector<std::pair<std::string, _PostProcessingEffect>> postProcessingEffects;
 
@@ -179,6 +190,8 @@ private:
 
 	// Samplers
 	vk::Sampler defaultSampler;
+	vk::Sampler depthSampler;
+	vk::Sampler nearestClampToEdgeSampler;
 	vk::Sampler shadowMapSampler;
 	vk::Sampler brightnessSampler;
 

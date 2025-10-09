@@ -80,6 +80,8 @@ void GUI::draw() {
 
 	ImGui::ShowDemoWindow();
 
+	SSAOPreProcess* ssaoPPE = renderer.getSSAOPreProcess();
+
 	// I dont like this, but it is what it is
 	auto& bloomPPE = renderer.getPostProcessingEffects()[0].second;
 	auto& tonemapPPE = renderer.getPostProcessingEffects()[1].second;
@@ -206,7 +208,12 @@ void GUI::draw() {
 
 			ImGui::EndTabItem();
 		}
-		if (ImGui::BeginTabItem("Post Processing")) {
+		if (ImGui::BeginTabItem("Effects")) {
+			ImGui::Text("Pre Processing Effects");
+			ImGui::Checkbox("SSAO", &ssaoPPE->getEnabled());
+
+			ImGui::Separator();
+
 			ImGui::Text("Post Processing Effects");
 			ImGui::Checkbox("Bloom", &bloomPPE->getEnabled());
 			if (bloomPPE->getEnabled()) {
@@ -262,8 +269,6 @@ void GUI::draw() {
 #endif
 		ImGui::EndTabBar();
 	}
-
-	//ImGui::SliderFloat("zMult", &renderer.zMult, 0.1f, 100.0f);
 
 	ImGui::End();
 

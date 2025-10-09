@@ -1,6 +1,7 @@
 #include "Renderer.hpp"
 
 #include <iostream>
+#include <random>
 
 #include "Error.hpp"
 #include "toString.hpp"
@@ -10,69 +11,7 @@
 #include "../baked/BakedModelLoader.hpp"
 
 #include "PipelineCreation.hpp"
-
-#include "objects/impl/renderPasses/ForwardPass.hpp"
-#include "objects/impl/renderPasses/DeferredPass.hpp"
-#include "objects/impl/renderPasses/ShadowPass.hpp"
-#include "objects/impl/renderPasses/GUIPass.hpp"
-#include "objects/impl/renderPasses/SunViewPass.hpp"
-#include "objects/impl/renderPasses/PostProcessPass.hpp"
-#include "objects/impl/renderPasses/TonemapPass.hpp"
-
-#include "objects/impl/pipelineLayouts/ForwardPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/DeferredWritingPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/DeferredShadingPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/ShadowPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/CubemapShadowPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/LineDebugPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/DebugViewsPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/OverVisualisationPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/BloomPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/CompositionPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/MosaicPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/SunViewPipelineLayout.hpp"
-#include "objects/impl/pipelineLayouts/TonemapPipelineLayout.hpp"
-
-#include "objects/impl/pipelines/ForwardPipeline.hpp"
-#include "objects/impl/pipelines/DeferredWritingPipeline.hpp"
-#include "objects/impl/pipelines/DeferredShadingPipeline.hpp"
-#include "objects/impl/pipelines/ShadowPipeline.hpp"
-#include "objects/impl/pipelines/CubemapShadowPipeline.hpp"
-#include "objects/impl/pipelines/LineDebugPipeline.hpp"
-#include "objects/impl/pipelines/DebugViewsPipeline.hpp"
-#include "objects/impl/pipelines/OverVisualisationPipeline.hpp"
-#include "objects/impl/pipelines/MosaicPipeline.hpp"
-#include "objects/impl/pipelines/BloomPipeline.hpp"
-#include "objects/impl/pipelines/CompositionPipeline.hpp"
-#include "objects/impl/pipelines/SunViewPipeline.hpp"
-#include "objects/impl/pipelines/TonemapPipeline.hpp"
-#include "objects/impl/pipelines/FXAAPipeline.hpp"
-
-#include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/CubemapDepthTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/CubemapArrayDepthTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/ArrayColourTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/ArrayDepthTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/ColourTextureBuffer.hpp"
-
-#include "objects/impl/framebuffers/ForwardFramebuffer.hpp"
-#include "objects/impl/framebuffers/DeferredFramebuffer.hpp"
-#include "objects/impl/framebuffers/ShadowFramebuffer.hpp"
-#include "objects/impl/framebuffers/CubemapFramebuffer.hpp"
-#include "objects/impl/framebuffers/CubemapArrayFramebuffer.hpp"
-#include "objects/impl/framebuffers/ArrayFramebuffer.hpp"
-#include "objects/impl/framebuffers/GUIFramebuffer.hpp"
-#include "objects/impl/framebuffers/SunFramebuffer.hpp"
-#include "objects/impl/framebuffers/WriteToTargetFramebuffer.hpp"
-
-#include "objects/impl/descriptorSets/BufferDescriptorSet.hpp"
-#include "objects/impl/descriptorSets/ImageDescriptorSet.hpp"
-#include "objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
-
-#include "postProcessing/BloomPostProcess.hpp"
-#include "postProcessing/TonemapPostProcess.hpp"
-#include "postProcessing/FXAAPostProcess.hpp"
-#include "postProcessing/MosaicPostProcess.hpp"
+#include "RendererObjects.hpp"
 
 #include "../vulkan/Swapchain.hpp"
 #include "../vulkan/VulkanDevice.hpp"
@@ -82,6 +21,11 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
+#define SSAO_KERNEL_SIZE 64
+
+std::uniform_real_distribution<float> randomFloats(0.0f, 1.0f);
+std::default_random_engine randomEngine;
 
 Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->context.window = std::make_unique<VulkanWindow>();
@@ -97,6 +41,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Create camera in-place
 	this->camera = std::make_unique<Camera>(swapchain, 90.0f, 0.01f, 256.0f, glm::vec3(0.0f, 7.0f, -12.0f), glm::vec3(0.0f, 0.0f, -1.0f));
 
+	// Note: I no longer like this idea of creating a whole new class for each
+	// vulkan object, it seemed like a good idea initially, but the more I add,
+	// the more chaotic and unnecessary it seems
+
 	// Render passes
 	this->renderPasses.emplace("forward", std::make_unique<ForwardPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("deferred", std::make_unique<DeferredPass>(window, &this->sampleCountSetting));
@@ -105,6 +53,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->renderPasses.emplace("sunView", std::make_unique<SunViewPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("postProcess", std::make_unique<PostProcessPass>(window));
 	this->renderPasses.emplace("tonemap", std::make_unique<TonemapPass>(window));
+	this->renderPasses.emplace("pre_ssao", std::make_unique<PreSSAOPass>(window));
+	this->renderPasses.emplace("ssao", std::make_unique<SSAOPass>(window));
 
 	// Descriptor Set Layouts
 	std::vector<DescriptorSetting> uniformBufferV = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT } };
@@ -124,6 +74,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT } };
+	std::vector<DescriptorSetting> ssaoTextures = {
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
 
 	this->descriptorSetLayouts.emplace("uboV", createDescriptorLayout(*device, uniformBufferV));
 	this->descriptorSetLayouts.emplace("uboF", createDescriptorLayout(*device, uniformBufferF));
@@ -132,6 +86,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSetLayouts.emplace("imageF", createDescriptorLayout(*device, imageF));
 	this->descriptorSetLayouts.emplace("materials", createDescriptorLayout(*device, materialSettings));
 	this->descriptorSetLayouts.emplace("deferredInputAttachments", createDescriptorLayout(*device, deferredInputAttachments));
+	this->descriptorSetLayouts.emplace("ssaoTextures", createDescriptorLayout(*device, ssaoTextures));
 
 	// Pipeline Layouts
 	this->pipelineLayouts.emplace("shadow", std::make_unique<ShadowPipelineLayout>(window, &this->descriptorSetLayouts));
@@ -143,6 +98,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("mosaic", std::make_unique<MosaicPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("composition", std::make_unique<CompositionPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("tonemap", std::make_unique<TonemapPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("ssao", std::make_unique<SSAOPipelineLayout>(window, &this->descriptorSetLayouts));
 	
 	// Debug pipeline layouts
 	this->pipelineLayouts.emplace("sunView", std::make_unique<SunViewPipelineLayout>(window, &this->descriptorSetLayouts));
@@ -167,6 +123,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->getPipelineLayout("composition"), this->getRenderPass("postProcess")));
 	this->pipelines.emplace("tonemap", std::make_unique<TonemapPipeline>(window, this->getPipelineLayout("tonemap"), this->getRenderPass("tonemap")));
 	this->pipelines.emplace("fxaa", std::make_unique<FXAAPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("tonemap")));
+	this->pipelines.emplace("pre_ssao", std::make_unique<PreSSAOPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("pre_ssao")));
+	this->pipelines.emplace("ssao", std::make_unique<SSAOPipeline>(window, this->getPipelineLayout("ssao"), this->getRenderPass("ssao")));
 
 	// Debug pipelines
 	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
@@ -193,6 +151,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->textureBuffers.emplace("gBuffer3", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 	// blurOutput - output of blur in bloom post processing
 	this->textureBuffers.emplace("blurOutput", std::make_unique<ColourTextureBuffer>(&this->context));
+	// noise - used in SSAO
+	this->textureBuffers.emplace("noise", std::make_unique<NoiseTextureBuffer>(&this->context));
+	// ssao - result of SSAO pass
+	this->textureBuffers.emplace("ssao", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16_SFLOAT));
 
 	// Debug texture buffers
 	// sunView - buffer used to render the sun view
@@ -214,6 +176,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->framebuffers.emplace("writeToIntermediateHDR2", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("intermediateHDR2"), this->getRenderPass("postProcess")));
 	this->framebuffers.emplace("writeToIntermediateLDR", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("intermediateLDR"), this->getRenderPass("tonemap")));
 	this->framebuffers.emplace("writeToBlur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("blurOutput"), this->getRenderPass("postProcess")));
+	// pre_ssao - writes to normal gbuffer and depth
+	this->framebuffers.emplace("pre_ssao", std::make_unique<PreSSAOFramebuffer>(window, &this->textureBuffers, this->getRenderPass("pre_ssao")));
+	// ssao - write to ssao texture buffer after SSAO pass
+	this->framebuffers.emplace("ssao", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssao"), this->getRenderPass("ssao")));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -222,6 +188,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	this->uniformBuffers.emplace("mvp", std::make_unique<UniformBuffer<glsl::MVPUniform>>(allocator, VFstageFlags, &this->uniforms.mvpUniform));
 	this->uniformBuffers.emplace("cameraPlanes", std::make_unique<UniformBuffer<glsl::CameraPlanesUniform>>(allocator, FstageFlags, &this->uniforms.cameraPlanesUniform));
+	this->uniformBuffers.emplace("projections", std::make_unique<UniformBuffer<glsl::ProjectiveUniform>>(allocator, FstageFlags, &this->uniforms.projectiveUniform));
+	this->uniformBuffers.emplace("ssao", std::make_unique<UniformBuffer<glsl::SSAOUniform>>(allocator, FstageFlags, &this->uniforms.ssaoUniform));
 
 	// Synchronisation
 	for (std::size_t i = 0; i < swapchain->getViews().size(); i++) {
@@ -240,6 +208,20 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
 		.anisotropyEnable = VK_TRUE };
 	this->defaultSampler = VkUtils::createTextureSampler(*window, defaultSamplerInfo);
+	SamplerInfo depthSamplerInfo = {
+		.magFilter = VK_FILTER_LINEAR,
+		.minFilter = VK_FILTER_LINEAR,
+		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER };
+	this->depthSampler = VkUtils::createTextureSampler(*window, depthSamplerInfo);
+	SamplerInfo nearestClampToEdgeSamplerInfo = {
+		.magFilter = VK_FILTER_NEAREST,
+		.minFilter = VK_FILTER_NEAREST,
+		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
+		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE };
+	this->nearestClampToEdgeSampler = VkUtils::createTextureSampler(*window, nearestClampToEdgeSamplerInfo);
 	SamplerInfo shadowMapSamplerInfo = {
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
@@ -289,6 +271,16 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->getTextureBuffer("brightness"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
 	std::vector<DescriptorImageSetting> blurImageDescriptorSettings = {
 		{ this->getTextureBuffer("blurOutput"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
+	std::vector<DescriptorBufferSetting> projectionDescriptorSettings = {
+		{ this->getUniformBuffer("projections")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
+	std::vector<DescriptorBufferSetting> ssaoDescriptorSettings = {
+		{ this->getUniformBuffer("ssao")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
+	std::vector<DescriptorImageSetting> ssaoTexturesDescriptorSettings = {
+		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->depthSampler.handle },
+		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle },
+		{ this->getTextureBuffer("noise"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
+	std::vector<DescriptorImageSetting> ssaoSamplerDescriptorSettings = {
+		{ this->getTextureBuffer("ssao"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
@@ -301,12 +293,38 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSets.emplace("intermediateLDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, intermediateLDRImageDescriptorSettings));
 	this->descriptorSets.emplace("brightness", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, brightnessImageDescriptorSettings));
 	this->descriptorSets.emplace("blurOutput", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, blurImageDescriptorSettings));
+	this->descriptorSets.emplace("projections", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, projectionDescriptorSettings));
+	this->descriptorSets.emplace("ssao", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, ssaoDescriptorSettings));
+	this->descriptorSets.emplace("ssaoTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoTexturesDescriptorSettings));
+	this->descriptorSets.emplace("ssaoSampler", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, ssaoSamplerDescriptorSettings));
+
+	// Pre processing effects
+	// (pre processing effects are what I call effects / passes in the renderer
+	// that affect the main scene rendering / lighting by doing something beforehand,
+	// i.e. ssao)
+	this->ssaoEffect = std::make_unique<SSAOPreProcess>(this);
 
 	// Post processing effects
 	this->postProcessingEffects.emplace_back(std::make_pair("bloom", std::make_unique<BloomPostProcess>(this)));
 	this->postProcessingEffects.emplace_back(std::make_pair("tonemap", std::make_unique<TonemapPostProcess>(this)));
 	this->postProcessingEffects.emplace_back(std::make_pair("fxaa", std::make_unique<FXAAPostProcess>(this)));
 	this->postProcessingEffects.emplace_back(std::make_pair("mosaic", std::make_unique<MosaicPostProcess>(this)));
+
+	// SSAO uniform data only needs to be initialised once
+	for (int i = 0; i < SSAO_KERNEL_SIZE; i++) {
+		glm::vec3 sample(
+			randomFloats(randomEngine) * 2.0f - 1.0f,
+			randomFloats(randomEngine) * 2.0f - 1.0f,
+			randomFloats(randomEngine)); // Z-axis only goes [0, 1] otherwise kernel would be sphere, we want hemisphere
+		sample = glm::normalize(sample);
+		sample *= randomFloats(randomEngine);
+
+		float scale = i / SSAO_KERNEL_SIZE;
+		scale = std::lerp(0.1f, 1.0f, scale * scale);
+		sample *= scale;
+		this->uniforms.ssaoUniform.samples[i] = glm::vec4(sample, 0.0f);
+	}
+	this->uniforms.ssaoUniform.radius = 1.0f;
 }
 
 Renderer::~Renderer() {
@@ -537,8 +555,12 @@ void Renderer::update(float timeDelta) {
 	this->uniforms.mvpUniform.projection = this->camera->getProjection();
 	this->uniforms.mvpUniform.view = this->camera->getView();
 	this->uniforms.mvpUniform.camPos = glm::vec4(this->camera->getPosition(), 1.0f);
+	
 	this->uniforms.cameraPlanesUniform._far = this->camera->getFarPlane();
 	this->uniforms.cameraPlanesUniform._near = this->camera->getNearPlane();
+
+	this->uniforms.projectiveUniform.projection = this->camera->getProjection();
+	this->uniforms.projectiveUniform.invProjection = this->camera->getInvProjection();
 
 	// Update any light data
 	int directionalLightIndex = 0;
@@ -555,15 +577,6 @@ void Renderer::update(float timeDelta) {
 		}
 		case LightType::DIRECTIONAL:
 		{
-			// Sun light needs cascaded shadow mapping since it encompasses the entire
-			// camera frustum, and so the area covered by a single pixel of the shadow map is
-			// large and results in pixelated shadows close to the camera
-			//LightMatrices lightMatrices = this->getLightMatricesForCameraFrustum(lightStruct);
-
-			// TODO: only recompute if something relevant about the light changes that
-			// requires matrix recomputation
-			//this->sunMatrices = this->getSunViewMatrices(lightStruct);
-
 			// Update light matrix
 			this->ssbos.lightMatrices.at(directionalLightIndex) = this->sunMatrices.projection.get() * this->sunMatrices.view.get();
 
@@ -801,8 +814,18 @@ void Renderer::render() {
 	RendererUtils::endCommandBuffer();
 }
 
+// TODO: This is now the longest render pass on the GPU,
+// specifically when looking at the sun temple, or rather
+// any part of it, it seems rasterizing and shading any
+// fragments causes a lot of slowdown, even more so the more
+// lights that are used. Maybe try using a depth pre-pass
+// to see if that helps at all.
 void Renderer::renderForward() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
+
+	if (this->ssaoEffect->getEnabled()) {
+		this->ssaoEffect->apply(this->imageIndex, true);
+	}
 
 	this->driver->getTimestampManager().writeGPUTimestamp("forward", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
@@ -813,14 +836,15 @@ void Renderer::renderForward() {
 		.numLights = this->numLights,
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
-		.shadowBias = this->shadowBias
+		.shadowBias = this->shadowBias,
+		.ssaoEnabled = this->ssaoEffect->getEnabled()
 	};
 
 	RendererUtils::bindPushConstant(
 		this->getPipelineLayout("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
-	descriptorSets.reserve(6);
+	descriptorSets.reserve(7);
 	// Add descriptors that will always be present in same order as in shader
 	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
 	descriptorSets.emplace_back(this->getDescriptorSet("lights")->getHandle());
@@ -830,6 +854,7 @@ void Renderer::renderForward() {
 		descriptorSets.emplace_back(this->getDescriptorSet("directionalLightShadow")->getHandle());
 		descriptorSets.emplace_back(this->getDescriptorSet("cameraPlanes")->getHandle());
 		descriptorSets.emplace_back(this->getDescriptorSet("lightMatrices")->getHandle());
+		descriptorSets.emplace_back(this->getDescriptorSet("ssaoSampler")->getHandle());
 	}
 
 	RendererUtils::bindGraphicDescriptorSets(
@@ -970,7 +995,8 @@ void Renderer::renderDeferred() {
 		.numLights = this->numLights,
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
-		.shadowBias = this->shadowBias
+		.shadowBias = this->shadowBias,
+		.ssaoEnabled = this->ssaoEffect->getEnabled()
 	};
 
 	RendererUtils::bindPushConstant(
@@ -1094,21 +1120,6 @@ void Renderer::renderDebugViews() {
 	RendererUtils::endCommandBuffer();
 }
 
-// TODO: Currently this is the longest pass in the entire renderer,
-// quite clearly since we are re-rendering the entire scene multiple
-// times per shadow map EVERY frame when we clearly do not need to.
-// Some obvious optimisations here are to:
-// (GPU optimisations)
-//  1. Only render if:
-//     a) Light position changes
-//	   b) Light matrix changes
-//     c) Something in the light frustum changes (unlikely since we
-//        have no moving occluders in the scene (camera is invisible))
-//  2. Use geometry shaders to render entire scene to multiple shadow 
-//     maps at once
-// (CPU optimisations)
-//  1. Cache matrices and only recompute when something changes that
-//	   requires its recomputation
 void Renderer::renderShadowMaps() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
@@ -1405,6 +1416,10 @@ DescriptorSet* Renderer::getDescriptorSet(const std::string& descriptorSet) {
 	}
 
 	return ret;
+}
+
+SSAOPreProcess* Renderer::getSSAOPreProcess() {
+	return this->ssaoEffect.get();
 }
 
 std::vector<std::pair<std::string, _PostProcessingEffect>>& Renderer::getPostProcessingEffects() {

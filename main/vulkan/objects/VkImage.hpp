@@ -33,7 +33,7 @@ namespace vk {
 	};
 
 	Image loadImage(const char* path, const VulkanContext& context, VkFormat format, std::uint8_t channels);
-	Image createImage(const VulkanAllocator& allocator, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT);
+	Image createImage(const VulkanAllocator& allocator, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, bool useMips = true);
 	Image createDummyImage(const VulkanContext& context, VkFormat format);
 
 	ImageView createImageView(const VulkanContext& context, VkImage image, VkFormat format);
