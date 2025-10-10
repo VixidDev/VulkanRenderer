@@ -189,11 +189,12 @@ private:
 	std::vector<vk::Semaphore> renderFinishedSemaphores;
 
 	// Samplers
-	vk::Sampler defaultSampler;
-	vk::Sampler depthSampler;
+	vk::Sampler linearRepeatSampler;
+	vk::Sampler linearClampToEdgeSampler;
+	vk::Sampler nearestRepeatSampler;
 	vk::Sampler nearestClampToEdgeSampler;
+	vk::Sampler depthSampler;
 	vk::Sampler shadowMapSampler;
-	vk::Sampler brightnessSampler;
 
 	// Lights pointer
 	std::vector<Light>* lights = nullptr;

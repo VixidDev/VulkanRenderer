@@ -2,6 +2,8 @@
 
 #include "../objects/base/PreProcessingEffect.hpp"
 
+class DescriptorSet;
+
 class SSAOPreProcess : public PreProcessingEffect {
 public:
 	SSAOPreProcess(Renderer* renderer);
@@ -20,10 +22,11 @@ private:
 	PipelineLayout* prePipelineLayout = nullptr;
 	PipelineLayout* pipelineLayout = nullptr;
 
-	VkDescriptorSet mvpDescriptorSet = VK_NULL_HANDLE;
-	VkDescriptorSet projectionsUniformDescriptor = VK_NULL_HANDLE;
-	VkDescriptorSet ssaoUniformDescriptor = VK_NULL_HANDLE;
-	VkDescriptorSet ssaoTexturesDescriptor = VK_NULL_HANDLE;
+	DescriptorSet* mvpDescriptorSet = nullptr;
+
+	DescriptorSet* projectionsUniformDescriptor = nullptr;
+	DescriptorSet* ssaoUniformDescriptor = nullptr;
+	DescriptorSet* ssaoTexturesDescriptor = nullptr;
 
 	IUniformBuffer* projectionsUniformBuffer = nullptr;
 	IUniformBuffer* ssaoUniformBuffer = nullptr;

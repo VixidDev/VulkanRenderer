@@ -211,6 +211,9 @@ void GUI::draw() {
 		if (ImGui::BeginTabItem("Effects")) {
 			ImGui::Text("Pre Processing Effects");
 			ImGui::Checkbox("SSAO", &ssaoPPE->getEnabled());
+			if (ssaoPPE->getEnabled()) {
+				ImGui::SliderFloat("Radius", &renderer.getUniforms().ssaoUniform.radius, 0.1f, 10.0f);
+			}
 
 			ImGui::Separator();
 

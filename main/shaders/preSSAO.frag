@@ -34,6 +34,9 @@ void main() {
 		normal = normalize(v2fTBN * tangentNormal);
 	}
 
+	// Transform normals into view-space for SSAO
+	normal = normalize(mat3(mvp.view) * normal);
+
 	// Map normals from [-1, 1] to [0, 1] since gBuffer format is UNORM
 	normal = normal * 0.5 + 0.5;
 

@@ -14,7 +14,7 @@ SSAOPipeline::SSAOPipeline(
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
 
-	this->renderExtent = &this->window->getSwapchain()->getExtent();
+	this->renderExtent = &this->window->getSwapchain()->getHalfExtent();
 
 	this->recreate();
 }

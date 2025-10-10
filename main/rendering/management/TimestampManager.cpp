@@ -25,6 +25,14 @@ void TimestampManager::flushCPUTimestamps() {
 	this->cpuTimestamps.clear();
 }
 
+void TimestampManager::clearCPUTimestamps() {
+	this->cpuQueryCounter = 0;
+	this->cpuTimestampReferences.clear();
+	this->cpuTimestamps.clear();
+	this->lastFrameCpuTimestampReferences.clear();
+	this->lastFrameCpuTimestamps.clear();
+}
+
 void TimestampManager::writeGPUTimestamp(std::string reference, VkPipelineStageFlagBits stageFlag) {
 	for (auto& [name, indexReference] : this->gpuTimestampReferences) {
 		if (name == reference) {

@@ -41,6 +41,7 @@ public:
 
 	std::uint32_t getMinImageCount();
 	VkExtent2D& getExtent();
+	VkExtent2D& getHalfExtent();
 
 	const std::vector<VkImageView>& getViews() const;
 	VkImage getImage(std::uint32_t imageIndex);
@@ -64,6 +65,7 @@ private:
 
 	std::uint32_t minImageCount = 0;
 	VkExtent2D swapchainExtent;
+	VkExtent2D halfSwapchainExtent;
 
 	std::vector<VkImage> swapchainImages;
 	std::vector<VkImageView> swapchainViews;

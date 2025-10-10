@@ -98,6 +98,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("mosaic", std::make_unique<MosaicPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("composition", std::make_unique<CompositionPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("tonemap", std::make_unique<TonemapPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("pre_ssao", std::make_unique<PreSSAOPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("ssao", std::make_unique<SSAOPipelineLayout>(window, &this->descriptorSetLayouts));
 	
 	// Debug pipeline layouts
@@ -123,7 +124,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->getPipelineLayout("composition"), this->getRenderPass("postProcess")));
 	this->pipelines.emplace("tonemap", std::make_unique<TonemapPipeline>(window, this->getPipelineLayout("tonemap"), this->getRenderPass("tonemap")));
 	this->pipelines.emplace("fxaa", std::make_unique<FXAAPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("tonemap")));
-	this->pipelines.emplace("pre_ssao", std::make_unique<PreSSAOPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("pre_ssao")));
+	this->pipelines.emplace("pre_ssao", std::make_unique<PreSSAOPipeline>(window, this->getPipelineLayout("pre_ssao"), this->getRenderPass("pre_ssao")));
 	this->pipelines.emplace("ssao", std::make_unique<SSAOPipeline>(window, this->getPipelineLayout("ssao"), this->getRenderPass("ssao")));
 
 	// Debug pipelines
@@ -154,7 +155,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// noise - used in SSAO
 	this->textureBuffers.emplace("noise", std::make_unique<NoiseTextureBuffer>(&this->context));
 	// ssao - result of SSAO pass
-	this->textureBuffers.emplace("ssao", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16_SFLOAT));
+	this->textureBuffers.emplace("ssao", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM, nullptr, &swapchain->getHalfExtent()));
 
 	// Debug texture buffers
 	// sunView - buffer used to render the sun view
@@ -179,7 +180,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// pre_ssao - writes to normal gbuffer and depth
 	this->framebuffers.emplace("pre_ssao", std::make_unique<PreSSAOFramebuffer>(window, &this->textureBuffers, this->getRenderPass("pre_ssao")));
 	// ssao - write to ssao texture buffer after SSAO pass
-	this->framebuffers.emplace("ssao", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssao"), this->getRenderPass("ssao")));
+	this->framebuffers.emplace("ssao", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssao"), this->getRenderPass("ssao"), &swapchain->getHalfExtent()));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -200,48 +201,42 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	}
 
 	// Samplers
-	SamplerInfo defaultSamplerInfo = {
+	SamplerInfo linearRepeatSamplerInfo = {
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
-		.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-		.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-		.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+		.addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
 		.anisotropyEnable = VK_TRUE };
-	this->defaultSampler = VkUtils::createTextureSampler(*window, defaultSamplerInfo);
-	SamplerInfo depthSamplerInfo = {
+	this->linearRepeatSampler = VkUtils::createTextureSampler(*window, linearRepeatSamplerInfo);
+	// Need a separate sampler that clamps to edge when sampling from textures such as
+	// brightness for bloom ppe
+	SamplerInfo linearClampToEdgeSamplerInfo = {
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
-		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER };
-	this->depthSampler = VkUtils::createTextureSampler(*window, depthSamplerInfo);
+		.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE };
+	this->linearClampToEdgeSampler = VkUtils::createTextureSampler(*window, linearClampToEdgeSamplerInfo);
+	SamplerInfo nearestRepeatSamplerInfo = {
+		.magFilter = VK_FILTER_NEAREST,
+		.minFilter = VK_FILTER_NEAREST,
+		.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE };
+	this->nearestRepeatSampler = VkUtils::createTextureSampler(*window, nearestRepeatSamplerInfo);
 	SamplerInfo nearestClampToEdgeSamplerInfo = {
 		.magFilter = VK_FILTER_NEAREST,
 		.minFilter = VK_FILTER_NEAREST,
-		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE };
+		.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE };
 	this->nearestClampToEdgeSampler = VkUtils::createTextureSampler(*window, nearestClampToEdgeSamplerInfo);
+	SamplerInfo depthSamplerInfo = {
+		.magFilter = VK_FILTER_LINEAR,
+		.minFilter = VK_FILTER_LINEAR,
+		.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER };
+	this->depthSampler = VkUtils::createTextureSampler(*window, depthSamplerInfo);
 	SamplerInfo shadowMapSamplerInfo = {
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
-		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+		.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
 		.compareEnable = 1, 
-		.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL
-	};
+		.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL };
 	this->shadowMapSampler = VkUtils::createTextureSampler(*window, shadowMapSamplerInfo);
-	// Need a separate sampler that clamps to edge when sampling from textures such as
-	// brightness for bloom ppe
-	SamplerInfo brightnessSamplerInfo = {
-		.magFilter = VK_FILTER_LINEAR,
-		.minFilter = VK_FILTER_LINEAR,
-		.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE,
-		.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE 
-	};
-	this->brightnessSampler = VkUtils::createTextureSampler(*window, brightnessSamplerInfo);
+	
 
 	// Descriptor Sets
 	// (this looks unbearably messy, surely there is a nicer way of defining what makes up a descriptor
@@ -256,31 +251,31 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->getTextureBuffer("gBuffer3"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
 		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE } };
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
-		{ this->getTextureBuffer("sunView"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("sunView"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> HDROuputDescriptorSettings = {
-		{ this->getTextureBuffer("HDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("HDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> LDROuputDescriptorSettings = {
-		{ this->getTextureBuffer("LDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("LDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> intermediateHDRImageDescriptorSettings = {
-		{ this->getTextureBuffer("intermediateHDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("intermediateHDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> intermediateHDR2ImageDescriptorSettings = {
-		{ this->getTextureBuffer("intermediateHDR2"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
+		{ this->getTextureBuffer("intermediateHDR2"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearClampToEdgeSampler.handle } };
 	std::vector<DescriptorImageSetting> intermediateLDRImageDescriptorSettings = {
-		{ this->getTextureBuffer("intermediateLDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("intermediateLDR"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> brightnessImageDescriptorSettings = {
-		{ this->getTextureBuffer("brightness"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
+		{ this->getTextureBuffer("brightness"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearClampToEdgeSampler.handle } };
 	std::vector<DescriptorImageSetting> blurImageDescriptorSettings = {
-		{ this->getTextureBuffer("blurOutput"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->brightnessSampler.handle } };
+		{ this->getTextureBuffer("blurOutput"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearClampToEdgeSampler.handle } };
 	std::vector<DescriptorBufferSetting> projectionDescriptorSettings = {
 		{ this->getUniformBuffer("projections")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorBufferSetting> ssaoDescriptorSettings = {
 		{ this->getUniformBuffer("ssao")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorImageSetting> ssaoTexturesDescriptorSettings = {
 		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->depthSampler.handle },
-		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle },
-		{ this->getTextureBuffer("noise"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
+		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle },
+		{ this->getTextureBuffer("noise"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> ssaoSamplerDescriptorSettings = {
-		{ this->getTextureBuffer("ssao"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->defaultSampler.handle } };
+		{ this->getTextureBuffer("ssao"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
@@ -319,12 +314,11 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		sample = glm::normalize(sample);
 		sample *= randomFloats(randomEngine);
 
-		float scale = i / SSAO_KERNEL_SIZE;
+		float scale = float(i) / float(SSAO_KERNEL_SIZE);
 		scale = std::lerp(0.1f, 1.0f, scale * scale);
-		sample *= scale;
-		this->uniforms.ssaoUniform.samples[i] = glm::vec4(sample, 0.0f);
+		this->uniforms.ssaoUniform.samples[i] = glm::vec4(sample * scale, 0.0f);
 	}
-	this->uniforms.ssaoUniform.radius = 1.0f;
+	this->uniforms.ssaoUniform.radius = 0.5f;
 }
 
 Renderer::~Renderer() {
@@ -1427,7 +1421,7 @@ std::vector<std::pair<std::string, _PostProcessingEffect>>& Renderer::getPostPro
 }
 
 vk::Sampler& Renderer::getDefaultSampler() {
-	return this->defaultSampler;
+	return this->linearRepeatSampler;
 }
 
 std::uint32_t Renderer::getFrameIndex() {

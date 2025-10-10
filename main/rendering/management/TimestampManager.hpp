@@ -26,6 +26,7 @@ public:
 
 	void resetGPUQueryPool();
 	void flushCPUTimestamps();
+	void clearCPUTimestamps();
 
 	void writeGPUTimestamp(std::string reference, VkPipelineStageFlagBits stageFlag);
 	void writeCPUTimestamp(std::string reference);

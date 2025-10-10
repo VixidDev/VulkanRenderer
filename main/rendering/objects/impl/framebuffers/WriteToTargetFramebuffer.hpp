@@ -6,7 +6,7 @@
 
 class WriteToTargetFramebuffer : public Framebuffer {
 public:
-	WriteToTargetFramebuffer(VulkanWindow* window, TextureBuffer* textureBuffer, RenderPass* renderPass);
+	WriteToTargetFramebuffer(VulkanWindow* window, TextureBuffer* textureBuffer, RenderPass* renderPass, VkExtent2D* renderExtent = nullptr);
 
 	void recreate();
 

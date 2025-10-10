@@ -12,7 +12,7 @@ SSAOPass::SSAOPass(VulkanWindow* window) : RenderPass(window) {
 void SSAOPass::recreate() {
 	VkAttachmentDescription attachments[1]{};
 	// SSAO
-	attachments[0].format = VK_FORMAT_R16_SFLOAT;
+	attachments[0].format = VK_FORMAT_R8_UNORM;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;

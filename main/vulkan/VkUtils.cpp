@@ -136,9 +136,9 @@ namespace VkUtils {
 		samplerCreateInfo.magFilter = samplerInfo.magFilter;
 		samplerCreateInfo.minFilter = samplerInfo.minFilter;
 		samplerCreateInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		samplerCreateInfo.addressModeU = samplerInfo.addressModeU;
-		samplerCreateInfo.addressModeV = samplerInfo.addressModeV;
-		samplerCreateInfo.addressModeW = samplerInfo.addressModeW;
+		samplerCreateInfo.addressModeU = samplerInfo.addressMode;
+		samplerCreateInfo.addressModeV = samplerInfo.addressMode;
+		samplerCreateInfo.addressModeW = samplerInfo.addressMode;
 		samplerCreateInfo.mipLodBias = 0.0f;
 		samplerCreateInfo.anisotropyEnable = deviceEnabledAnisotropy ? samplerInfo.anisotropyEnable : VK_FALSE;
 		samplerCreateInfo.maxAnisotropy = samplerInfo.maxAnisotropy;
@@ -155,6 +155,7 @@ namespace VkUtils {
 		return vk::Sampler(window.getDevice()->getDevice(), sampler);
 	}
 
+	// TODO: Remove
 	vk::Sampler createDefaultSampler(const VulkanWindow& window) {
 		VkSamplerCreateInfo samplerInfo{};
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -175,6 +176,7 @@ namespace VkUtils {
 		return vk::Sampler(window.getDevice()->getDevice(), sampler);
 	}
 
+	// TODO: Remove
 	vk::Sampler createShadowSampler(const VulkanWindow& window) {
 		VkSamplerCreateInfo samplerInfo{};
 		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

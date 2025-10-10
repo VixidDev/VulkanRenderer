@@ -23,6 +23,7 @@
 #include "objects/impl/pipelineLayouts/MosaicPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/SunViewPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/TonemapPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/PreSSAOPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/SSAOPipelineLayout.hpp"
 
 #include "objects/impl/pipelines/ForwardPipeline.hpp"

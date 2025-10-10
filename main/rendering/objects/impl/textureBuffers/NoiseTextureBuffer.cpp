@@ -24,7 +24,9 @@ NoiseTextureBuffer::NoiseTextureBuffer(VulkanContext* context) : TextureBuffer(c
 	// Create random noise
 	std::vector<glm::vec2> noise(4 * 4);
 	for (glm::vec2& sample : noise) {
-		sample = glm::vec2(randomFloats(randomEngine), randomFloats(randomEngine));
+		sample = glm::vec2(
+			randomFloats(randomEngine) * 2.0f - 1.0f, 
+			randomFloats(randomEngine) * 2.0f - 1.0f);
 	}
 
 	const VulkanAllocator& allocator = *this->context->allocator;

@@ -6,9 +6,11 @@
 struct SamplerInfo {
 	VkFilter magFilter;
 	VkFilter minFilter;
-	VkSamplerAddressMode addressModeU;
-	VkSamplerAddressMode addressModeV;
-	VkSamplerAddressMode addressModeW;
+	VkSamplerAddressMode addressMode; 
+	// In every case so far all 3 address modes are
+	// the same, so just pass 1 and assume the same for the rest
+	//VkSamplerAddressMode addressModeV;
+	//VkSamplerAddressMode addressModeW;
 	VkBool32 anisotropyEnable = VK_FALSE;
 	float maxAnisotropy = 8.0f;
 	VkBool32 compareEnable = 0;

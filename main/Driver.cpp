@@ -89,11 +89,15 @@ void Driver::run() {
 		this->gui.prepare();
 		this->timestampManager.writeCPUTimestamp("guiPrepare");
 
-		if (this->renderer.checkSwapchain())
+		if (this->renderer.checkSwapchain()) {
+			this->timestampManager.clearCPUTimestamps();
 			continue;
+		}
 
-		if (this->renderer.acquireSwapchainImage())
+		if (this->renderer.acquireSwapchainImage()) {
+			this->timestampManager.clearCPUTimestamps();
 			continue;
+		}
 
 		this->timestampManager.writeCPUTimestamp("renderUpdate");
 		this->renderer.update(this->timeDelta);

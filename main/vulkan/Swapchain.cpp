@@ -80,6 +80,9 @@ SwapChanges Swapchain::recreate(bool firstTime) {
 		this->swapchainExtent.height = std::clamp(std::uint32_t(height), min.height, max.height);
 	}
 
+	this->halfSwapchainExtent.width = this->swapchainExtent.width / 2.0f;
+	this->halfSwapchainExtent.height = this->swapchainExtent.height / 2.0f;
+
 	VkSwapchainCreateInfoKHR swapchainInfo{};
 	swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	swapchainInfo.surface = this->window->getSurface();
@@ -142,6 +145,10 @@ std::uint32_t Swapchain::getMinImageCount() {
 
 VkExtent2D& Swapchain::getExtent() {
 	return this->swapchainExtent;
+}
+
+VkExtent2D& Swapchain::getHalfExtent() {
+	return this->halfSwapchainExtent;
 }
 
 const std::vector<VkImageView>& Swapchain::getViews() const {
