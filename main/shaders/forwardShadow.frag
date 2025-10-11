@@ -172,8 +172,8 @@ void main() {
 		normal = normalize(v2fTBN * tangentNormal);
 	}
 
-	// This is reliant on the fact the uSSAO texture is the same
-	// size as the screen
+	// This is reliant on being able to scale the size of the uSSAO texture 
+	// to the same size as the screen
 	vec2 screenSize = textureSize(uSSAO, 0) * 2.0;
 	vec2 screenSpaceUV = gl_FragCoord.xy / screenSize;
 	float ssao = pConsts.ssaoEnabled == 1 ? texture(uSSAO, screenSpaceUV).r : 1.0;

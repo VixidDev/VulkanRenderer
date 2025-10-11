@@ -16,23 +16,17 @@ layout(set = 2, binding = 0) uniform sampler2D uDepth;
 layout(set = 2, binding = 1) uniform sampler2D uNormal;
 layout(set = 2, binding = 2) uniform sampler2D uNoise;
 
-layout(push_constant) uniform PushConstant {
-	int numSamples;
-} pConsts;
-
 layout(location = 0) out float ao;
 
 vec3 getVSPosFromDepth(vec2 uv) {
 	float depth = texture(uDepth, uv).r;
-	//float x = v2fTexCoord.x * 2.0 - 1.0;
-	//float y = (1.0 - v2fTexCoord.y) * 2.0 - 1.0;
 	vec2 xy = v2fTexCoord * 2.0 - 1.0;
-	float x = xy.x;
-	float y = xy.y;
-	vec4 pos = vec4(x, y, depth, 1.0);
+	vec4 pos = vec4(xy.x, xy.y, depth, 1.0);
 	vec4 posVS = projections.invProjection * pos;
 	return posVS.xyz / posVS.w;
 }
+
+const int KERNEL_SIZE = 32;
 
 // Credit: https://ajweeks.com/blog/2019/05/11/SSAO/
 void main() {
@@ -43,7 +37,7 @@ void main() {
 		return;
 	}
 	
-	vec3 normal = texture(uNormal, v2fTexCoord).rgb * 2.0 - 1.0;
+	vec3 normal = normalize(texture(uNormal, v2fTexCoord).rgb * 2.0 - 1.0);
 	vec3 fragPos = getVSPosFromDepth(v2fTexCoord);
 
 	// Tile noise over screen
@@ -61,7 +55,7 @@ void main() {
 	float occlusion = 0.0;
 	const float bias = 0.001;
 	int sampleCount = 0;
-	for (uint i = 0; i < 64; i++) {
+	for (uint i = 0; i < KERNEL_SIZE; i++) {
 		vec3 samplePos = TBN * ssaoUniform.samples[i].xyz;
 		samplePos = fragPos + samplePos * ssaoUniform.radius;
 
@@ -71,7 +65,7 @@ void main() {
 		offset.xy = offset.xy * 0.5 + 0.5;
 
 		vec3 reconPos = getVSPosFromDepth(offset.xy);
-		vec3 sampledNormal = texture(uNormal, offset.xy).xyz * 2.0 - 1.0;
+		vec3 sampledNormal = normalize(texture(uNormal, offset.xy).xyz * 2.0 - 1.0);
 		if (dot(sampledNormal, normal) > 0.99) {
 			++sampleCount;
 		} else {

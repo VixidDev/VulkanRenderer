@@ -217,7 +217,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	SamplerInfo nearestRepeatSamplerInfo = {
 		.magFilter = VK_FILTER_NEAREST,
 		.minFilter = VK_FILTER_NEAREST,
-		.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE };
+		.addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT };
 	this->nearestRepeatSampler = VkUtils::createTextureSampler(*window, nearestRepeatSamplerInfo);
 	SamplerInfo nearestClampToEdgeSamplerInfo = {
 		.magFilter = VK_FILTER_NEAREST,
@@ -272,8 +272,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->getUniformBuffer("ssao")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorImageSetting> ssaoTexturesDescriptorSettings = {
 		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->depthSampler.handle },
-		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle },
-		{ this->getTextureBuffer("noise"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
+		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle },
+		{ this->getTextureBuffer("noise"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> ssaoSamplerDescriptorSettings = {
 		{ this->getTextureBuffer("ssao"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
 
