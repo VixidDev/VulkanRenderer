@@ -21,7 +21,7 @@ namespace glsl {
 	};
 
 	struct SSAOUniform {
-		glm::vec4 samples[64];
+		glm::vec4 samples[32];
 		float radius;
 	};
 

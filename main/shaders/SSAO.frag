@@ -1,5 +1,7 @@
 #version 450
 
+#define KERNEL_SIZE 32
+
 layout(location = 0) in vec2 v2fTexCoord;
 
 layout(set = 0, binding = 0) uniform ProjectiveUniforms {
@@ -8,25 +10,23 @@ layout(set = 0, binding = 0) uniform ProjectiveUniforms {
 } projections;
 
 layout(set = 1, binding = 0) uniform SSAOUniform {
-	vec4 samples[64];
+	vec4 samples[KERNEL_SIZE];
 	float radius;
 } ssaoUniform;
 
 layout(set = 2, binding = 0) uniform sampler2D uDepth;
-layout(set = 2, binding = 1) uniform sampler2D uNormal;
+layout(set = 2, binding = 1) uniform sampler2D uNormal; // View-space normals
 layout(set = 2, binding = 2) uniform sampler2D uNoise;
 
 layout(location = 0) out float ao;
 
 vec3 getVSPosFromDepth(vec2 uv) {
 	float depth = texture(uDepth, uv).r;
-	vec2 xy = v2fTexCoord * 2.0 - 1.0;
+	vec2 xy = uv * 2.0 - 1.0;
 	vec4 pos = vec4(xy.x, xy.y, depth, 1.0);
 	vec4 posVS = projections.invProjection * pos;
 	return posVS.xyz / posVS.w;
 }
-
-const int KERNEL_SIZE = 32;
 
 // Credit: https://ajweeks.com/blog/2019/05/11/SSAO/
 void main() {
@@ -53,7 +53,7 @@ void main() {
 	mat3 TBN = mat3(tangent, bitangent, normal);
 
 	float occlusion = 0.0;
-	const float bias = 0.001;
+	const float bias = 0.025;
 	int sampleCount = 0;
 	for (uint i = 0; i < KERNEL_SIZE; i++) {
 		vec3 samplePos = TBN * ssaoUniform.samples[i].xyz;
@@ -65,16 +65,10 @@ void main() {
 		offset.xy = offset.xy * 0.5 + 0.5;
 
 		vec3 reconPos = getVSPosFromDepth(offset.xy);
-		vec3 sampledNormal = normalize(texture(uNormal, offset.xy).xyz * 2.0 - 1.0);
-		if (dot(sampledNormal, normal) > 0.99) {
-			++sampleCount;
-		} else {
-			float rangeCheck = smoothstep(0.0, 1.0, ssaoUniform.radius / abs(reconPos.z - samplePos.z - bias));
-			occlusion += (reconPos.z <= samplePos.z - bias ? 1.0 : 0.0) * rangeCheck;
-			++sampleCount;
-		}
+		float rangeCheck = smoothstep(0.0, 1.0, ssaoUniform.radius / abs(fragPos.z - reconPos.z - bias));
+		occlusion += (reconPos.z >= samplePos.z + bias ? 1.0 : 0.0) * rangeCheck;
 	}
 
-	occlusion = 1.0 - (occlusion / float(max(sampleCount, 1)));
+	occlusion = 1.0 - (occlusion / KERNEL_SIZE);
 	ao = occlusion;
 }

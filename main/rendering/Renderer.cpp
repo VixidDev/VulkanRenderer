@@ -22,7 +22,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#define SSAO_KERNEL_SIZE 64
+#define SSAO_KERNEL_SIZE 32
 
 std::uniform_real_distribution<float> randomFloats(0.0f, 1.0f);
 std::default_random_engine randomEngine;
@@ -205,10 +205,13 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
 		.addressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT,
-		.anisotropyEnable = VK_TRUE };
+		/*.anisotropyEnable = VK_TRUE*/ };
 	this->linearRepeatSampler = VkUtils::createTextureSampler(*window, linearRepeatSamplerInfo);
-	// Need a separate sampler that clamps to edge when sampling from textures such as
-	// brightness for bloom ppe
+	SamplerInfo linearMirroredRepeatSamplerInfo = {
+		.magFilter = VK_FILTER_LINEAR,
+		.minFilter = VK_FILTER_LINEAR,
+		.addressMode = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT };
+	this->linearMirroredRepeatSampler = VkUtils::createTextureSampler(*window, linearMirroredRepeatSamplerInfo);
 	SamplerInfo linearClampToEdgeSamplerInfo = {
 		.magFilter = VK_FILTER_LINEAR,
 		.minFilter = VK_FILTER_LINEAR,
@@ -271,7 +274,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	std::vector<DescriptorBufferSetting> ssaoDescriptorSettings = {
 		{ this->getUniformBuffer("ssao")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorImageSetting> ssaoTexturesDescriptorSettings = {
-		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->depthSampler.handle },
+		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->linearMirroredRepeatSampler.handle },
 		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle },
 		{ this->getTextureBuffer("noise"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> ssaoSamplerDescriptorSettings = {

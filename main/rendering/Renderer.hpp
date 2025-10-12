@@ -190,6 +190,7 @@ private:
 
 	// Samplers
 	vk::Sampler linearRepeatSampler;
+	vk::Sampler linearMirroredRepeatSampler;
 	vk::Sampler linearClampToEdgeSampler;
 	vk::Sampler nearestRepeatSampler;
 	vk::Sampler nearestClampToEdgeSampler;
