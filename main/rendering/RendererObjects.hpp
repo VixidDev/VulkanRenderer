@@ -26,6 +26,7 @@
 #include "objects/impl/pipelineLayouts/TonemapPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/PreSSAOPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/SSAOPipelineLayout.hpp"
+#include "objects/impl/pipelineLayouts/SSAOBlurPipelineLayout.hpp"
 
 #include "objects/impl/pipelines/ForwardPipeline.hpp"
 #include "objects/impl/pipelines/DeferredWritingPipeline.hpp"
@@ -43,6 +44,7 @@
 #include "objects/impl/pipelines/FXAAPipeline.hpp"
 #include "objects/impl/pipelines/PreSSAOPipeline.hpp"
 #include "objects/impl/pipelines/SSAOPipeline.hpp"
+#include "objects/impl/pipelines/SSAOBlurPipeline.hpp"
 
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/CubemapDepthTextureBuffer.hpp"

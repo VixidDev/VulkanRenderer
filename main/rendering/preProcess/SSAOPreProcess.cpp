@@ -9,20 +9,28 @@ SSAOPreProcess::SSAOPreProcess(Renderer* renderer) : PreProcessingEffect(rendere
 
 	this->preFramebuffer = this->renderer->getFramebuffer("pre_ssao");
 	this->framebuffer = this->renderer->getFramebuffer("ssao");
+	this->blurHFramebuffer = this->renderer->getFramebuffer("ssaoHblur"); // Takes ssao, writes to ssaoHblur
+	this->blurVFramebuffer = this->renderer->getFramebuffer("ssaoVblur"); // Takes ssaoHblur, writes to ssaoVblur
 
 	this->prePipeline = this->renderer->getPipeline("pre_ssao");
 	this->pipeline = this->renderer->getPipeline("ssao");
+	this->blurPipeline = this->renderer->getPipeline("ssao_blur");
 
 	this->prePipelineLayout = this->renderer->getPipelineLayout("pre_ssao");
 	this->pipelineLayout = this->renderer->getPipelineLayout("ssao");
+	this->blurPipelineLayout = this->renderer->getPipelineLayout("ssao_blur");
 
 	this->mvpDescriptorSet = this->renderer->getDescriptorSet("mvp");
 	this->projectionsUniformDescriptor = this->renderer->getDescriptorSet("projections");
 	this->ssaoUniformDescriptor = this->renderer->getDescriptorSet("ssao");
 	this->ssaoTexturesDescriptor = this->renderer->getDescriptorSet("ssaoTextures");
+	this->blurHDescriptor = this->renderer->getDescriptorSet("ssaoHBlurTextures");
+	this->blurVDescriptor = this->renderer->getDescriptorSet("ssaoVBlurTextures");
+	this->cameraPlanesDescriptor = this->renderer->getDescriptorSet("cameraPlanes");
 
 	this->projectionsUniformBuffer = this->renderer->getUniformBuffer("projections");
 	this->ssaoUniformBuffer = this->renderer->getUniformBuffer("ssao");
+	this->cameraPlanesUniformBuffer = this->renderer->getUniformBuffer("cameraPlanes");
 }
 
 void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
@@ -86,4 +94,33 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 	RendererUtils::endRenderPass();
 
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("ssao", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+	// SSAO blur using a bilateral (edge-preserving) filter
+	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("ssaoBlur", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
+	RendererUtils::updateUniformBuffer(this->cameraPlanesUniformBuffer);
+
+	this->blurPC.direction = 0;
+
+	// Horizontal pass
+	RendererUtils::beginRenderPass(this->renderPass, this->blurHFramebuffer, imageIndex);
+	RendererUtils::bindGraphicPipeline(this->blurPipeline->getHandle());
+	RendererUtils::bindPushConstant(this->blurPipelineLayout->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SSAOBlurPC), &this->blurPC);
+	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 0, 1, &this->blurHDescriptor->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 1, 1, &this->cameraPlanesDescriptor->getHandle());
+	RendererUtils::drawDirect(3, 1, 0, 0);
+	RendererUtils::endRenderPass();
+
+	this->blurPC.direction = 1;
+
+	// Vertical pass
+	RendererUtils::beginRenderPass(this->renderPass, this->blurVFramebuffer, imageIndex);
+	RendererUtils::bindGraphicPipeline(this->blurPipeline->getHandle());
+	RendererUtils::bindPushConstant(this->blurPipelineLayout->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SSAOBlurPC), &this->blurPC);
+	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 0, 1, &this->blurVDescriptor->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 1, 1, &this->cameraPlanesDescriptor->getHandle());
+	RendererUtils::drawDirect(3, 1, 0, 0);
+	RendererUtils::endRenderPass();
+
+	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("ssaoBlur", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 }

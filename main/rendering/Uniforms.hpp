@@ -44,6 +44,7 @@ namespace glsl {
 		float brightnessThreshold;
 		float shadowBias;
 		int ssaoEnabled;
+		float ssaoExp;
 	};
 
 	struct CubemapPC {

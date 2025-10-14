@@ -101,6 +101,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("tonemap", std::make_unique<TonemapPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("pre_ssao", std::make_unique<PreSSAOPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("ssao", std::make_unique<SSAOPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("ssao_blur", std::make_unique<SSAOBlurPipelineLayout>(window, &this->descriptorSetLayouts));
 	
 	// Debug pipeline layouts
 	this->pipelineLayouts.emplace("sunView", std::make_unique<SunViewPipelineLayout>(window, &this->descriptorSetLayouts));
@@ -127,6 +128,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("fxaa", std::make_unique<FXAAPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("tonemap")));
 	this->pipelines.emplace("pre_ssao", std::make_unique<PreSSAOPipeline>(window, this->getPipelineLayout("pre_ssao"), this->getRenderPass("pre_ssao")));
 	this->pipelines.emplace("ssao", std::make_unique<SSAOPipeline>(window, this->getPipelineLayout("ssao"), this->getRenderPass("ssao")));
+	this->pipelines.emplace("ssao_blur", std::make_unique<SSAOBlurPipeline>(window, this->getPipelineLayout("ssao_blur"), this->getRenderPass("ssao")));
 
 	// Debug pipelines
 	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
@@ -157,6 +159,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->textureBuffers.emplace("noise", std::make_unique<NoiseTextureBuffer>(&this->context));
 	// ssao - result of SSAO pass
 	this->textureBuffers.emplace("ssao", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM, nullptr, &swapchain->getHalfExtent()));
+	this->textureBuffers.emplace("ssaoHblur", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM));
+	this->textureBuffers.emplace("ssaoVblur", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM));
 
 	// Debug texture buffers
 	// sunView - buffer used to render the sun view
@@ -183,6 +187,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->framebuffers.emplace("pre_ssao", std::make_unique<PreSSAOFramebuffer>(window, &this->textureBuffers, this->getRenderPass("pre_ssao")));
 	// ssao - write to ssao texture buffer after SSAO pass
 	this->framebuffers.emplace("ssao", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssao"), this->getRenderPass("ssao"), &swapchain->getHalfExtent()));
+	this->framebuffers.emplace("ssaoHblur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssaoHblur"), this->getRenderPass("ssao")));
+	this->framebuffers.emplace("ssaoVblur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssaoVblur"), this->getRenderPass("ssao")));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -282,8 +288,16 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->linearMirroredRepeatSampler.handle },
 		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle },
 		{ this->getTextureBuffer("noise"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestRepeatSampler.handle } };
+	std::vector<DescriptorImageSetting> ssaoHblurDescriptorSettings = {
+		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->linearMirroredRepeatSampler.handle },
+		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle },
+		{ this->getTextureBuffer("ssao"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle }  };
+	std::vector<DescriptorImageSetting> ssaoVblurDescriptorSettings = {
+		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->linearMirroredRepeatSampler.handle },
+		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle },
+		{ this->getTextureBuffer("ssaoHblur"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
 	std::vector<DescriptorImageSetting> ssaoSamplerDescriptorSettings = {
-		{ this->getTextureBuffer("ssao"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
+		{ this->getTextureBuffer("ssaoVblur"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
@@ -300,6 +314,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSets.emplace("invView", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, inverseViewDescriptorSettings));
 	this->descriptorSets.emplace("ssao", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, ssaoDescriptorSettings));
 	this->descriptorSets.emplace("ssaoTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoTexturesDescriptorSettings));
+	this->descriptorSets.emplace("ssaoHBlurTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoHblurDescriptorSettings));
+	this->descriptorSets.emplace("ssaoVBlurTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoVblurDescriptorSettings));
 	this->descriptorSets.emplace("ssaoSampler", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, ssaoSamplerDescriptorSettings));
 
 	// Pre processing effects
@@ -841,7 +857,8 @@ void Renderer::renderForward() {
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias,
-		.ssaoEnabled = this->ssaoEnabled
+		.ssaoEnabled = this->ssaoEnabled,
+		.ssaoExp = this->ssaoExp
 	};
 
 	RendererUtils::bindPushConstant(
@@ -1011,7 +1028,8 @@ void Renderer::renderDeferred() {
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias,
-		.ssaoEnabled = this->ssaoEnabled
+		.ssaoEnabled = this->ssaoEnabled,
+		.ssaoExp = this->ssaoExp
 	};
 
 	RendererUtils::bindPushConstant(

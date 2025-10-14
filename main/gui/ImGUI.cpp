@@ -214,7 +214,14 @@ void GUI::draw() {
 				renderer.setRecreateSwapchain(true, true);
 			}
 			if (renderer.ssaoEnabled) {
+				ImGui::Text("Main SSAO Pass");
 				ImGui::SliderFloat("Radius", &renderer.getUniforms().ssaoUniform.radius, 0.1f, 10.0f);
+				ImGui::Text("SSAO Blur Pass");
+				ImGui::SliderInt("Blur radius", &ssaoPPE->blurPC.radius, 1, 5);
+				ImGui::SliderFloat("Depth threshold", &ssaoPPE->blurPC.depthThreshold, 0.0f, 0.1f, "%.5f");
+				ImGui::SliderFloat("Normal threshold", &ssaoPPE->blurPC.normalThreshold, 0.0f, 1.0f);
+				ImGui::Text("Applying SSAO Pass");
+				ImGui::SliderFloat("Exp", &renderer.ssaoExp, 1.0f, 5.0f);
 			}
 
 			ImGui::Separator();

@@ -152,6 +152,7 @@ public:
 	bool renderCameraFrustumBounds = false;
 	
 	bool ssaoEnabled = false;
+	float ssaoExp = 1.0f;
 private:
 	void createDummyTexture();
 
