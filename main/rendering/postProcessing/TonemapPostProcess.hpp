@@ -4,6 +4,7 @@
 
 // Should be in same order as in tonemap.frag
 enum Tonemap {
+	JUST_GAMMA,
 	FILMIC,
 	UNCHARTED,
 	ACES,
@@ -12,7 +13,7 @@ enum Tonemap {
 };
 
 struct TonemapPC {
-	int tonemapType = Tonemap::FILMIC;
+	int tonemapType = Tonemap::JUST_GAMMA;
 	float exposure = 2.0f;
 };
 

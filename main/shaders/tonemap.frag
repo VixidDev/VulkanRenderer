@@ -1,10 +1,11 @@
 #version 450
 
-#define TONEMAP_FILMIC 0
-#define TONEMAP_UNCHARTED 1
-#define TONEMAP_ACES 2
-#define TONEMAP_AGX 3
-#define TONEMAP_KHRONOS_PBR 4
+#define TONEMAP_JUST_GAMMA 0
+#define TONEMAP_FILMIC 1
+#define TONEMAP_UNCHARTED 2
+#define TONEMAP_ACES 3
+#define TONEMAP_AGX 4
+#define TONEMAP_KHRONOS_PBR 5
 
 #define AGX_LOOK 0 // 0 - Default, 1 - Golden, 2 - Punchy
 
@@ -190,29 +191,36 @@ vec3 tonemapKhronosPBR(vec3 rgb) {
 void main() {
 	
 	vec3 colour = texture(inputImage, v2fTexCoord).rgb;
-	vec3 tonemapped = colour * pConsts.exposure;
 
 	// Tonemap
 	switch(pConsts.tonemapType) {
+		case TONEMAP_JUST_GAMMA:
+			colour = pow(colour, vec3(1.0 / 2.2));
+			break;
 		case TONEMAP_FILMIC:
-			tonemapped = tonemapFilmic(tonemapped);
+			colour *= pConsts.exposure;
+			colour = tonemapFilmic(colour);
 			break;
 		case TONEMAP_UNCHARTED:
-			tonemapped = tonemapUncharted2(tonemapped);
+			colour *= pConsts.exposure;
+			colour = tonemapUncharted2(colour);
 			break;
 		case TONEMAP_ACES:
-			tonemapped = tonemapACES(tonemapped);
+			colour *= pConsts.exposure;
+			colour = tonemapACES(colour);
 			break;
 		case TONEMAP_AGX:
-			tonemapped = tonemapAgX(tonemapped);
+			colour *= pConsts.exposure;
+			colour = tonemapAgX(colour);
 			break;
 		case TONEMAP_KHRONOS_PBR:
-			tonemapped = tonemapKhronosPBR(tonemapped);
+			colour *= pConsts.exposure;
+			colour = tonemapKhronosPBR(colour);
 			break;
 	};
 
 	// Get Luma
-	float luma = dot(tonemapped, vec3(0.299, 0.587, 0.114));
+	float luma = dot(colour, vec3(0.299, 0.587, 0.114));
 
-	oColour = vec4(tonemapped, luma);
+	oColour = vec4(colour, luma);
 }

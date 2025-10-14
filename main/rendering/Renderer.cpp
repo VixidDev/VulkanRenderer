@@ -779,8 +779,7 @@ void Renderer::render() {
 	// 1: fxaa    - read: intermediate_ldr  write: ldr
 	// 2: mosaic  - read: ldr				write: intermediate_ldr
 
-	// Scenario 3 - Just mosaic (tonemapping is forced on whenever
-	// an LDR dependent (fxaa or mosaic) pass is enabled)
+	// Scenario 3 - Just mosaic (tonemapping is *always* on)
 	// 0: tonemap - read: hdr				write: intermediate_ldr
 	// 1: mosaic  - read: intermediate_ldr  write: ldr
 

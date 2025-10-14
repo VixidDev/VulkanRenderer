@@ -224,9 +224,12 @@ void GUI::draw() {
 				ImGui::SliderFloat("Threshold", &renderer.brightnessThreshold, 0.0f, 1.0f);
 			}
 
+			ImGui::BeginDisabled();
 			ImGui::Checkbox("Tonemap", &tonemapPPE->getEnabled());
+			ImGui::EndDisabled();
 			if (tonemapPPE->getEnabled()) {
 				TonemapPostProcess* tonemapImpl = dynamic_cast<TonemapPostProcess*>(tonemapPPE.get());
+				ImGui::RadioButton("Just Gamma", &tonemapImpl->getTonemap(), Tonemap::JUST_GAMMA); ImGui::SameLine(); HelpMarker("Only applies gamma correction. (Ignores exposure)");
 				ImGui::RadioButton("Filmic", &tonemapImpl->getTonemap(), Tonemap::FILMIC);
 				ImGui::RadioButton("Uncharted", &tonemapImpl->getTonemap(), Tonemap::UNCHARTED);
 				ImGui::RadioButton("ACES", &tonemapImpl->getTonemap(), Tonemap::ACES);
@@ -236,17 +239,7 @@ void GUI::draw() {
 			}
 
 			ImGui::Checkbox("FXAA", &fxaaPPE->getEnabled());
-			if (fxaaPPE->getEnabled()) {
-				// Need tonemapping enabled because FXAA needs an LDR input
-				// and our tonemapping pass does the HDR->LDR conversion
-				tonemapPPE->getEnabled() = true;
-			}
-
 			ImGui::Checkbox("Mosaic", &mosaicPEE->getEnabled());
-			if (mosaicPEE->getEnabled()) {
-				// Same reasoning as above
-				tonemapPPE->getEnabled() = true;
-			}
 
 			ImGui::EndTabItem();
 		}
