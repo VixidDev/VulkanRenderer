@@ -195,7 +195,7 @@ void main() {
 	// Tonemap
 	switch(pConsts.tonemapType) {
 		case TONEMAP_JUST_GAMMA:
-			colour = pow(colour, vec3(1.0 / 2.2));
+			colour = linearToSrgb(colour);
 			break;
 		case TONEMAP_FILMIC:
 			colour *= pConsts.exposure;

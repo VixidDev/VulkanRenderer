@@ -210,7 +210,9 @@ void GUI::draw() {
 		}
 		if (ImGui::BeginTabItem("Effects")) {
 			ImGui::Text("Pre Processing Effects");
-			ImGui::Checkbox("SSAO", &renderer.ssaoEnabled);
+			if (ImGui::Checkbox("SSAO", &renderer.ssaoEnabled)) {
+				renderer.setRecreateSwapchain(true, true);
+			}
 			if (renderer.ssaoEnabled) {
 				ImGui::SliderFloat("Radius", &renderer.getUniforms().ssaoUniform.radius, 0.1f, 10.0f);
 			}
