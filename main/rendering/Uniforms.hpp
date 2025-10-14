@@ -20,24 +20,22 @@ namespace glsl {
 		glm::mat4 invProjection = glm::mat4(1.0f);
 	};
 
+	struct InverseViewUniform {
+		glm::mat4 invView = glm::mat4(1.0f);
+	};
+
 	struct SSAOUniform {
 		glm::vec4 samples[32];
 		float radius;
 	};
 
 	struct Light {
-		// Add padding to struct since in the shader we are using
-		// std140 memory layout which forces alignment to 16 byte boundaries
-		glm::vec3 position{};  float pad0;
-		glm::vec3 direction{}; float pad1;
-		glm::vec3 colour{};    float pad2 = 1.f;
-		alignas(16) glm::ivec3 metadata{};
-		// metadata.x = lightType // 0 - Point, 1 - Directional, 2 - Spot
-		// metadata.y = shadowMapIndex
-		// metadata.z = intensity
+		glm::vec4 positionAndLightType{}; // xyz: position,  w: light type
+		glm::vec4 directionAndMapIndex{}; // xyz: direction, w: shadow map index
+		glm::vec4 colourAndIntensity{};   // xyz: colour,	 w: intensity
 	};
 
-	static_assert(sizeof(Light) == 64, "Light stuct must be 64 bytes!");
+	static_assert(sizeof(Light) == 48, "Light stuct must be 48 bytes!");
 
 	// Push constant structs
 	struct LightsAndEmissive {

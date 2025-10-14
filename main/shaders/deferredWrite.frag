@@ -22,6 +22,11 @@ layout(location = 0) out vec4 gBuffer1; // normals = rgb (format: A2R10G10B10_UN
 layout(location = 1) out vec4 gBuffer2; // albedo = rgb, roughness = a
 layout(location = 2) out vec4 gBuffer3; // emissive = rgb, metalness = a
 
+// Use when SSAO is enabled since SSAO requires view space inputs
+// (normals are converted back to world-space in the shading pass
+// of deferred)
+layout(constant_id = 0) const int VIEW_SPACE_NORMALS = 0;
+
 void main() {
 	// Discard fragments that fail alpha test
 	float alphaValue = texture(uAlphaMask, v2fTexCoord).a;
@@ -34,6 +39,10 @@ void main() {
 		vec3 tangentNormal = texture(uNormalMap, v2fTexCoord).rgb;
 		tangentNormal = tangentNormal * 2.0 - 1.0;
 		normal = normalize(v2fTBN * tangentNormal);
+	}
+
+	if (VIEW_SPACE_NORMALS == 1) {
+		normal = normalize(mat3(mvp.view) * normal);
 	}
 
 	// Map normals from [-1, 1] to [0, 1] since gBuffer format is UNORM

@@ -8,8 +8,11 @@ public:
 		VulkanWindow* window,
 		PipelineLayout* pipelineLayout,
 		RenderPass* renderPass,
-		VkSampleCountFlagBits* sampleCount);
+		VkSampleCountFlagBits* sampleCount,
+		bool* useViewSpaceNormals = nullptr);
 
 	void recreate();
 private:
+	bool* useViewSpaceNormals = nullptr;
+	int viewSpaceNormals = 0;
 };

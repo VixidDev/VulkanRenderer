@@ -1,7 +1,6 @@
 #version 450
 
-#define PI 3.14159265359
-#define SHADOW_BIAS 0.0001
+#include "lighting.glsl"
 
 layout(location = 0) in vec3 v2fPosition;
 layout(location = 1) in vec2 v2fTexCoord;
@@ -14,34 +13,24 @@ layout(set = 0, binding = 0) uniform MVP {
 	vec4 camPos;
 } mvp;
 
-struct ShaderLight {
-	vec3 position;
-	vec3 direction;
-	vec3 colour;
-	ivec3 metadata;
-	// metadata.x = lightType // 0 - Point Light, 1 - Directional Light, 2 - Spot light
-	// metadata.y = shadowMapIndex
-	// metadata.z = intensity
-};
-
 layout(set = 1, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
 };
 
-layout(set = 2, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
-layout(set = 3, binding = 0) uniform sampler2DShadow sunShadow;
+layout(set = 2, binding = 0) uniform sampler2D uSSAO;
+
+layout(set = 3, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
+layout(set = 4, binding = 0) uniform sampler2DShadow sunShadow;
 //layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
 
-layout(set = 4, binding = 0) uniform ClipPlanes {
+layout(set = 5, binding = 0) uniform ClipPlanes {
 	float far;
 	float near;
 } planes;
 
-layout(set = 5, binding = 0) readonly buffer LightSpaceMatrices {
+layout(set = 6, binding = 0) readonly buffer LightSpaceMatrices {
 	mat4 lightSpaceMatrices[];
 };
-
-layout(set = 6, binding = 0) uniform sampler2D uSSAO;
 
 layout(set = 7, binding = 0) uniform sampler2D uTexColour;
 layout(set = 7, binding = 1) uniform sampler2D uMetalness;
@@ -61,67 +50,6 @@ layout(push_constant) uniform PushConstants {
 layout(location = 0) out vec4 oColour;
 layout(location = 1) out vec4 oBrightness;
 
-float distributionFunction(vec3 normal, vec3 halfwayVector, float roughness) {
-	// Normal distribution function
-    float nDotH = max(dot(normal, halfwayVector), 0.0001);
-    float nDotH2 = nDotH * nDotH;
-    float nDotH4 = nDotH2 * nDotH2;
-    float roughness2 = roughness * roughness;
-
-    float ndf_numerator = exp((nDotH2 - 1) / (roughness2 * nDotH2));
-    float ndf_denom = PI * roughness2 * nDotH4;
-
-    float ndf = ndf_numerator / (0.0001 + ndf_denom); // Add an epsilon to denom to prevent / by 0
-    return ndf;
-}
-
-vec3 fresnel(float metalness, vec3 halfwayVector, vec3 viewDir) {
-	// Fresnel
-    // Specular base reflectivity
-    vec3 f0 = (1 - metalness) * vec3(0.04) + (metalness * texture(uTexColour, v2fTexCoord).rgb);
-	float base = max(1 - dot(halfwayVector, viewDir), 0.001);
-    vec3 fresnel = f0 + (1 - f0) * pow(base, 5.0);
-    return fresnel;
-}
-
-float geometryFunction(vec3 normal, vec3 halfwayVector, vec3 viewDir, vec3 lightDir) {
-	// Geometry function
-    float termLeft = 2 * (max(0, dot(normal, halfwayVector)) * max(0, dot(normal, viewDir)) / dot(viewDir, halfwayVector));
-    float termRight = 2 * (max(0, dot(normal, halfwayVector)) * max(0, dot(normal, lightDir)) / dot(viewDir, halfwayVector));
-
-    float geometry = min(1, min(termLeft, termRight));
-    return geometry;    
-}
-
-vec3 brdf(vec3 lightDir, vec3 viewDir, vec3 normal, float shadow) {
-	vec3 halfwayVector = normalize(viewDir + lightDir);
-
-	float metalness = texture(uMetalness, v2fTexCoord).r;
-	float roughness_sqrt = texture(uRoughness, v2fTexCoord).r;
-	float roughness = roughness_sqrt * roughness_sqrt;
-
-	float ndf = distributionFunction(normal, halfwayVector, roughness);
-	vec3 fresnel = fresnel(metalness, halfwayVector, viewDir);
-	float geometry = geometryFunction(normal, halfwayVector, viewDir, lightDir);
-
-	float specular_denom = 4 * max(dot(normal, viewDir), 0.0) * max(dot(normal, lightDir), 0.0);
-
-	vec3 diffuse = (texture(uTexColour, v2fTexCoord).rgb / PI) * (vec3(1.0) - fresnel) * (1 - metalness);
-	vec3 specular = (ndf * fresnel * geometry) / (0.0001 + specular_denom);
-
-	vec3 ret;
-	// If shadow is not 1.0 then the fragment is in shadow and has no
-	// direction line of sight to the light and should not contribute any
-	// specular to final colour
-	if (shadow < 1.0) {
-		ret = diffuse * shadow;
-	} else {
-		ret = diffuse + specular;
-	}
-
-	return ret;
-}
-
 const mat4 biasMat = mat4( 
 	0.5, 0.0, 0.0, 0.0,
 	0.0, 0.5, 0.0, 0.0,
@@ -131,12 +59,12 @@ const mat4 biasMat = mat4(
 float calculateShadow(ShaderLight light) {
 	float shadow = 0.0;
 
-	int lightType = light.metadata.x;
-	int shadowMapIndex = light.metadata.y;
+	int lightType	   = int(light.positionAndLightType.w);
+	int shadowMapIndex = int(light.directionAndMapIndex.w);
 
 	switch (lightType) {
 	case 0: // Point light
-		vec3 lightToFrag = v2fPosition - light.position;
+		vec3 lightToFrag = v2fPosition - light.positionAndLightType.xyz;
 
 		float currentDepth = length(lightToFrag) / planes.far;
 		vec3 dir = normalize(lightToFrag);
@@ -147,7 +75,7 @@ float calculateShadow(ShaderLight light) {
 		mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[shadowMapIndex];
 
 		vec4 lightSpacePos = lightSpaceMatrix * vec4(v2fPosition, 1.0);
-		vec3 shadowCoord = lightSpacePos.xyz / lightSpacePos.w;
+		vec3 shadowCoord   = lightSpacePos.xyz / lightSpacePos.w;
 
 		shadow = texture(sunShadow, shadowCoord);
 		break;
@@ -163,13 +91,53 @@ void main() {
 	float alphaValue = texture(uAlphaMask, v2fTexCoord).a;
 	if (alphaValue < 0.5) discard;
 
+	// Get normal from either fallback or normal map
 	vec3 normal;
+	// w component will be 1 if TBN contains NaNs
 	if (v2fFallbackNormal.w == 1.0) {
 		normal = normalize(v2fFallbackNormal.xyz);
 	} else {
 		vec3 tangentNormal = texture(uNormalMap, v2fTexCoord).rgb;
-		tangentNormal = tangentNormal * 2.0 - 1.0;
+		tangentNormal = tangentNormal * 2.0 - 1.0; // Map to from [0, 1] to [-1, 1]
 		normal = normalize(v2fTBN * tangentNormal);
+	}
+
+	vec3 viewDir  = normalize(mvp.camPos.xyz - v2fPosition);
+
+	vec3 albedo     = texture(uTexColour, v2fTexCoord).rgb;
+	float metalness = texture(uMetalness, v2fTexCoord).r;
+	float roughness = texture(uRoughness, v2fTexCoord).r;
+
+	vec3 F0 = vec3(0.04);
+	F0 = mix(F0, albedo, metalness);
+
+	vec3 Lo = vec3(0.0);
+	// Iterate over all lights
+	for (int i = 0; i < pConsts.lightCount; i++) {
+
+		vec3 lightPos = lights[i].positionAndLightType.xyz;
+		float distToLight = length(lightPos - v2fPosition);
+		vec3 lightDir = normalize(lightPos - v2fPosition);
+		
+		float attenuation = 1.0;
+		if (lights[i].positionAndLightType.w == 1) {
+			// Directional lights have an attenuation of 1 so keep as is.
+			// Light dir should be parallel for every fragment for directional lights
+			lightDir = -lights[i].directionAndMapIndex.xyz;
+		} else {
+			// Keep point and spot lights with squared attenuation
+			attenuation = 1.0 / (distToLight * distToLight);
+		}
+
+		vec3 lightColour = lights[i].colourAndIntensity.rgb;
+		float intensity  = lights[i].colourAndIntensity.w;
+		vec3 radiance    = lightColour * intensity * attenuation;
+
+		float shadow = calculateShadow(lights[i]);
+
+		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, metalness, roughness, F0, albedo, radiance, shadow);
+
+		Lo += brdf;
 	}
 
 	// This is reliant on being able to scale the size of the uSSAO texture 
@@ -178,42 +146,18 @@ void main() {
 	vec2 screenSpaceUV = gl_FragCoord.xy / screenSize;
 	float ssao = pConsts.ssaoEnabled == 1 ? texture(uSSAO, screenSpaceUV).r : 1.0;
 
-	vec3 ambient = vec3(0.03) * texture(uTexColour, v2fTexCoord).rgb;
-	vec3 totalLight = ambient * ssao;
+	// Add ambient aspect and account for AO
+	vec3 ambient = vec3(0.03) * albedo * ssao;
+	vec3 colour = ambient + Lo;
 
-	// Iterate over all lights
-	for (int i = 0; i < pConsts.lightCount; i++) {
-
-		vec3 lightPos = lights[i].position;
-		float distToLight = length(lightPos - v2fPosition);
-		vec3 lightDir = normalize(lightPos - v2fPosition);
-
-		float attenuation;
-		if (lights[i].metadata.x == 1) {
-			// Directional lights have no attenuation
-			attenuation = 1;
-			// Light dir should be parallel for every fragment for directional lights
-			lightDir = -lights[i].direction;
-		} else {
-			// Keep point and spot lights with squared attenuation
-			attenuation = 1 / (distToLight * distToLight);
-		}
-
-		vec3 viewDir = normalize(mvp.camPos.xyz - v2fPosition);
-
-		float shadow = calculateShadow(lights[i]);
-
-		vec3 brdfVal = brdf(lightDir, viewDir, normal, shadow) * lights[i].metadata.z;
-		float NdotL = max(dot(normal, lightDir), 0.0001);
-
-		totalLight += (brdfVal * NdotL) * lights[i].colour * attenuation;
-	}
-
+	// Add any emissive colour
 	vec3 emissive = texture(uEmissive, v2fTexCoord).rgb;
-	totalLight += emissive * pConsts.emissiveStrength;
+	colour += emissive * pConsts.emissiveStrength;
 
-	oColour = vec4(totalLight, 1.0);
+	oColour = vec4(colour, 1.0);
 
+	// Write any fragments that pass the threshold to the brightness texture
+	// for bloom post process effect
 	float brightness = dot(oColour.rgb, vec3(0.2126, 0.7152, 0.0722));
 	if (brightness > pConsts.brightnessThreshold) {
 		oBrightness = oColour;

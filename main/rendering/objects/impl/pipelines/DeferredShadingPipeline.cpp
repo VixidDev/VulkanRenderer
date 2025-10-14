@@ -11,13 +11,15 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 	PipelineLayout* pipelineLayout,
 	RenderPass* renderPass,
 	VkSampleCountFlagBits* sampleCount,
-	bool* shadowsEnabled
+	bool* shadowsEnabled,
+	bool* useViewSpaceNormals
 ) : shadowsEnabled(shadowsEnabled),
 	Pipeline(window) 
 {
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
 	this->sampleCount = sampleCount;
+	this->useViewSpaceNormals = useViewSpaceNormals;
 
 	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
@@ -34,6 +36,22 @@ void DeferredShadingPipeline::recreate() {
 		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/deferredShading.frag.spv");
 	}
 
+	this->viewSpaceNormals = *this->useViewSpaceNormals ? 1 : 0;
+
+	// layout(constant_id = 0) const int VIEW_SPACE_NORMALS = 0;
+	VkSpecializationMapEntry specializationMapEntry = {
+		.constantID = 0,
+		.offset = 0,
+		.size = sizeof(int)
+	};
+
+	VkSpecializationInfo specializationInfo = {
+		.mapEntryCount = 1,
+		.pMapEntries = &specializationMapEntry,
+		.dataSize = sizeof(int),
+		.pData = &this->viewSpaceNormals
+	};
+
 	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -44,6 +62,7 @@ void DeferredShadingPipeline::recreate() {
 	stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
+	stages[1].pSpecializationInfo = &specializationInfo;
 
 	VkPipelineVertexInputStateCreateInfo inputInfo{};
 	inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -121,7 +140,7 @@ void DeferredShadingPipeline::recreate() {
 	pipeInfo.pDynamicState = nullptr;
 	pipeInfo.layout = this->pipelineLayout->getHandle();
 	pipeInfo.renderPass = this->renderPass->getRenderPassHandle();
-	pipeInfo.subpass = 1;
+	pipeInfo.subpass = 0;
 
 	VkPipeline pipe = VK_NULL_HANDLE;
 	if (const auto res = vkCreateGraphicsPipelines(this->window->getDevice()->getDevice(), VK_NULL_HANDLE, 1, &pipeInfo, nullptr, &pipe); VK_SUCCESS != res)

@@ -35,6 +35,8 @@ void main() {
 	}
 
 	// Transform normals into view-space for SSAO
+	// (Since we dont have non-uniform scaling or shearing
+	// just multiplying by the view matrix is fine)
 	normal = normalize(mat3(mvp.view) * normal);
 
 	// Map normals from [-1, 1] to [0, 1] since gBuffer format is UNORM

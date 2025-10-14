@@ -9,9 +9,12 @@ public:
 		PipelineLayout* pipelineLayout,
 		RenderPass* renderPass,
 		VkSampleCountFlagBits* sampleCount,
-		bool* shadowsEnabled);
+		bool* shadowsEnabled,
+		bool* useViewSpaceNormals);
 
 	void recreate();
 private:
 	bool* shadowsEnabled = nullptr;
+	bool* useViewSpaceNormals = nullptr;
+	int viewSpaceNormals = 0;
 };

@@ -203,15 +203,15 @@ void GUI::draw() {
 
 			SSBOs& ssbos = renderer.getSSBOs();
 			glsl::Light& light = ssbos.lights.at(this->selectedLight);
-			ImGui::ColorEdit3("Colour", &light.colour[0]);
-			ImGui::SliderInt("Intensity", &light.metadata.z, 1, 500);
+			ImGui::ColorEdit3("Colour", &light.colourAndIntensity[0]);
+			ImGui::SliderFloat("Intensity", &light.colourAndIntensity.w, 1.0f, 100.0f);
 
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Effects")) {
 			ImGui::Text("Pre Processing Effects");
-			ImGui::Checkbox("SSAO", &ssaoPPE->getEnabled());
-			if (ssaoPPE->getEnabled()) {
+			ImGui::Checkbox("SSAO", &renderer.ssaoEnabled);
+			if (renderer.ssaoEnabled) {
 				ImGui::SliderFloat("Radius", &renderer.getUniforms().ssaoUniform.radius, 0.1f, 10.0f);
 			}
 

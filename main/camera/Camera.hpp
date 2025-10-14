@@ -36,6 +36,7 @@ public:
 	glm::mat4 getProjection();
 	glm::mat4 getInvProjection();
 	glm::mat4 getView();
+	glm::mat4 getInvView();
 
 	std::array<glm::vec4, 8> getFrustumCorners();
 
@@ -53,6 +54,7 @@ private:
 	Cache<glm::mat4> projection;
 	Cache<glm::mat4> invProjection;
 	Cache<glm::mat4> view;
+	Cache<glm::mat4> invView;
 
 	float sensitivity = 0.25f;
 

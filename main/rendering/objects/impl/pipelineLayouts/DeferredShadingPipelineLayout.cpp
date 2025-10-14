@@ -15,14 +15,18 @@ DeferredShadingPipelineLayout::DeferredShadingPipelineLayout(VulkanWindow* windo
 
 void DeferredShadingPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> layouts;
-	layouts.emplace_back(this->descriptorLayouts->at("deferredInputAttachments").handle); // Input attachments
+	layouts.emplace_back(this->descriptorLayouts->at("deferredInputs").handle); // G-buffers
 	layouts.emplace_back(this->descriptorLayouts->at("uboVF").handle); // MV matrices
 	layouts.emplace_back(this->descriptorLayouts->at("ssboF").handle); // Lights SSBO
+	layouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Inverse view
+	layouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // SSAO texture
 
 	std::vector<VkDescriptorSetLayout> shadowLayouts;
-	shadowLayouts.emplace_back(this->descriptorLayouts->at("deferredInputAttachments").handle); // Input attachments
+	shadowLayouts.emplace_back(this->descriptorLayouts->at("deferredInputs").handle); // G-buffers
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("uboVF").handle); // MV matrices
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("ssboF").handle); // Lights SSBO
+	shadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Inverse view
+	shadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // SSAO texture
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Point shadow maps
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Sun shadow map
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes

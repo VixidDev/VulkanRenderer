@@ -28,6 +28,7 @@ struct Uniforms {
 	glsl::MVPUniform mvpUniform;
 	glsl::CameraPlanesUniform cameraPlanesUniform;
 	glsl::ProjectiveUniform projectiveUniform;
+	glsl::InverseViewUniform inverseViewUniform;
 	glsl::SSAOUniform ssaoUniform;
 };
 
@@ -149,7 +150,8 @@ public:
 	float sunDistance = 50.0f;
 
 	bool renderCameraFrustumBounds = false;
-	float zMult = 10.0f;
+	
+	bool ssaoEnabled = false;
 private:
 	void createDummyTexture();
 

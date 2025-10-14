@@ -1,9 +1,9 @@
-#include "DeferredFramebuffer.hpp"
+#include "DeferredShadingFramebuffer.hpp"
 
 #include "../../../PipelineCreation.hpp"
 #include "../../../../vulkan/Swapchain.hpp"
 
-DeferredFramebuffer::DeferredFramebuffer(
+DeferredShadingFramebuffer::DeferredShadingFramebuffer(
 	VulkanWindow* window,
 	std::map<std::string, _TextureBuffer>* textureBuffers,
 	RenderPass* renderPass,
@@ -18,7 +18,7 @@ DeferredFramebuffer::DeferredFramebuffer(
 	this->recreate();
 }
 
-void DeferredFramebuffer::recreate() {
+void DeferredShadingFramebuffer::recreate() {
 	this->framebuffers.clear();
 
 	bool usingMSAA = !(*this->sampleCount & VK_SAMPLE_COUNT_1_BIT);
@@ -26,10 +26,6 @@ void DeferredFramebuffer::recreate() {
 	std::vector<VkImageView> views;
 	views.emplace_back(this->textureBuffers->at("HDR")->getImageView().handle);
 	views.emplace_back(this->textureBuffers->at("brightness")->getImageView().handle);
-	views.emplace_back(this->textureBuffers->at("gBuffer1")->getImageView().handle);
-	views.emplace_back(this->textureBuffers->at("gBuffer2")->getImageView().handle);
-	views.emplace_back(this->textureBuffers->at("gBuffer3")->getImageView().handle);
-	views.emplace_back(this->textureBuffers->at("depth")->getImageView().handle);
 
 	std::vector<VkImageView> MSAAViews;
 	//MSAAViews.emplace_back(this->textureBuffers->at("multisampleColour")->getImageView().handle);

@@ -28,6 +28,9 @@ Camera::Camera(Swapchain* swapchain, float fov, float nearPlane, float farPlane,
 	this->view = Cache<glm::mat4>([this]() {
 		return glm::lookAt(this->position, this->position + this->frontDir, glm::vec3(0.0f, 1.0f, 0.0f));
 	});
+	this->invView = Cache<glm::mat4>([this]() {
+		return glm::inverse(this->getView());
+	});
 }
 
 void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
@@ -46,27 +49,27 @@ void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
 			switch (key) {
 			case GLFW_KEY_W:
 				this->position += distance * this->frontDir;
-				this->view.markDirty();
+				this->markViewDirty();
 				break;
 			case GLFW_KEY_S:
 				this->position -= distance * this->frontDir;
-				this->view.markDirty();
+				this->markViewDirty();
 				break;
 			case GLFW_KEY_D:
 				this->position += glm::normalize(glm::cross(this->frontDir, glm::vec3(0.0f, 1.0f, 0.0f))) * distance;
-				this->view.markDirty();
+				this->markViewDirty();
 				break;
 			case GLFW_KEY_A:
 				this->position -= glm::normalize(glm::cross(this->frontDir, glm::vec3(0.0f, 1.0f, 0.0f))) * distance;
-				this->view.markDirty();
+				this->markViewDirty();
 				break;
 			case GLFW_KEY_LEFT_CONTROL:
 				this->position -= distance * glm::vec3(0.0f, 1.0f, 0.0f);
-				this->view.markDirty();
+				this->markViewDirty();
 				break;
 			case GLFW_KEY_SPACE:
 				this->position += distance * glm::vec3(0.0f, 1.0f, 0.0f);
-				this->view.markDirty();
+				this->markViewDirty();
 				break;
 			}
 		}
@@ -117,7 +120,7 @@ void Camera::update(GLFWwindow* glfwWindow, float timeDelta) {
 	newDir.y = std::sin(glm::radians(this->pitch));
 	newDir.z = std::sin(glm::radians(this->yaw)) * std::cos(glm::radians(this->pitch));
 	this->frontDir = glm::normalize(newDir);
-	this->view.markDirty();
+	this->markViewDirty();
  }
 
 void Camera::markProjectionDirty() {
@@ -127,6 +130,7 @@ void Camera::markProjectionDirty() {
 
 void Camera::markViewDirty() {
 	this->view.markDirty();
+	this->invView.markDirty();
 }
 
 float& Camera::getFov() {
@@ -159,6 +163,10 @@ glm::mat4 Camera::getInvProjection() {
 
 glm::mat4 Camera::getView() {
 	return this->view.get();
+}
+
+glm::mat4 Camera::getInvView() {
+	return this->invView.get();
 }
 
 std::array<glm::vec4, 8> Camera::getFrustumCorners() {

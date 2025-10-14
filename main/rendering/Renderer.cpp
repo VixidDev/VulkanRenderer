@@ -43,11 +43,12 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	// Note: I no longer like this idea of creating a whole new class for each
 	// vulkan object, it seemed like a good idea initially, but the more I add,
-	// the more chaotic and unnecessary it seems
+	// the more chaotic and unnecessary it seems. Hopefully I get around to reworking it...
 
 	// Render passes
 	this->renderPasses.emplace("forward", std::make_unique<ForwardPass>(window, &this->sampleCountSetting));
-	this->renderPasses.emplace("deferred", std::make_unique<DeferredPass>(window, &this->sampleCountSetting));
+	this->renderPasses.emplace("deferredWriting", std::make_unique<DeferredWritingPass>(window, &this->sampleCountSetting));
+	this->renderPasses.emplace("deferredShading", std::make_unique<DeferredShadingPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("shadow", std::make_unique<ShadowPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("gui", std::make_unique<GUIPass>(window, &this->sampleCountSetting));
 	this->renderPasses.emplace("sunView", std::make_unique<SunViewPass>(window, &this->sampleCountSetting));
@@ -69,11 +70,11 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
-	std::vector<DescriptorSetting> deferredInputAttachments = {
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT },
-		{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT } };
+	std::vector<DescriptorSetting> deferredInputs = {
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
 	std::vector<DescriptorSetting> ssaoTextures = {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
@@ -85,7 +86,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSetLayouts.emplace("ssboF", createDescriptorLayout(*device, ssboF));
 	this->descriptorSetLayouts.emplace("imageF", createDescriptorLayout(*device, imageF));
 	this->descriptorSetLayouts.emplace("materials", createDescriptorLayout(*device, materialSettings));
-	this->descriptorSetLayouts.emplace("deferredInputAttachments", createDescriptorLayout(*device, deferredInputAttachments));
+	this->descriptorSetLayouts.emplace("deferredInputs", createDescriptorLayout(*device, deferredInputs));
 	this->descriptorSetLayouts.emplace("ssaoTextures", createDescriptorLayout(*device, ssaoTextures));
 
 	// Pipeline Layouts
@@ -115,9 +116,9 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// forward - regular forward shading pipeline
 	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->getPipelineLayout("forward"), this->getRenderPass("forward"), &this->sampleCountSetting, &this->shadowsEnabled));
 	// deferredWriting - pipeline stage for writing to g-buffers
-	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("deferred"), &this->sampleCountSetting));
+	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("deferredWriting"), &this->sampleCountSetting, &this->ssaoEnabled));
 	// deferredShading - pipeline stage for shading pass in deferred rendering
-	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferred"), &this->sampleCountSetting, &this->shadowsEnabled));
+	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferredShading"), &this->sampleCountSetting, &this->shadowsEnabled, &this->ssaoEnabled));
 	// post processing effects
 	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("postProcess")));
 	this->pipelines.emplace("bloom", std::make_unique<BloomPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("postProcess")));
@@ -165,7 +166,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// forward - 1 colour, 1 depth render targets
 	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->getRenderPass("forward"), &this->sampleCountSetting));
 	// deferred - 4 colour (3 g-buffers, 1 colour), 1 depth render targets
-	this->framebuffers.emplace("deferred", std::make_unique<DeferredFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferred"), &this->sampleCountSetting));
+	this->framebuffers.emplace("deferredWriting", std::make_unique<DeferredWritingFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferredWriting"), &this->sampleCountSetting));
+	this->framebuffers.emplace("deferredShading", std::make_unique<DeferredShadingFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferredShading"), &this->sampleCountSetting));
 	// sun - 1 colour (sunView buffer), 1 depth render targets
 	this->framebuffers.emplace("sunView", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->getRenderPass("sunView"), &this->sampleCountSetting));
 	// gui - writes directly to swapchain buffer
@@ -190,6 +192,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->uniformBuffers.emplace("mvp", std::make_unique<UniformBuffer<glsl::MVPUniform>>(allocator, VFstageFlags, &this->uniforms.mvpUniform));
 	this->uniformBuffers.emplace("cameraPlanes", std::make_unique<UniformBuffer<glsl::CameraPlanesUniform>>(allocator, FstageFlags, &this->uniforms.cameraPlanesUniform));
 	this->uniformBuffers.emplace("projections", std::make_unique<UniformBuffer<glsl::ProjectiveUniform>>(allocator, FstageFlags, &this->uniforms.projectiveUniform));
+	this->uniformBuffers.emplace("invView", std::make_unique<UniformBuffer<glsl::InverseViewUniform>>(allocator, FstageFlags, &this->uniforms.inverseViewUniform));
 	this->uniformBuffers.emplace("ssao", std::make_unique<UniformBuffer<glsl::SSAOUniform>>(allocator, FstageFlags, &this->uniforms.ssaoUniform));
 
 	// Synchronisation
@@ -249,10 +252,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	std::vector<DescriptorBufferSetting> cameraPlanesDescriptorSettings = {
 		{ this->getUniformBuffer("cameraPlanes")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorImageSetting> deferredInputsDescriptorSettings = {
-		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
-		{ this->getTextureBuffer("gBuffer2"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
-		{ this->getTextureBuffer("gBuffer3"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE },
-		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_NULL_HANDLE } };
+		{ this->getTextureBuffer("gBuffer1"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearClampToEdgeSampler.handle },
+		{ this->getTextureBuffer("gBuffer2"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearClampToEdgeSampler.handle },
+		{ this->getTextureBuffer("gBuffer3"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearClampToEdgeSampler.handle },
+		{ this->getTextureBuffer("depth"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->linearClampToEdgeSampler.handle } };
 	std::vector<DescriptorImageSetting> sunViewDescriptorSettings = {
 		{ this->getTextureBuffer("sunView"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
 	std::vector<DescriptorImageSetting> HDROuputDescriptorSettings = {
@@ -271,6 +274,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->getTextureBuffer("blurOutput"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearClampToEdgeSampler.handle } };
 	std::vector<DescriptorBufferSetting> projectionDescriptorSettings = {
 		{ this->getUniformBuffer("projections")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
+	std::vector<DescriptorBufferSetting> inverseViewDescriptorSettings = {
+		{ this->getUniformBuffer("invView")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorBufferSetting> ssaoDescriptorSettings = {
 		{ this->getUniformBuffer("ssao")->getHandle(), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorImageSetting> ssaoTexturesDescriptorSettings = {
@@ -282,7 +287,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
-	this->descriptorSets.emplace("deferredInputs", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("deferredInputAttachments").handle, deferredInputsDescriptorSettings));
+	this->descriptorSets.emplace("deferredInputs", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("deferredInputs").handle, deferredInputsDescriptorSettings));
 	this->descriptorSets.emplace("sunView", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, sunViewDescriptorSettings));
 	this->descriptorSets.emplace("HDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, HDROuputDescriptorSettings));
 	this->descriptorSets.emplace("LDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, LDROuputDescriptorSettings));
@@ -292,6 +297,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSets.emplace("brightness", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, brightnessImageDescriptorSettings));
 	this->descriptorSets.emplace("blurOutput", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, blurImageDescriptorSettings));
 	this->descriptorSets.emplace("projections", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, projectionDescriptorSettings));
+	this->descriptorSets.emplace("invView", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, inverseViewDescriptorSettings));
 	this->descriptorSets.emplace("ssao", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, ssaoDescriptorSettings));
 	this->descriptorSets.emplace("ssaoTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoTexturesDescriptorSettings));
 	this->descriptorSets.emplace("ssaoSampler", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, ssaoSamplerDescriptorSettings));
@@ -401,16 +407,15 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		Light& light = lights->at(i);
 
 		glsl::Light lightStruct = {
-			.position = light.getPosition(),
-			.direction = light.getDirection(),
-			.colour = light.getColour(),
-			.metadata = glm::ivec3(static_cast<int>(light.getLightType()), 0, light.getIntensity())
+			.positionAndLightType = { light.getPosition(), light.getLightType() },
+			.directionAndMapIndex = { light.getDirection(), 0 },
+			.colourAndIntensity = { light.getColour(), light.getIntensity() }
 		};
 
 		switch (light.getLightType()) {
 		case LightType::POINT:
 		{
-			lightStruct.metadata.y = pointLightIndex;
+			lightStruct.directionAndMapIndex.w = pointLightIndex;
 			pointLightIndex++;
 			break;
 		}
@@ -429,7 +434,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		}
 		case LightType::SPOT:
 		{
-			lightStruct.metadata.y = spotLightIndex;
+			lightStruct.directionAndMapIndex.w = spotLightIndex;
 			spotLightIndex++;
 			break;
 		}
@@ -558,6 +563,8 @@ void Renderer::update(float timeDelta) {
 
 	this->uniforms.projectiveUniform.projection = this->camera->getProjection();
 	this->uniforms.projectiveUniform.invProjection = this->camera->getInvProjection();
+
+	this->uniforms.inverseViewUniform.invView = this->camera->getInvView();
 
 	// Update any light data
 	int directionalLightIndex = 0;
@@ -697,6 +704,7 @@ void Renderer::render() {
 	// TODO: add a dirty flag feature somewhere as these buffers do not need to be updated
 	// every frame and can save on computation time
 	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
+	RendererUtils::updateUniformBuffer(this->getUniformBuffer("invView"));
 	RendererUtils::updateShaderStorageBuffer(this->getShaderStorageBuffer("lights"));
 	RendererUtils::updateShaderStorageBuffer(this->getShaderStorageBuffer("lightMatrices"));
 
@@ -820,7 +828,7 @@ void Renderer::render() {
 void Renderer::renderForward() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
-	if (this->ssaoEffect->getEnabled()) {
+	if (this->ssaoEnabled) {
 		this->ssaoEffect->apply(this->imageIndex, true);
 	}
 
@@ -834,7 +842,7 @@ void Renderer::renderForward() {
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias,
-		.ssaoEnabled = this->ssaoEffect->getEnabled()
+		.ssaoEnabled = this->ssaoEnabled
 	};
 
 	RendererUtils::bindPushConstant(
@@ -845,13 +853,13 @@ void Renderer::renderForward() {
 	// Add descriptors that will always be present in same order as in shader
 	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
 	descriptorSets.emplace_back(this->getDescriptorSet("lights")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("ssaoSampler")->getHandle());
 
 	if (this->shadowsEnabled) {
 		descriptorSets.emplace_back(this->getDescriptorSet("pointLightShadows")->getHandle());
 		descriptorSets.emplace_back(this->getDescriptorSet("directionalLightShadow")->getHandle());
 		descriptorSets.emplace_back(this->getDescriptorSet("cameraPlanes")->getHandle());
 		descriptorSets.emplace_back(this->getDescriptorSet("lightMatrices")->getHandle());
-		descriptorSets.emplace_back(this->getDescriptorSet("ssaoSampler")->getHandle());
 	}
 
 	RendererUtils::bindGraphicDescriptorSets(
@@ -893,7 +901,7 @@ void Renderer::renderForward() {
 	glsl::Light lightStruct = this->ssbos.lights.at(this->sunLightIndex);
 	this->uniforms.mvpUniform.projection = this->sunMatrices.projection.get();
 	this->uniforms.mvpUniform.view = this->sunMatrices.view.get();
-	this->uniforms.mvpUniform.camPos = glm::vec4(lightStruct.position, 1.0f);
+	this->uniforms.mvpUniform.camPos = glm::vec4(glm::vec3(lightStruct.positionAndLightType), 1.0f);
 
 	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
 
@@ -950,10 +958,10 @@ void Renderer::renderForward() {
 void Renderer::renderDeferred() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
-	this->driver->getTimestampManager().writeGPUTimestamp("deferred", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+	this->driver->getTimestampManager().writeGPUTimestamp("deferredWriting", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Writing to G-buffers pass
-	RendererUtils::beginRenderPass(this->getRenderPass("deferred"), this->getFramebuffer("deferred"), this->imageIndex);
+	RendererUtils::beginRenderPass(this->getRenderPass("deferredWriting"), this->getFramebuffer("deferredWriting"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("deferredWriting")->getHandle());
 
 	RendererUtils::bindGraphicDescriptorSets(
@@ -984,8 +992,19 @@ void Renderer::renderDeferred() {
 		RendererUtils::drawMesh(meshData[i], perMeshCallback);
 	}
 
+	RendererUtils::endRenderPass();
+
+	this->driver->getTimestampManager().writeGPUTimestamp("deferredWriting", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+
+	// SSAO Pass
+	if (this->ssaoEnabled) {
+		this->ssaoEffect->apply(this->imageIndex);
+	}
+
+	this->driver->getTimestampManager().writeGPUTimestamp("deferredShading", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
 	// Shading pass
-	RendererUtils::nextSubpass();
+	RendererUtils::beginRenderPass(this->getRenderPass("deferredShading"), this->getFramebuffer("deferredShading"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("deferredShading")->getHandle());
 
 	glsl::LightsAndEmissive lightsAndEmissive = {
@@ -993,17 +1012,19 @@ void Renderer::renderDeferred() {
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias,
-		.ssaoEnabled = this->ssaoEffect->getEnabled()
+		.ssaoEnabled = this->ssaoEnabled
 	};
 
 	RendererUtils::bindPushConstant(
 		this->getPipelineLayout("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
-	descriptorSets.reserve(7);
+	descriptorSets.reserve(9);
 	descriptorSets.emplace_back(this->getDescriptorSet("deferredInputs")->getHandle());
 	descriptorSets.emplace_back(this->getDescriptorSet("mvp")->getHandle());
 	descriptorSets.emplace_back(this->getDescriptorSet("lights")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("invView")->getHandle());
+	descriptorSets.emplace_back(this->getDescriptorSet("ssaoSampler")->getHandle());
 
 	if (this->shadowsEnabled) {
 		descriptorSets.emplace_back(this->getDescriptorSet("pointLightShadows")->getHandle());
@@ -1020,7 +1041,7 @@ void Renderer::renderDeferred() {
 
 	RendererUtils::endRenderPass();
 
-	this->driver->getTimestampManager().writeGPUTimestamp("deferred", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	this->driver->getTimestampManager().writeGPUTimestamp("deferredShading", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 }
 
 void Renderer::renderDebugViews() {

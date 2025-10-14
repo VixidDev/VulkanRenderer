@@ -10,9 +10,9 @@
 
 using _TextureBuffer = std::unique_ptr<TextureBuffer>;
 
-class DeferredFramebuffer : public Framebuffer {
+class DeferredShadingFramebuffer : public Framebuffer {
 public:
-	DeferredFramebuffer(
+	DeferredShadingFramebuffer(
 		VulkanWindow* window,
 		std::map<std::string, _TextureBuffer>* textureBuffers,
 		RenderPass* renderPass,

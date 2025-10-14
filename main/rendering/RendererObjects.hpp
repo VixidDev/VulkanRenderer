@@ -1,7 +1,8 @@
 #pragma once
 
 #include "objects/impl/renderPasses/ForwardPass.hpp"
-#include "objects/impl/renderPasses/DeferredPass.hpp"
+#include "objects/impl/renderPasses/DeferredWritingPass.hpp"
+#include "objects/impl/renderPasses/DeferredShadingPass.hpp"
 #include "objects/impl/renderPasses/ShadowPass.hpp"
 #include "objects/impl/renderPasses/GUIPass.hpp"
 #include "objects/impl/renderPasses/SunViewPass.hpp"
@@ -52,7 +53,8 @@
 #include "objects/impl/textureBuffers/NoiseTextureBuffer.hpp"
 
 #include "objects/impl/framebuffers/ForwardFramebuffer.hpp"
-#include "objects/impl/framebuffers/DeferredFramebuffer.hpp"
+#include "objects/impl/framebuffers/DeferredWritingFramebuffer.hpp"
+#include "objects/impl/framebuffers/DeferredShadingFramebuffer.hpp"
 #include "objects/impl/framebuffers/ShadowFramebuffer.hpp"
 #include "objects/impl/framebuffers/CubemapFramebuffer.hpp"
 #include "objects/impl/framebuffers/CubemapArrayFramebuffer.hpp"
