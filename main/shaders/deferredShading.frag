@@ -31,6 +31,7 @@ layout(push_constant) uniform PushConstants {
 	float brightnessThreshold;
 	float shadowBias;
 	int ssaoEnabled;
+	float ssaoExp;
 } pConsts;
 
 layout(location = 0) out vec4 oColour;
@@ -103,6 +104,7 @@ void main() {
 
 	// Tex coords from deferred vertex shader are already in clip space
 	float ssao = pConsts.ssaoEnabled == 1 ? texture(uSSAO, v2fTexCoord).r : 1.0;
+	ssao = pow(ssao, pConsts.ssaoExp);
 
 	// Add ambient aspect and account for AO
 	vec3 ambient = vec3(0.03) * albedo * ssao;

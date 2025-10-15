@@ -141,8 +141,6 @@ void main() {
 		Lo += brdf;
 	}
 
-	// This is reliant on being able to scale the size of the uSSAO texture 
-	// to the same size as the screen
 	vec2 screenSize = textureSize(uSSAO, 0);
 	vec2 screenSpaceUV = gl_FragCoord.xy / screenSize;
 	float ssao = pConsts.ssaoEnabled == 1 ? texture(uSSAO, screenSpaceUV).r : 1.0;
