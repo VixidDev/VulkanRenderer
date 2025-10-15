@@ -209,11 +209,7 @@ void GUI::draw() {
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Effects")) {
-			ImGui::Text("Descriptor Sets: %d", descriptorSetCount);
 			ImGui::Text("Pre Processing Effects");
-			// TODO: FIX: Repeatedly enabling / disabling this causes ERROR_OUT_OF_POOL_MEMORY
-			// from vkAllocatorDescriptorSets. (Is it a SSAO specific thing or a more
-			// prevalent problem with swapchain recreation?)
 			if (ImGui::Checkbox("SSAO", &renderer.ssaoEnabled)) {
 				renderer.setRecreateSwapchain(true, true);
 			}
