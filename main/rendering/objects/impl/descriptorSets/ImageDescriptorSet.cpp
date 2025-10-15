@@ -11,7 +11,7 @@ ImageDescriptorSet::ImageDescriptorSet(
 		descImageSetting.textureBuffer->addListener(this);
 	}
 
-	this->recreate();
+	this->descriptorSet = createImageDescriptor(*this->window, *this->descSetLayout, this->descImageSettings);
 }
 
 ImageDescriptorSet::~ImageDescriptorSet() {
@@ -25,7 +25,7 @@ void ImageDescriptorSet::onTextureBufferRecreated() {
 }
 
 void ImageDescriptorSet::recreate() {
-	this->descriptorSet = createImageDescriptor(*this->window, *this->descSetLayout, this->descImageSettings);
+	updateImageDescriptorSet(*this->window->getDevice(), this->descriptorSet, this->descImageSettings);
 }
 
 

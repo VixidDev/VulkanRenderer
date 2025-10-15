@@ -8,9 +8,9 @@ BufferDescriptorSet::BufferDescriptorSet(
 {
 	this->descBufferSettings = descBufferSettings;
 
-	this->recreate();
+	this->descriptorSet = createBufferDescriptor(*this->window, *this->descSetLayout, this->descBufferSettings);
 }
 
 void BufferDescriptorSet::recreate() {
-	this->descriptorSet = createBufferDescriptor(*this->window, *this->descSetLayout, this->descBufferSettings);
+	updateBufferDescriptorSet(*this->window->getDevice(), this->descriptorSet, this->descBufferSettings);
 }

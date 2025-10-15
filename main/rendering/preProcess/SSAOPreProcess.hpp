@@ -7,7 +7,7 @@ class DescriptorSet;
 struct SSAOBlurPC {
 	int direction = 0;
 	int radius = 2;
-	float depthThreshold = 0.002f;
+	float depthThreshold = 0.02f;
 	float normalThreshold = 0.85f;
 };
 

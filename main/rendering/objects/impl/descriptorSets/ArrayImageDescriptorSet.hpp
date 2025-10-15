@@ -11,7 +11,7 @@ public:
 
 	void recreate() override;
 
-	void derivedRecreate();
+	void updateDescriptorSet(DescriptorImageSetting descImageSetting, vk::ImageView& imageView, VkDescriptorSet descriptorSet);
 
 	std::vector<VkDescriptorSet>& getDescriptorSets();
 private:
