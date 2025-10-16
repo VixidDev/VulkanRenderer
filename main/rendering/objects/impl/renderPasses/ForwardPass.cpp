@@ -32,7 +32,7 @@ void ForwardPass::recreateNonMSAA() {
 	// Output brightness
 	attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[1].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
