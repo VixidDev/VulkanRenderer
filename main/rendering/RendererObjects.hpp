@@ -10,6 +10,7 @@
 #include "objects/impl/renderPasses/TonemapPass.hpp"
 #include "objects/impl/renderPasses/PreSSAOPass.hpp"
 #include "objects/impl/renderPasses/SSAOPass.hpp"
+#include "objects/impl/renderPasses/DebugPass.hpp"
 
 #include "objects/impl/pipelineLayouts/ForwardPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/DeferredWritingPipelineLayout.hpp"
@@ -67,6 +68,7 @@
 #include "objects/impl/framebuffers/SunFramebuffer.hpp"
 #include "objects/impl/framebuffers/WriteToTargetFramebuffer.hpp"
 #include "objects/impl/framebuffers/PreSSAOFramebuffer.hpp"
+#include "objects/impl/framebuffers/DebugFramebuffer.hpp"
 
 #include "objects/impl/descriptorSets/BufferDescriptorSet.hpp"
 #include "objects/impl/descriptorSets/ImageDescriptorSet.hpp"

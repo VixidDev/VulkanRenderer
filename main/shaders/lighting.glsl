@@ -53,12 +53,7 @@ vec3 CookTorranceBRDF(vec3 lightDir, vec3 viewDir, vec3 normal, float metalness,
 
 	vec3 diffuse = (albedo / PI) * kD;
 	
-	vec3 combined;
-	if (shadow < 1.0) {
-		combined = diffuse * shadow;
-	} else {
-		combined = diffuse + specular;
-	}
+	vec3 combined = (diffuse + specular) * shadow;
 
 	return combined * radiance * max(nDotL, 0.0);
 }

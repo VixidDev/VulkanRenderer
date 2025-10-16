@@ -67,6 +67,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->renderPasses.emplace("tonemap", std::make_unique<TonemapPass>(window));
 	this->renderPasses.emplace("pre_ssao", std::make_unique<PreSSAOPass>(window));
 	this->renderPasses.emplace("ssao", std::make_unique<SSAOPass>(window));
+	this->renderPasses.emplace("debug", std::make_unique<DebugPass>(window));
 
 	// Descriptor Set Layouts
 	std::vector<DescriptorSetting> uniformBufferV = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT } };
@@ -146,7 +147,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Debug pipelines
 	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->getPipelineLayout("lineDebug"), this->getRenderPass("sunView"), &this->sampleCountSetting));
-	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->getPipelineLayout("debugViews"), this->getRenderPass("forward"), &this->sampleCountSetting));
+	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->getPipelineLayout("debugViews"), this->getRenderPass("debug"), &this->sampleCountSetting));
 	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("forward"), &this->sampleCountSetting));
 
 	// Texture Buffers
@@ -204,6 +205,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->framebuffers.emplace("ssao", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssao"), this->getRenderPass("ssao"), &swapchain->getHalfExtent()));
 	this->framebuffers.emplace("ssaoHblur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssaoHblur"), this->getRenderPass("ssao")));
 	this->framebuffers.emplace("ssaoVblur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssaoVblur"), this->getRenderPass("ssao")));
+	this->framebuffers.emplace("debug", std::make_unique<DebugFramebuffer>(window, &this->textureBuffers, this->getRenderPass("debug")));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -261,7 +263,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		.minFilter = VK_FILTER_LINEAR,
 		.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
 		.compareEnable = 1, 
-		.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL };
+		.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
+		.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE };
 	this->shadowMapSampler = VkUtils::createTextureSampler(*window, shadowMapSamplerInfo);
 	
 
@@ -536,7 +539,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 				return glm::ortho(-this->sunOrthoBounds, this->sunOrthoBounds, this->sunOrthoBounds, -this->sunOrthoBounds, this->sunShadowNear, this->sunShadowFar);
 			});
 			this->sunMatrices.view = Cache<glm::mat4>([this, &light]() {
-				return glm::lookAt(-light.getDirection() * this->sunDistance, glm::vec3(0.0f, 0.0f, -20.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+				return glm::lookAt(-light.getDirection() * this->sunDistance, glm::vec3(0.0f, 0.0f, -50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 			});
 
 			this->sunLightIndex = i;
@@ -1180,12 +1183,12 @@ void Renderer::renderDebugViews() {
 	if (isOvervisualisation) {
 		// Set clear colour to a dark green to create a 'negative'-like image, but also restore
 		// the original clear colour afterwards for when we disable overvisualisation
-		VkClearValue originalValue = this->getRenderPass("forward")->getClearValues().at(0);
-		this->getRenderPass("forward")->getClearValues().at(0) = { {0.0f, 0.3f, 0.0f, 1.0f} };
-		RendererUtils::beginRenderPass(this->getRenderPass("forward"), this->getFramebuffer("forward"), this->imageIndex);
-		this->getRenderPass("forward")->getClearValues().at(0) = originalValue;
+		VkClearValue originalValue = this->getRenderPass("debug")->getClearValues().at(0);
+		this->getRenderPass("debug")->getClearValues().at(0) = { {0.0f, 0.3f, 0.0f, 1.0f} };
+		RendererUtils::beginRenderPass(this->getRenderPass("debug"), this->getFramebuffer("debug"), this->imageIndex);
+		this->getRenderPass("debug")->getClearValues().at(0) = originalValue;
 	} else {
-		RendererUtils::beginRenderPass(this->getRenderPass("forward"), this->getFramebuffer("forward"), this->imageIndex);
+		RendererUtils::beginRenderPass(this->getRenderPass("debug"), this->getFramebuffer("debug"), this->imageIndex);
 	}
 
 	std::vector<VkDescriptorSet> descriptorSets;
@@ -1247,7 +1250,7 @@ void Renderer::renderDebugViews() {
 	this->driver->getTimestampManager().writeGPUTimestamp("debugViews", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
 	// Blit image to swapchain
-	VkImage srcImage = this->getTextureBuffer("colour")->getImage().image;
+	VkImage srcImage = this->getTextureBuffer("HDR")->getImage().image;
 	VkImage swapchainImage = this->context.window->getSwapchain()->getImage(this->imageIndex);
 
 	RendererUtils::blitImageToSwapchain(

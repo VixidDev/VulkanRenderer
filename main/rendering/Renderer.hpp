@@ -146,10 +146,10 @@ public:
 	
 	float shadowBias = 0.0004f;
 
-	float sunOrthoBounds = 22.0f;
+	float sunOrthoBounds = 32.0f;
 	float sunShadowNear = 0.1f;
 	float sunShadowFar = 256.0f;
-	float sunDistance = 50.0f;
+	float sunDistance = 100.0f;
 
 	bool renderCameraFrustumBounds = false;
 	
