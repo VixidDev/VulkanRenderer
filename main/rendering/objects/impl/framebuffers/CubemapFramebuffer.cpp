@@ -2,7 +2,7 @@
 
 #include "../../../PipelineCreation.hpp"
 
-#include "../textureBuffers/CubemapDepthTextureBuffer.hpp"
+#include "../textureBuffers/CubemapTextureBuffer.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
 #include "Error.hpp"
@@ -38,7 +38,7 @@ void CubemapFramebuffer::recreate() {
 	fbInfo.layers = 1;
 
 	for (std::size_t i = 0; i < 6; i++) {
-		imageView[0] = dynamic_cast<CubemapDepthTextureBuffer*>(this->textureBuffer)->getFramebufferViews()[i].handle;
+		imageView[0] = dynamic_cast<CubemapTextureBuffer*>(this->textureBuffer)->getFramebufferViews()[i].handle;
 
 		VkFramebuffer fb = VK_NULL_HANDLE;
 		if (const auto res = vkCreateFramebuffer(this->window->getDevice()->getDevice(), &fbInfo, nullptr, &fb); VK_SUCCESS != res)

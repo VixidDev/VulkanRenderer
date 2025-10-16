@@ -41,6 +41,17 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Create camera in-place
 	this->camera = std::make_unique<Camera>(swapchain, 90.0f, 0.01f, 256.0f, glm::vec3(0.0f, 7.0f, -12.0f), glm::vec3(0.0f, 0.0f, -1.0f));
 
+	std::array<const char*, 6> skyboxPaths = {
+		"assets-src/main/skybox/right.bmp",
+		"assets-src/main/skybox/left.bmp",
+		"assets-src/main/skybox/top.bmp",
+		"assets-src/main/skybox/bottom.bmp",
+		"assets-src/main/skybox/front.bmp",
+		"assets-src/main/skybox/back.bmp"
+	};
+
+	this->getSkyboxDimensions(skyboxPaths);
+
 	// Note: I no longer like this idea of creating a whole new class for each
 	// vulkan object, it seemed like a good idea initially, but the more I add,
 	// the more chaotic and unnecessary it seems. Hopefully I get around to reworking it...
@@ -102,6 +113,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelineLayouts.emplace("pre_ssao", std::make_unique<PreSSAOPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("ssao", std::make_unique<SSAOPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("ssao_blur", std::make_unique<SSAOBlurPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("skybox", std::make_unique<SkyboxPipelineLayout>(window, &this->descriptorSetLayouts));
 	
 	// Debug pipeline layouts
 	this->pipelineLayouts.emplace("sunView", std::make_unique<SunViewPipelineLayout>(window, &this->descriptorSetLayouts));
@@ -129,6 +141,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("pre_ssao", std::make_unique<PreSSAOPipeline>(window, this->getPipelineLayout("pre_ssao"), this->getRenderPass("pre_ssao")));
 	this->pipelines.emplace("ssao", std::make_unique<SSAOPipeline>(window, this->getPipelineLayout("ssao"), this->getRenderPass("ssao")));
 	this->pipelines.emplace("ssao_blur", std::make_unique<SSAOBlurPipeline>(window, this->getPipelineLayout("ssao_blur"), this->getRenderPass("ssao")));
+	this->pipelines.emplace("skybox", std::make_unique<SkyboxPipeline>(window, this->getPipelineLayout("skybox"), this->getRenderPass("postProcess")));
 
 	// Debug pipelines
 	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
@@ -161,6 +174,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->textureBuffers.emplace("ssao", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM, nullptr, &swapchain->getHalfExtent()));
 	this->textureBuffers.emplace("ssaoHblur", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM));
 	this->textureBuffers.emplace("ssaoVblur", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM));
+	// skybox - skybox cubemap
+	this->textureBuffers.emplace("skybox", std::make_unique<CubemapTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_SRGB, &this->skyboxDimensions, true, true));
 
 	// Debug texture buffers
 	// sunView - buffer used to render the sun view
@@ -298,6 +313,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->getTextureBuffer("ssaoHblur"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
 	std::vector<DescriptorImageSetting> ssaoSamplerDescriptorSettings = {
 		{ this->getTextureBuffer("ssaoVblur"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
+	std::vector<DescriptorImageSetting> skyboxDescriptorSettings = {
+		{ this->getTextureBuffer("skybox"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->linearRepeatSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
@@ -317,6 +334,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSets.emplace("ssaoHBlurTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoHblurDescriptorSettings));
 	this->descriptorSets.emplace("ssaoVBlurTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoVblurDescriptorSettings));
 	this->descriptorSets.emplace("ssaoSampler", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, ssaoSamplerDescriptorSettings));
+	this->descriptorSets.emplace("skybox", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, skyboxDescriptorSettings));
 
 	// Pre processing effects
 	// (pre processing effects are what I call effects / passes in the renderer
@@ -344,6 +362,9 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		this->uniforms.ssaoUniform.samples[i] = glm::vec4(sample * scale, 0.0f);
 	}
 	this->uniforms.ssaoUniform.radius = 0.5f;
+
+	// Fill skybox texture (data already gathered from getSkyboxDimensions())
+	this->fillSkyboxTexture();
 }
 
 Renderer::~Renderer() {
@@ -354,6 +375,80 @@ Renderer::~Renderer() {
 	if (!this->handledImGUIShutdown) {
 		vkDeviceWaitIdle(this->context.window->getDevice()->getDevice());
 		RendererUtils::destroyImGUI();
+	}
+}
+
+void Renderer::getSkyboxDimensions(std::array<const char*, 6>& filenames) {
+	// Load images using stb
+	int width, height, channels;
+
+	for (int i = 0; i < 6; i++) {
+		this->skyboxImageData[i] = stbi_load(filenames[i], &width, &height, &channels, STBI_rgb_alpha);
+		if (!this->skyboxImageData[i])
+			throw Utils::Error("Unable to load skybox image: %s\n", filenames[i]);
+	}
+
+	this->skyboxDimensions = { std::uint32_t(width), std::uint32_t(height) };
+}
+
+void Renderer::fillSkyboxTexture() {
+	// Upload images to GPU
+	std::size_t imageSize = this->skyboxDimensions.width * this->skyboxDimensions.height * 4;
+	std::size_t bufferSize = imageSize * 6;
+
+	vk::Buffer stagingBuffer = vk::createBuffer(
+		*this->context.allocator,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
+
+	std::uint8_t* ptr = nullptr;
+	if (const auto res = vmaMapMemory(this->context.allocator->allocator, stagingBuffer.allocation, (void**)&ptr); VK_SUCCESS != res)
+		throw Utils::Error("Error when mapping memory for writing\nvmaMapMemory() returned %s\n", Utils::toString(res).c_str());
+
+	for (int i = 0; i < 6; i++) {
+		// Pointer arithmetic to advance pointer so we can copy the next data of next image
+		std::memcpy(ptr + (imageSize * i), skyboxImageData[i], imageSize);
+	}
+
+	vmaUnmapMemory(this->context.allocator->allocator, stagingBuffer.allocation);
+
+	// Get skybox VkImage handle
+	VkImage image = this->getTextureBuffer("skybox")->getImage().image;
+
+	VkCommandPool cmdPool = this->context.window->getDevice()->getCmdPool();
+	VkCommandBuffer cmdBuff = VkUtils::createCommandBuffer(*this->context.window, cmdPool);
+	VkUtils::beginCommandBuffer(cmdBuff);
+
+	// Transition to TRANSFER_DST_OPTIMAL
+	VkUtils::imageBarrier(cmdBuff, image,
+		/* srcAccessMask */ 0, /* dstAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT,
+		/* srcLayout     */ VK_IMAGE_LAYOUT_UNDEFINED, /* dstLayout */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		/* srcStageMask  */ VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6 });
+
+	// Copy buffer into image
+	VkBufferImageCopy copy;
+	copy.bufferOffset = 0;
+	copy.bufferRowLength = 0;
+	copy.bufferImageHeight = 0;
+	copy.imageSubresource = VkImageSubresourceLayers{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 6 };
+	copy.imageOffset = VkOffset3D{ 0, 0, 0 };
+	copy.imageExtent = VkExtent3D{ this->skyboxDimensions.width, this->skyboxDimensions.height, 1 };
+
+	vkCmdCopyBufferToImage(cmdBuff, stagingBuffer.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+
+	// Transition to SHADER_READ_ONLY_OPTIMAL
+	VkUtils::imageBarrier(cmdBuff, image,
+		/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT, /* dstAccessMask */ VK_ACCESS_SHADER_READ_BIT,
+		/* srcLayout     */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, /* dstLayout */ VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		/* srcStageMask  */ VK_PIPELINE_STAGE_TRANSFER_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+		VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6 });
+
+	VkUtils::endAndSubmitCommandBuffer(*this->context.window, cmdBuff);
+
+	for (int i = 0; i < 6; i++) {
+		free(this->skyboxImageData[i]);
 	}
 }
 
@@ -843,12 +938,25 @@ void Renderer::render() {
 void Renderer::renderForward() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
+	// Draw skybox
+	// (a skybox render pass would look identical to postProcess so we just use that)
+	RendererUtils::beginRenderPass(this->getRenderPass("postProcess"), this->getFramebuffer("writeToHDR"), this->imageIndex);
+	RendererUtils::bindGraphicPipeline(this->getPipeline("skybox")->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(
+		this->getPipelineLayout("skybox")->getHandle(), 0, 1, &this->getDescriptorSet("mvp")->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(
+		this->getPipelineLayout("skybox")->getHandle(), 1, 1, &this->getDescriptorSet("skybox")->getHandle());
+	RendererUtils::drawDirect(36, 1, 0, 0);
+	RendererUtils::endRenderPass();
+
+	// Do SSAO pass
 	if (this->ssaoEnabled) {
 		this->ssaoEffect->apply(this->imageIndex, true);
 	}
 
 	this->driver->getTimestampManager().writeGPUTimestamp("forward", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
+	// Forward pass
 	RendererUtils::beginRenderPass(this->getRenderPass("forward"), this->getFramebuffer("forward"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("forward")->getHandle());
 

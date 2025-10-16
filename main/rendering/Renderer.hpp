@@ -24,6 +24,8 @@
 
 #include "preProcess/SSAOPreProcess.hpp"
 
+#include <stb_image.h>
+
 struct Uniforms {
 	glsl::MVPUniform mvpUniform;
 	glsl::CameraPlanesUniform cameraPlanesUniform;
@@ -161,6 +163,9 @@ private:
 	void renderDebugViews();
 	void renderShadowMaps();
 
+	void getSkyboxDimensions(std::array<const char*, 6>& filenames);
+	void fillSkyboxTexture();
+
 	Driver* driver;
 	VulkanContext context;
 
@@ -228,6 +233,9 @@ private:
 
 	// Internal
 	std::pair<vk::Image, vk::ImageView> dummyTexture;
+
+	stbi_uc* skyboxImageData[6];
+	VkExtent2D skyboxDimensions;
 
 	bool recreateSwapchain = false;
 	bool forceRecreate = false;
