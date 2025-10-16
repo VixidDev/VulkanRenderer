@@ -173,6 +173,19 @@ void GUI::draw() {
 
 			ImGui::Separator();
 
+			ImGui::Text("Shadow Map Resolutions");
+			const char* shadowResolutions[4] = { "1024x1024", "2048x2048", "4096x4096", "8192x8192" };
+
+			if (ImGui::Combo("Sun Shadow Map Resolution", &renderer.sunShadowMapResIdx, shadowResolutions, 4)) {
+				renderer.setRecreateSwapchain(true, true);
+			}
+
+			if (ImGui::Combo("Point Shadow Map Resolution", &renderer.pointShadowMapResIdx, shadowResolutions, 4)) {
+				renderer.setRecreateSwapchain(true, true);
+			}
+
+			ImGui::Separator();
+
 			std::vector<Light>& lights = this->driver->getLights();
 			Light& sunLight = lights[renderer.getSunLightIndex()];
 

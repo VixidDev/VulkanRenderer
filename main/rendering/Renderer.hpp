@@ -137,6 +137,12 @@ public:
 	std::uint32_t numDirectionalLights = 0;
 	std::uint32_t numSpotLights = 0;
 
+	// Should only have 1 sun shadow map and is usually most important
+	// so we use high resolution here
+	int sunShadowMapResIdx = 3;
+	int pointShadowMapResIdx = 1;
+	int spotShadowMapResIdx = 1;
+
 	bool showSunView = false;
 
 	float emissiveStrength = 75.0f;
@@ -215,14 +221,18 @@ private:
 	// Renderer settings
 	int renderingType = 0; // 0 = Forward, 1 = Deferred
 	VkSampleCountFlagBits sampleCountSetting = VK_SAMPLE_COUNT_1_BIT;
+
 	bool shadowsEnabled = true;
-	VkExtent2D shadowRes = VkExtent2D{ 2048, 2048 };
-	std::vector<VkExtent2D> shadowResolutions = {
+	VkExtent2D sunShadowMapRes = VkExtent2D{ 8192, 8192 };
+	VkExtent2D pointShadowMapRes = VkExtent2D{ 2048, 2048 };
+	//VkExtent2D spotShadowMapRes = VkExtent2D{ 2048, 2048 };
+	std::array<VkExtent2D, 4> shadowResolutions = {
 		VkExtent2D{ 1024, 1024 },
 		VkExtent2D{ 2048, 2048 },
 		VkExtent2D{ 4096, 4096 },
 		VkExtent2D{ 8192, 8192 }
 	};
+
 	float depthBiasConstant = 7.0f;
 	float depthBiasSlopeFactor = 3.0f;
 	bool debugView = false;

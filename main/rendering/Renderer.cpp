@@ -125,8 +125,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Pipelines
 	// (alot of the pipelines are identical other than their input pipeline layout, renderpass, and shader stages, possibly use the base class for these?)
 	// (cubemap)shadow - shadow pass stage pipelines
-	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->shadowRes));
-	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->getPipelineLayout("cubemapShadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->shadowRes));
+	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->sunShadowMapRes));
+	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->getPipelineLayout("cubemapShadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->pointShadowMapRes));
 	// forward - regular forward shading pipeline
 	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->getPipelineLayout("forward"), this->getRenderPass("forward"), &this->sampleCountSetting, &this->shadowsEnabled));
 	// deferredWriting - pipeline stage for writing to g-buffers
@@ -483,11 +483,11 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	}
 
 	// Create a texture buffers and framebuffers for array shadow maps for non-zero light types
-	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<CubemapArrayDepthTextureBuffer>(&this->context, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->shadowRes));
-	this->textureBuffers.emplace("directionalShadow", std::make_unique<DepthTextureBuffer>(&this->context, VK_FORMAT_D32_SFLOAT, nullptr, &this->shadowRes));
+	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<CubemapArrayDepthTextureBuffer>(&this->context, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->pointShadowMapRes));
+	this->textureBuffers.emplace("directionalShadow", std::make_unique<DepthTextureBuffer>(&this->context, VK_FORMAT_D32_SFLOAT, nullptr, &this->sunShadowMapRes));
 #ifndef NDEBUG
-	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numPointLights * 6, VK_FORMAT_R16G16B16A16_SFLOAT, &this->shadowRes));
-	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16G16B16A16_SFLOAT, nullptr, &this->shadowRes));
+	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numPointLights * 6, VK_FORMAT_R16G16B16A16_SFLOAT, &this->pointShadowMapRes));
+	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16G16B16A16_SFLOAT, nullptr, &this->sunShadowMapRes));
 #endif
 
 	if (this->numPointLights != 0) {
@@ -498,7 +498,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 #endif
 		};
 
-		this->framebuffers.emplace("pointArrayShadows", std::make_unique<ArrayFramebuffer>(window, pointShadowTextures, this->getRenderPass("shadow"), this->numPointLights * 6, &this->shadowRes));
+		this->framebuffers.emplace("pointArrayShadows", std::make_unique<ArrayFramebuffer>(window, pointShadowTextures, this->getRenderPass("shadow"), this->numPointLights * 6, &this->pointShadowMapRes));
 	}
 
 	if (this->numDirectionalLights != 0) {
@@ -509,7 +509,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 #endif
 		};
 
-		this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, directionalShadowTextures, this->getRenderPass("shadow"), &this->shadowRes));
+		this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, directionalShadowTextures, this->getRenderPass("shadow"), &this->sunShadowMapRes));
 	}
 
 	// Light type counters (surely I can make a better system than this)
@@ -604,6 +604,10 @@ bool Renderer::checkSwapchain() {
 		glfwGetFramebufferSize(glfwWindow, &width, &height);
 		glfwWaitEvents();
 	}
+
+	// Update shadow map resolutions
+	this->sunShadowMapRes = this->shadowResolutions[this->sunShadowMapResIdx];
+	this->pointShadowMapRes = this->shadowResolutions[this->pointShadowMapResIdx];
 
 	VulkanWindow* window = this->context.window.get();
 
