@@ -11,6 +11,7 @@
 #include "objects/impl/renderPasses/PreSSAOPass.hpp"
 #include "objects/impl/renderPasses/SSAOPass.hpp"
 #include "objects/impl/renderPasses/DebugPass.hpp"
+#include "objects/impl/renderPasses/SunPass.hpp"
 
 #include "objects/impl/pipelineLayouts/ForwardPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/DeferredWritingPipelineLayout.hpp"

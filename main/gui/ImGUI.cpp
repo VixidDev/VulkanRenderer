@@ -186,6 +186,13 @@ void GUI::draw() {
 
 			ImGui::Separator();
 
+			ImGui::Text("Sun Params");
+			ImGui::SliderFloat("upperStep", &renderer.sunUpperStep, 0.01f, 1.0f);
+			ImGui::SliderFloat("lowerStep", &renderer.sunLowerStep, 0.01f, 1.0f);
+			ImGui::SliderFloat("intensity", &renderer.sunIntensity, 1.0f, 10.0f);
+
+			ImGui::Separator();
+
 			std::vector<Light>& lights = this->driver->getLights();
 			Light& sunLight = lights[renderer.getSunLightIndex()];
 

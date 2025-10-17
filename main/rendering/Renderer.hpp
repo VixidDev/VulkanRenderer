@@ -152,7 +152,7 @@ public:
 	
 	float shadowBias = 0.0004f;
 
-	float sunOrthoBounds = 32.0f;
+	float sunOrthoBounds = 37.0f;
 	float sunShadowNear = 0.1f;
 	float sunShadowFar = 256.0f;
 	float sunDistance = 100.0f;
@@ -161,6 +161,12 @@ public:
 	
 	bool ssaoEnabled = false;
 	float ssaoExp = 2.0f;
+
+	float sunUpperStep = 0.12f;
+	float sunLowerStep = 0.01f;
+	// Different to the 'intensity' of the light of the sun, 
+	// this is to do with rendering the actual sun in the sky
+	float sunIntensity = 1.0f;
 private:
 	void createDummyTexture();
 

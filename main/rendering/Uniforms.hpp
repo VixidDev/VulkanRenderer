@@ -53,4 +53,10 @@ namespace glsl {
 		glm::vec4 lightPos{};
 		float farPlane;
 	};
+
+	struct SunPC {
+		glm::vec4 sunDir{};
+		glm::vec4 sunColour{};
+		glm::vec4 params{};
+	};
 }

@@ -68,6 +68,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->renderPasses.emplace("pre_ssao", std::make_unique<PreSSAOPass>(window));
 	this->renderPasses.emplace("ssao", std::make_unique<SSAOPass>(window));
 	this->renderPasses.emplace("debug", std::make_unique<DebugPass>(window));
+	this->renderPasses.emplace("sun", std::make_unique<SunPass>(window));
 
 	// Descriptor Set Layouts
 	std::vector<DescriptorSetting> uniformBufferV = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT } };
@@ -144,7 +145,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("ssao", std::make_unique<SSAOPipeline>(window, this->getPipelineLayout("ssao"), this->getRenderPass("ssao")));
 	this->pipelines.emplace("ssao_blur", std::make_unique<SSAOBlurPipeline>(window, this->getPipelineLayout("ssao_blur"), this->getRenderPass("ssao")));
 	this->pipelines.emplace("skybox", std::make_unique<SkyboxPipeline>(window, this->getPipelineLayout("skybox"), this->getRenderPass("postProcess")));
-	this->pipelines.emplace("sun", std::make_unique<SunPipeline>(window, this->getPipelineLayout("sun"), this->getRenderPass("postProcess")));
+	this->pipelines.emplace("sun", std::make_unique<SunPipeline>(window, this->getPipelineLayout("sun"), this->getRenderPass("sun")));
 
 	// Debug pipelines
 	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
@@ -541,7 +542,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 				return glm::ortho(-this->sunOrthoBounds, this->sunOrthoBounds, this->sunOrthoBounds, -this->sunOrthoBounds, this->sunShadowNear, this->sunShadowFar);
 			});
 			this->sunMatrices.view = Cache<glm::mat4>([this, &light]() {
-				return glm::lookAt(-light.getDirection() * this->sunDistance, glm::vec3(0.0f, 0.0f, -50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+				return glm::lookAt(glm::vec3(0.0f, 0.0f, -50.0f) + (-light.getDirection() * this->sunDistance), glm::vec3(0.0f, 0.0f, -50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
 			});
 
 			this->sunLightIndex = i;
@@ -960,9 +961,16 @@ void Renderer::renderForward() {
 	RendererUtils::drawDirect(36, 1, 0, 0);
 	RendererUtils::endRenderPass();
 
+	glsl::SunPC sunPC = {
+		.sunDir = glm::vec4(this->ssbos.lights[this->sunLightIndex].directionAndMapIndex),
+		.sunColour = glm::vec4(this->ssbos.lights[this->sunLightIndex].colourAndIntensity),
+		.params = glm::vec4(this->sunUpperStep, this->sunLowerStep, this->sunIntensity, 0.0f)
+	};
+
 	// Draw Sun
-	RendererUtils::beginRenderPass(this->getRenderPass("postProcess"), this->getFramebuffer("writeToHDR"), this->imageIndex);
+	RendererUtils::beginRenderPass(this->getRenderPass("sun"), this->getFramebuffer("writeToHDR"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("sun")->getHandle());
+	RendererUtils::bindPushConstant(this->getPipelineLayout("sun")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::SunPC), &sunPC);
 	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("sun")->getHandle(), 0, 1, &this->getDescriptorSet("mvp")->getHandle());
 	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("sun")->getHandle(), 1, 1, &this->getDescriptorSet("invMatrices")->getHandle());
 	RendererUtils::drawDirect(3, 1, 0, 0);
