@@ -1,9 +1,5 @@
 #version 450
 
-// Some platforms may need this explicitly enabled
-// if not compiling using glslc
-//#extension GL_GOOGLE_include_directive : enable
-
 // FXAA defines for highest quality FXAA
 #define FXAA_PC 1
 #define FXAA_GLSL_130 1

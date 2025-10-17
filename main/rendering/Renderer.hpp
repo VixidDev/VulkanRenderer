@@ -30,7 +30,7 @@ struct Uniforms {
 	glsl::MVPUniform mvpUniform;
 	glsl::CameraPlanesUniform cameraPlanesUniform;
 	glsl::ProjectiveUniform projectiveUniform;
-	glsl::InverseViewUniform inverseViewUniform;
+	glsl::InverseMatricesUniform inverseMatricesUniform;
 	glsl::SSAOUniform ssaoUniform;
 };
 

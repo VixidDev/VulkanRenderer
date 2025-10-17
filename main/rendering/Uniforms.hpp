@@ -20,7 +20,9 @@ namespace glsl {
 		glm::mat4 invProjection = glm::mat4(1.0f);
 	};
 
-	struct InverseViewUniform {
+	struct InverseMatricesUniform {
+		glm::mat4 invViewProj = glm::mat4(1.0f);
+		glm::mat4 invProj = glm::mat4(1.0f);
 		glm::mat4 invView = glm::mat4(1.0f);
 	};
 

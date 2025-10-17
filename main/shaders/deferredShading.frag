@@ -19,9 +19,11 @@ layout(set = 2, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
 };
 
-layout(set = 3, binding = 0) uniform InverseView {
+layout(set = 3, binding = 0) uniform InverseMatrices {
+	mat4 invViewProj;
+	mat4 invProj;
 	mat4 invView;
-} invView;
+} inverses;
 
 layout(set = 4, binding = 0) uniform sampler2D uSSAO;
 
@@ -42,7 +44,7 @@ layout(constant_id = 0) const int VIEW_SPACE_NORMALS = 0;
 vec3 posFromDepth(float depth) {
 	vec4 clipSpace = vec4(v2fTexCoord * 2.0 - 1.0, depth, 1.0);
 	// TODO: consider passing these inverses as a uniform rather than computing both every fragment
-	vec4 viewSpace = invView.invView * inverse(mvp.projection) * clipSpace;
+	vec4 viewSpace = inverses.invViewProj * clipSpace;
 	vec3 worldSpace = viewSpace.xyz / viewSpace.w;
 	return worldSpace;
 }
@@ -63,7 +65,7 @@ void main() {
 	normal = normal * 2.0 - 1.0;
 
 	if (VIEW_SPACE_NORMALS == 1.0) {
-		normal = normalize(mat3(invView.invView) * normal);
+		normal = normalize(mat3(inverses.invView) * normal);
 	}
 
 	vec3 viewDir = normalize(mvp.camPos.xyz - pos);
