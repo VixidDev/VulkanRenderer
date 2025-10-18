@@ -43,7 +43,6 @@ layout(constant_id = 0) const int VIEW_SPACE_NORMALS = 0;
 
 vec3 posFromDepth(float depth) {
 	vec4 clipSpace = vec4(v2fTexCoord * 2.0 - 1.0, depth, 1.0);
-	// TODO: consider passing these inverses as a uniform rather than computing both every fragment
 	vec4 viewSpace = inverses.invViewProj * clipSpace;
 	vec3 worldSpace = viewSpace.xyz / viewSpace.w;
 	return worldSpace;

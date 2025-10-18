@@ -150,7 +150,7 @@ public:
 	int bloomIterations = 1;
 	float brightnessThreshold = 0.75f;
 	
-	float shadowBias = 0.0004f;
+	float shadowBias = 0.00025f;
 
 	float sunOrthoBounds = 37.0f;
 	float sunShadowNear = 0.1f;

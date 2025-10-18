@@ -62,7 +62,6 @@ const mat4 biasMat = mat4(
 
 vec3 posFromDepth(float depth) {
 	vec4 clipSpace = vec4(v2fTexCoord * 2.0 - 1.0, depth, 1.0);
-	// TODO: consider passing these inverses as a uniform rather than computing both every fragment
 	vec4 viewSpace = inverses.invViewProj * clipSpace;
 	vec3 worldSpace = viewSpace.xyz / viewSpace.w;
 	return worldSpace;
@@ -87,15 +86,14 @@ float calculateShadow(ShaderLight light, vec3 pos) {
 		mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[shadowMapIndex];
 
 		vec4 lightSpacePos = lightSpaceMatrix * vec4(pos, 1.0);
-		// TODO: Due to recreating the fragment position from the depth
-		// we inevitably lose some precision in the depth and this results
-		// in sampling the shadow map giving false positives. The obvious
-		// thing to do is offset the depth by some bias, however values
-		// that work up close are too small far away, and larger values
-		// shift the shadow far too much up close. Potential solution would
-		// be to scale the bias by the distance from fragment to the camera.
 		vec3 shadowCoord = lightSpacePos.xyz / lightSpacePos.w;
-		//shadowCoord.z -= pConsts.shadowBias;
+
+		// Scaled shadow bias based on distance from camera.
+		// Will result in slightly different shadowing from
+		// that in forward rendering, especially at far distances.
+		float distanceToCamera = length(pos - mvp.camPos.xyz);
+		float bias = distanceToCamera > 100.0 ? 0.00005 : 0.00001;
+		shadowCoord.z -= distanceToCamera * bias;
 
 		shadow = texture(sunShadow, shadowCoord);
 		break;

@@ -78,6 +78,8 @@ float calculateShadow(ShaderLight light) {
 		vec4 lightSpacePos = lightSpaceMatrix * vec4(v2fPosition, 1.0);
 		vec3 shadowCoord   = lightSpacePos.xyz / lightSpacePos.w;
 
+		shadowCoord.z -= pConsts.shadowBias;
+
 		shadow = texture(sunShadow, shadowCoord);
 		break;
 	case 2: // Spot light
