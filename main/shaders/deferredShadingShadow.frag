@@ -87,7 +87,15 @@ float calculateShadow(ShaderLight light, vec3 pos) {
 		mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[shadowMapIndex];
 
 		vec4 lightSpacePos = lightSpaceMatrix * vec4(pos, 1.0);
+		// TODO: Due to recreating the fragment position from the depth
+		// we inevitably lose some precision in the depth and this results
+		// in sampling the shadow map giving false positives. The obvious
+		// thing to do is offset the depth by some bias, however values
+		// that work up close are too small far away, and larger values
+		// shift the shadow far too much up close. Potential solution would
+		// be to scale the bias by the distance from fragment to the camera.
 		vec3 shadowCoord = lightSpacePos.xyz / lightSpacePos.w;
+		//shadowCoord.z -= pConsts.shadowBias;
 
 		shadow = texture(sunShadow, shadowCoord);
 		break;

@@ -1151,29 +1151,29 @@ void Renderer::renderDeferred() {
 
 	// Draw skybox
 	// (a skybox render pass would look identical to postProcess so we just use that)
-	//RendererUtils::beginRenderPass(this->getRenderPass("postProcessHDR"), this->getFramebuffer("writeToHDR"), this->imageIndex);
-	//RendererUtils::bindGraphicPipeline(this->getPipeline("skybox")->getHandle());
-	//RendererUtils::bindGraphicDescriptorSets(
-	//	this->getPipelineLayout("skybox")->getHandle(), 0, 1, &this->getDescriptorSet("mvp")->getHandle());
-	//RendererUtils::bindGraphicDescriptorSets(
-	//	this->getPipelineLayout("skybox")->getHandle(), 1, 1, &this->getDescriptorSet("skybox")->getHandle());
-	//RendererUtils::drawDirect(36, 1, 0, 0);
-	//RendererUtils::endRenderPass();
+	RendererUtils::beginRenderPass(this->getRenderPass("postProcessHDR"), this->getFramebuffer("writeToHDR"), this->imageIndex);
+	RendererUtils::bindGraphicPipeline(this->getPipeline("skybox")->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(
+		this->getPipelineLayout("skybox")->getHandle(), 0, 1, &this->getDescriptorSet("mvp")->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(
+		this->getPipelineLayout("skybox")->getHandle(), 1, 1, &this->getDescriptorSet("skybox")->getHandle());
+	RendererUtils::drawDirect(36, 1, 0, 0);
+	RendererUtils::endRenderPass();
 
-	//glsl::SunPC sunPC = {
-	//	.sunDir = glm::vec4(this->ssbos.lights[this->sunLightIndex].directionAndMapIndex),
-	//	.sunColour = glm::vec4(this->ssbos.lights[this->sunLightIndex].colourAndIntensity),
-	//	.params = glm::vec4(this->sunUpperStep, this->sunLowerStep, this->sunIntensity, 0.0f)
-	//};
+	glsl::SunPC sunPC = {
+		.sunDir = glm::vec4(this->ssbos.lights[this->sunLightIndex].directionAndMapIndex),
+		.sunColour = glm::vec4(this->ssbos.lights[this->sunLightIndex].colourAndIntensity),
+		.params = glm::vec4(this->sunUpperStep, this->sunLowerStep, this->sunIntensity, 0.0f)
+	};
 
-	//// Draw Sun
-	//RendererUtils::beginRenderPass(this->getRenderPass("sun"), this->getFramebuffer("writeToHDR"), this->imageIndex);
-	//RendererUtils::bindGraphicPipeline(this->getPipeline("sun")->getHandle());
-	//RendererUtils::bindPushConstant(this->getPipelineLayout("sun")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::SunPC), &sunPC);
-	//RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("sun")->getHandle(), 0, 1, &this->getDescriptorSet("mvp")->getHandle());
-	//RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("sun")->getHandle(), 1, 1, &this->getDescriptorSet("invMatrices")->getHandle());
-	//RendererUtils::drawDirect(3, 1, 0, 0);
-	//RendererUtils::endRenderPass();
+	// Draw Sun
+	RendererUtils::beginRenderPass(this->getRenderPass("sun"), this->getFramebuffer("writeToHDR"), this->imageIndex);
+	RendererUtils::bindGraphicPipeline(this->getPipeline("sun")->getHandle());
+	RendererUtils::bindPushConstant(this->getPipelineLayout("sun")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::SunPC), &sunPC);
+	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("sun")->getHandle(), 0, 1, &this->getDescriptorSet("mvp")->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("sun")->getHandle(), 1, 1, &this->getDescriptorSet("invMatrices")->getHandle());
+	RendererUtils::drawDirect(3, 1, 0, 0);
+	RendererUtils::endRenderPass();
 
 	// SSAO Pass
 	if (this->ssaoEnabled) {
