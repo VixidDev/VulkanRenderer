@@ -11,7 +11,11 @@ public:
 		VkDescriptorSetLayout* descSetLayout, 
 		std::vector<DescriptorBufferSetting> descBufferSettings);
 
-	void recreate();
+	void recreate() override;
+	VkDescriptorSet& getHandle(std::uint32_t frameIndex) override;
 private:
 	std::vector<DescriptorBufferSetting> descBufferSettings;
+
+	// A VkDescriptorSet per frame in flight
+	std::vector<VkDescriptorSet> descriptorSets;
 };

@@ -1,8 +1,9 @@
 #pragma once
 
-class IUniformBuffer {
+#include "IBuffer.hpp"
+
+class IUniformBuffer : public IBuffer {
 public:
 	virtual ~IUniformBuffer() = default;
-	virtual void update(VkCommandBuffer cmdBuf) = 0;
-	virtual VkBuffer getHandle() const = 0;
+	virtual void update(std::uint32_t frameIndex, VkCommandBuffer cmdBuf) = 0;
 };

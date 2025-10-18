@@ -5,7 +5,7 @@
 #include "../Driver.hpp"
 
 FXAAPostProcess::FXAAPostProcess(Renderer* renderer) : PostProcessingEffect(renderer) {
-	this->renderPass = this->renderer->getRenderPass("postProcess");
+	this->renderPass = this->renderer->getRenderPass("postProcessLDR");
 	this->pipelineLayout = this->renderer->getPipelineLayout("mosaic");
 	this->pipeline = this->renderer->getPipeline("fxaa");
 }

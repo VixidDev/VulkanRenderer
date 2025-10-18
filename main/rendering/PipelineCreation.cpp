@@ -218,30 +218,37 @@ void updateImageDescriptorSet(const VulkanDevice& device, VkDescriptorSet descri
 	vkUpdateDescriptorSets(device.getDevice(), descs.size(), descs.data(), 0, nullptr);
 }
 
-VkDescriptorSet createBufferDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorBufferSetting>& buffers) {
-	VkDescriptorSet bufferDescriptor = VkUtils::createDescriptorSet(window, window.getDevice()->getDescPool(), descSetLayout);
-	{
-		updateBufferDescriptorSet(*window.getDevice(), bufferDescriptor, buffers);
-	}
+std::vector<VkDescriptorSet> createBufferDescriptors(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorBufferSetting>& buffers) {
+	std::vector<VkDescriptorSet> descriptorSets;
+	
+	for (int frame = 0; frame < Swapchain::MAX_FRAMES_IN_FLIGHT; frame++) {
+		VkDescriptorSet bufferDescriptor = VkUtils::createDescriptorSet(window, window.getDevice()->getDescPool(), descSetLayout);
+		{
+			updateBufferDescriptorSet(*window.getDevice(), bufferDescriptor, buffers, frame);
+		}
 
-	return bufferDescriptor;
+		descriptorSets.emplace_back(bufferDescriptor);
+	}
+	
+	return descriptorSets;
 }
 
-void updateBufferDescriptorSet(const VulkanDevice& device, VkDescriptorSet descriptorSet, std::vector<DescriptorBufferSetting>& buffers) {
+void updateBufferDescriptorSet(const VulkanDevice& device, VkDescriptorSet descriptorSet, std::vector<DescriptorBufferSetting>& buffers, int frame) {
 	std::vector<VkDescriptorBufferInfo> descBufferInfos;
 	std::vector<VkWriteDescriptorSet> descs;
 
+	// Per buffer in the descriptor set
 	for (std::size_t i = 0; i < buffers.size(); i++) {
 		bool isStorageBuffer = buffers[i].descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-		bool needsVkWholeSize = isStorageBuffer && buffers[i].bufferHandle == VK_NULL_HANDLE;
+		bool needsVkWholeSize = isStorageBuffer && buffers[i].buffer->getHandle(frame) == VK_NULL_HANDLE;
 
 		VkDescriptorBufferInfo descBufferInfo{};
-		descBufferInfo.buffer = buffers[i].bufferHandle;
+		descBufferInfo.buffer = buffers[i].buffer->getHandle(frame);
 		descBufferInfo.offset = 0;
 		descBufferInfo.range = needsVkWholeSize ? VK_WHOLE_SIZE : buffers[i].range;
 		descBufferInfos.push_back(descBufferInfo);
 	}
-
+		
 	for (std::size_t i = 0; i < buffers.size(); i++) {
 		VkWriteDescriptorSet desc{};
 		desc.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;

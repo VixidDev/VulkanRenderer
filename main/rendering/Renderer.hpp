@@ -159,7 +159,7 @@ public:
 
 	bool renderCameraFrustumBounds = false;
 	
-	bool ssaoEnabled = false;
+	bool ssaoEnabled = true;
 	float ssaoExp = 2.0f;
 
 	float sunUpperStep = 0.12f;

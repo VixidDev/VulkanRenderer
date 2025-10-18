@@ -7,7 +7,7 @@ namespace RendererUtils {
 	void checkCommandBuffer();
 
 	// Command buffer
-	void bindCommandBuffer(VkCommandBuffer cmdBuff);
+	void bindCommandBuffer(std::vector<VkCommandBuffer>& cmdBuffs, std::uint32_t frameIndex);
 	void beginCommandBuffer(VkCommandBufferUsageFlags usageFlags = 0);
 	void endCommandBuffer();
 
@@ -37,6 +37,8 @@ namespace RendererUtils {
 		std::uint32_t offset,
 		std::uint32_t size,
 		const void* pValues);
+	// Gets the VkDescriptorSet handle for the current frame
+	VkDescriptorSet& getDescriptorSetHandle(DescriptorSet* descriptorSet);
 
 	// Rendering
 	void drawDirect(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex, std::uint32_t firstInstance);

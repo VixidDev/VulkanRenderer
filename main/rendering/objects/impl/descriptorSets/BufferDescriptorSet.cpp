@@ -8,9 +8,15 @@ BufferDescriptorSet::BufferDescriptorSet(
 {
 	this->descBufferSettings = descBufferSettings;
 
-	this->descriptorSet = createBufferDescriptor(*this->window, *this->descSetLayout, this->descBufferSettings);
+	this->descriptorSets = createBufferDescriptors(*this->window, *this->descSetLayout, this->descBufferSettings);
 }
 
 void BufferDescriptorSet::recreate() {
-	updateBufferDescriptorSet(*this->window->getDevice(), this->descriptorSet, this->descBufferSettings);
+	for (std::size_t i = 0; i < this->descriptorSets.size(); i++) {
+		updateBufferDescriptorSet(*this->window->getDevice(), this->descriptorSets[i], this->descBufferSettings, i);
+	}
+}
+
+VkDescriptorSet& BufferDescriptorSet::getHandle(std::uint32_t frameIndex) {
+	return this->descriptorSets[frameIndex];
 }

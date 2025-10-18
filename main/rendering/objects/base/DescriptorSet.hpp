@@ -14,10 +14,8 @@ public:
 
 	virtual void recreate();
 
-	VkDescriptorSet& getHandle();
+	virtual VkDescriptorSet& getHandle(std::uint32_t frameIndex = 0);
 protected:
 	VulkanWindow* window = nullptr;
 	VkDescriptorSetLayout* descSetLayout = nullptr;
-
-	VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
 };

@@ -148,8 +148,13 @@ void GUI::draw() {
 		if (ImGui::BeginTabItem("Lights")) {
 			if (renderer.getDebugView())
 				ImGui::BeginDisabled();
+			if (!renderer.getShadowsEnabled())
+				ImGui::BeginDisabled();
 
 			ImGui::Checkbox("Shadow Map Texture", &this->showShadowMapTexture);
+
+			if (!renderer.getShadowsEnabled())
+				ImGui::EndDisabled();
 #ifndef NDEBUG
 			if (renderer.getRenderingType())
 				ImGui::BeginDisabled();
@@ -386,9 +391,13 @@ void GUI::draw() {
 	}
 
 	ImGui::End();
-
+	
+	if (!renderer.getShadowsEnabled()) {
+		this->showShadowMapTexture = false;
+	}
 	// Debug Shadow Map Texture
 	if (this->showShadowMapTexture) {
+		
 		ImGui::Begin("Shadow Map Texture");
 
 		ImGui::InputInt2("Shadow Map Texture Size", this->shadowMapSize);

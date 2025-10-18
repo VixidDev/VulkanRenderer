@@ -45,7 +45,7 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 		RendererUtils::bindGraphicPipeline(this->prePipeline->getHandle());
 		RendererUtils::bindGraphicDescriptorSets(
 			this->prePipelineLayout->getHandle(), 0, 1,
-			&this->mvpDescriptorSet->getHandle());
+			&RendererUtils::getDescriptorSetHandle(this->mvpDescriptorSet));
 
 		auto perMeshCallback = [this](MeshData& meshData) {
 			RendererUtils::bindGraphicDescriptorSets(
@@ -86,9 +86,9 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 	RendererUtils::beginRenderPass(this->renderPass, this->framebuffer, imageIndex);
 	RendererUtils::bindGraphicPipeline(this->pipeline->getHandle());
 	std::vector<VkDescriptorSet> descriptorSets = { 
-		this->projectionsUniformDescriptor->getHandle(), 
-		this->ssaoUniformDescriptor->getHandle(), 
-		this->ssaoTexturesDescriptor->getHandle() };
+		RendererUtils::getDescriptorSetHandle(this->projectionsUniformDescriptor), 
+		RendererUtils::getDescriptorSetHandle(this->ssaoUniformDescriptor), 
+		RendererUtils::getDescriptorSetHandle(this->ssaoTexturesDescriptor) };
 	RendererUtils::bindGraphicDescriptorSets(this->pipelineLayout->getHandle(), 0, descriptorSets.size(), descriptorSets.data());
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
@@ -106,8 +106,8 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 	RendererUtils::beginRenderPass(this->renderPass, this->blurHFramebuffer, imageIndex);
 	RendererUtils::bindGraphicPipeline(this->blurPipeline->getHandle());
 	RendererUtils::bindPushConstant(this->blurPipelineLayout->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SSAOBlurPC), &this->blurPC);
-	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 0, 1, &this->blurHDescriptor->getHandle());
-	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 1, 1, &this->cameraPlanesDescriptor->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 0, 1, &RendererUtils::getDescriptorSetHandle(this->blurHDescriptor));
+	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 1, 1, &RendererUtils::getDescriptorSetHandle(this->cameraPlanesDescriptor));
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
 
@@ -117,8 +117,8 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 	RendererUtils::beginRenderPass(this->renderPass, this->blurVFramebuffer, imageIndex);
 	RendererUtils::bindGraphicPipeline(this->blurPipeline->getHandle());
 	RendererUtils::bindPushConstant(this->blurPipelineLayout->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SSAOBlurPC), &this->blurPC);
-	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 0, 1, &this->blurVDescriptor->getHandle());
-	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 1, 1, &this->cameraPlanesDescriptor->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 0, 1, &RendererUtils::getDescriptorSetHandle(this->blurVDescriptor));
+	RendererUtils::bindGraphicDescriptorSets(this->blurPipelineLayout->getHandle(), 1, 1, &RendererUtils::getDescriptorSetHandle(this->cameraPlanesDescriptor));
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
 

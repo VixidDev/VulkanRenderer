@@ -7,7 +7,7 @@
 
 BloomPostProcess::BloomPostProcess(Renderer* renderer) : PostProcessingEffect(renderer) {
 	// Same for both steps
-	this->renderPass = this->renderer->getRenderPass("postProcess");
+	this->renderPass = this->renderer->getRenderPass("postProcessHDR");
 
 	// Pipeline layouts for blur step then composition step
 	this->blurPipelineLayout = this->renderer->getPipelineLayout("bloom");

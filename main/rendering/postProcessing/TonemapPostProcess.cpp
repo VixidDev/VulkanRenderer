@@ -7,7 +7,7 @@
 TonemapPostProcess::TonemapPostProcess(Renderer* renderer) : PostProcessingEffect(renderer) {
 	this->enabled = true; // Tonemapping should always be on
 
-	this->renderPass = this->renderer->getRenderPass("tonemap");
+	this->renderPass = this->renderer->getRenderPass("postProcessLDR");
 	this->pipelineLayout = this->renderer->getPipelineLayout("tonemap");
 	this->pipeline = this->renderer->getPipeline("tonemap");
 }

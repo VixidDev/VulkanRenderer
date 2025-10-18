@@ -9,6 +9,7 @@
 namespace RendererUtils {
 
 	VkCommandBuffer boundCommandBuffer = VK_NULL_HANDLE;
+	std::uint32_t currentFrameIndex;
 
 	void checkCommandBuffer() {
 		if (boundCommandBuffer == VK_NULL_HANDLE) {
@@ -16,9 +17,10 @@ namespace RendererUtils {
 		}
 	}
 
-	void bindCommandBuffer(VkCommandBuffer cmdBuff) {
+	void bindCommandBuffer(std::vector<VkCommandBuffer>& cmdBuffs, std::uint32_t frameIndex) {
 		//std::fprintf(stderr, "Bound command buffer %p\n", cmdBuff);
-		boundCommandBuffer = cmdBuff;
+		boundCommandBuffer = cmdBuffs[frameIndex];
+		currentFrameIndex = frameIndex;
 	}
 
 	void beginCommandBuffer(VkCommandBufferUsageFlags usageFlags) {
@@ -36,13 +38,13 @@ namespace RendererUtils {
 	void updateUniformBuffer(IUniformBuffer* uniformBuffer) {
 		checkCommandBuffer();
 
-		uniformBuffer->update(boundCommandBuffer);
+		uniformBuffer->update(currentFrameIndex, boundCommandBuffer);
 	}
 
 	void updateShaderStorageBuffer(IShaderStorageBuffer* shaderStorageBuffer) {
 		checkCommandBuffer();
 
-		shaderStorageBuffer->update(boundCommandBuffer);
+		shaderStorageBuffer->update(currentFrameIndex, boundCommandBuffer);
 	}
 
 	void beginRenderPass(RenderPass* renderPass, Framebuffer* framebuffer, std::uint32_t imageIndex) {
@@ -108,6 +110,10 @@ namespace RendererUtils {
 		checkCommandBuffer();
 
 		vkCmdPushConstants(boundCommandBuffer, pipelineLayout, stageFlags, offset, size, pValues);
+	}
+
+	VkDescriptorSet& getDescriptorSetHandle(DescriptorSet* descriptorSet) {
+		return descriptorSet->getHandle(currentFrameIndex);
 	}
 
 	// Used to directly call vkCmdDraw, usually used for drawing full screen triangles
@@ -198,16 +204,16 @@ namespace RendererUtils {
 		checkCommandBuffer();
 
 		// Transition srcImage to TRANSFER_SRC_OPTIMAL
-		imageBarrier(
-			srcImage, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
-			srcImageLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+		imageBarrier(srcImage, 
+			/* srcAccessMask */ VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, /* dstAccessMask */ VK_ACCESS_TRANSFER_READ_BIT,
+			/* srcLayout */ srcImageLayout, /* dstLayout */ VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			/* srcStageMask */ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT);
 
 		// Transition swapchain image to TRANSFER_DST_OPTIMAL
-		imageBarrier(
-			swapchainImage, 0, VK_ACCESS_TRANSFER_WRITE_BIT,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT);
+		imageBarrier(swapchainImage, 
+			/* srcAccessMask */ VK_ACCESS_NONE, /* dstAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT,
+			/* srcLayout */ VK_IMAGE_LAYOUT_UNDEFINED, /* dstLayout */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			/* srcStageMask */ VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT);
 
 		// Define blit region
 		VkImageBlit blitRegion{};
@@ -224,10 +230,10 @@ namespace RendererUtils {
 			1, &blitRegion, filter);
 
 		// Transition swapchain image to VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-		imageBarrier(
-			swapchainImage, VK_ACCESS_TRANSFER_WRITE_BIT, 0,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-			VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+		imageBarrier(swapchainImage, 
+			/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT, /* dstAccessMask */ VK_ACCESS_NONE,
+			/* srcLayout */ VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, /* dstLayout */ VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+			/* srcStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT, /* dstStageMask */ VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 		}
 
 	void setCullMode(VkCullModeFlags cullMode) {

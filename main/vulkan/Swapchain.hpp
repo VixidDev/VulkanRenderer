@@ -46,6 +46,7 @@ public:
 	const std::vector<VkImageView>& getViews() const;
 	VkImage getImage(std::uint32_t imageIndex);
 
+	static const int MAX_FRAMES_IN_FLIGHT = 3;
 private:
 	std::vector<VkSurfaceFormatKHR> getSurfaceFormats();
 	void getPresentModes();

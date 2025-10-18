@@ -31,13 +31,13 @@ void GUIPass::recreate() {
 	subpasses[0].pColorAttachments = subpassAttachments;
 
 	VkSubpassDependency deps[1]{};
-	deps[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 	deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-	deps[0].srcAccessMask = 0;
-	deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[0].dstSubpass = 0;
-	deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	deps[0].srcAccessMask = VK_ACCESS_NONE;
+	deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+	deps[0].dependencyFlags = 0;
 
 	VkRenderPassCreateInfo passInfo{};
 	passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;

@@ -110,6 +110,9 @@ SwapChanges Swapchain::recreate(bool firstTime) {
 	if (const auto res = vkCreateSwapchainKHR(this->window->getDevice()->getDevice(), &swapchainInfo, nullptr, &this->swapchain); VK_SUCCESS != res)
 		throw Utils::Error("Unable to create swap chain\nvkCreateSwapchainKHR() returned %s", Utils::toString(res).c_str());
 
+	if (!firstTime)
+		vkDestroySwapchainKHR(this->window->getDevice()->getDevice(), oldSwapchain, nullptr);
+
 	this->getSwapchainImages();
 	this->createSwapchainImageViews();
 

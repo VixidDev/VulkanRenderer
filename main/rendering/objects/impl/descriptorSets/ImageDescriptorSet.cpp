@@ -28,4 +28,6 @@ void ImageDescriptorSet::recreate() {
 	updateImageDescriptorSet(*this->window->getDevice(), this->descriptorSet, this->descImageSettings);
 }
 
-
+VkDescriptorSet& ImageDescriptorSet::getHandle(std::uint32_t frameIndex) {
+	return this->descriptorSet;
+}

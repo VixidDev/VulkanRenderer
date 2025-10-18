@@ -4,10 +4,8 @@
 #include "../vulkan/objects/VkObjects.hpp"
 #include "../vulkan/objects/VkImage.hpp"
 
-class VulkanWindow;
-class VulkanDevice;
-class VulkanAllocator;
 class TextureBuffer;
+class IBuffer;
 
 struct DescriptorSetting {
 	VkDescriptorType descriptorType;
@@ -22,7 +20,7 @@ struct DescriptorImageSetting {
 };
 
 struct DescriptorBufferSetting {
-	VkBuffer bufferHandle;
+	IBuffer* buffer;
 	VkDescriptorType descriptorType;
 	VkDeviceSize range = VK_WHOLE_SIZE;
 };
@@ -58,5 +56,5 @@ void createFramebuffers(
 
 VkDescriptorSet createImageDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorImageSetting>& imageViews);
 void updateImageDescriptorSet(const VulkanDevice& device, VkDescriptorSet descriptorSet, std::vector<DescriptorImageSetting>& imageViews);
-VkDescriptorSet createBufferDescriptor(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorBufferSetting>& buffers);
-void updateBufferDescriptorSet(const VulkanDevice& device, VkDescriptorSet descriptorSet, std::vector<DescriptorBufferSetting>& buffers);
+std::vector<VkDescriptorSet> createBufferDescriptors(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorBufferSetting>& buffers);
+void updateBufferDescriptorSet(const VulkanDevice& device, VkDescriptorSet descriptorSet, std::vector<DescriptorBufferSetting>& buffers, int frame);

@@ -17,6 +17,9 @@ public:
 	void onTextureBufferRecreated() override;
 
 	void recreate() override;
+	VkDescriptorSet& getHandle(std::uint32_t frameIndex) override;
 protected:
 	std::vector<DescriptorImageSetting> descImageSettings;
+
+	VkDescriptorSet descriptorSet;
 };

@@ -12,7 +12,7 @@ ShadowPass::ShadowPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount)
 }
 
 void ShadowPass::recreate() {
-#if !defined(NDEBUG)
+#ifndef NDEBUG
 	const int ATTACHMENTS = 2;
 #else
 	const int ATTACHMENTS = 1;
@@ -25,7 +25,7 @@ void ShadowPass::recreate() {
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	attachments[0].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
-#if !defined(NDEBUG)
+#ifndef NDEBUG
 	// Attachment for writing linear depth to so we can visualise it with ImGUI
 	attachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
@@ -39,7 +39,7 @@ void ShadowPass::recreate() {
 	depthAttachment.attachment = 0;
 	depthAttachment.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-#if !defined(NDEBUG)
+#ifndef NDEBUG
 	VkAttachmentReference linearDepthAttachment{};
 	linearDepthAttachment.attachment = 1;
 	linearDepthAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -47,7 +47,7 @@ void ShadowPass::recreate() {
 
 	VkSubpassDescription subpasses[1]{};
 	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-#if !defined(NDEBUG)
+#ifndef NDEBUG
 	subpasses[0].colorAttachmentCount = 1;
 	subpasses[0].pColorAttachments = &linearDepthAttachment;
 #else
@@ -56,21 +56,29 @@ void ShadowPass::recreate() {
 	subpasses[0].pDepthStencilAttachment = &depthAttachment;
 
 	VkSubpassDependency deps[2]{};
-	deps[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 	deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-	deps[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
-	deps[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 	deps[0].dstSubpass = 0;
-	deps[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	deps[0].srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+#ifndef NDEBUG // If in debug mode, change subpass dependencies to account for debug colour attachment writes
+	deps[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+#else
 	deps[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+#endif
+	deps[0].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+#ifndef NDEBUG
+	deps[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+#else
+	deps[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+#endif
+	deps[0].dependencyFlags = 0;
 
-	deps[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
 	deps[1].srcSubpass = 0;
-	deps[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	deps[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-	deps[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	deps[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
 	deps[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	deps[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	deps[1].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+	deps[1].dependencyFlags = 0;
 
 	VkRenderPassCreateInfo passInfo{};
 	passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;

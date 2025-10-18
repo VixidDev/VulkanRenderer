@@ -80,7 +80,7 @@ VulkanWindow::VulkanWindow() {
 
 	std::vector<std::string> requestedLayers = {
 #ifndef NDEBUG
-		"VK_LAYER_KRHONOS_validation",
+		"VK_LAYER_KHRONOS_validation",
 #endif
 	};
 	std::vector<std::string> requestedExtensions = {
@@ -293,15 +293,7 @@ VkResult submitAndPresent(
 	presentInfo.pImageIndices = &imageIndex;
 	presentInfo.pResults = nullptr;
 
-	//auto before = std::chrono::high_resolution_clock::now();
-
-	//auto entireFrame = std::chrono::duration_cast<std::chrono::duration<float, std::ratio<1>>>(before - after).count() * 1000.0f;
-	//std::fprintf(stderr, "rest of frame took: %.4f ms\n", entireFrame);
-
 	VkResult res = vkQueuePresentKHR(window.getDevice()->getPresentQueue(), &presentInfo);
-	//after = std::chrono::high_resolution_clock::now();
-	//auto difference = std::chrono::duration_cast<std::chrono::duration<float, std::ratio<1>>>(after - before).count() * 1000.0f;
-	//std::fprintf(stderr, "vkQueuePresentKHR took: %.4f ms\n", difference);
 
 	return res;
 }

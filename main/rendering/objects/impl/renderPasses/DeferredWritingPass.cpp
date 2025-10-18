@@ -44,7 +44,7 @@ void DeferredWritingPass::recreate() {
 	attachments[3].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[3].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[3].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachments[3].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+	attachments[3].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
 	VkAttachmentReference gBufferAttachments[3]{};
 	gBufferAttachments[0].attachment = 0;
@@ -69,7 +69,7 @@ void DeferredWritingPass::recreate() {
 	deps[0].dstSubpass = 0;
 	deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	deps[0].srcAccessMask = VK_ACCESS_NONE_KHR;
+	deps[0].srcAccessMask = VK_ACCESS_NONE;
 	deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	deps[0].dependencyFlags = 0;
 
@@ -78,7 +78,7 @@ void DeferredWritingPass::recreate() {
 	deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	deps[1].dstAccessMask = VK_ACCESS_NONE_KHR;
+	deps[1].dstAccessMask = VK_ACCESS_NONE;
 	deps[1].dependencyFlags = 0;
 
 	VkRenderPassCreateInfo passInfo{};

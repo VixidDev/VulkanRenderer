@@ -1,18 +1,18 @@
-#include "PostProcessPass.hpp"
+#include "PostProcessLDRPass.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
 #include "../../../../vulkan/VulkanWindow.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
-PostProcessPass::PostProcessPass(VulkanWindow* window) : RenderPass(window) {
+PostProcessLDRPass::PostProcessLDRPass(VulkanWindow* window) : RenderPass(window) {
 	this->recreate();
 }
 
-void PostProcessPass::recreate() {
+void PostProcessLDRPass::recreate() {
 	VkAttachmentDescription attachments[1]{};
 	// Output image
-	attachments[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+	attachments[0].format = VK_FORMAT_R8G8B8A8_UNORM;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;

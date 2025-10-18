@@ -1,32 +1,32 @@
-#include "SSAOPass.hpp"
+#include "PostProcessHDRPass.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
 #include "../../../../vulkan/VulkanWindow.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
-SSAOPass::SSAOPass(VulkanWindow* window) : RenderPass(window) {
+PostProcessHDRPass::PostProcessHDRPass(VulkanWindow* window) : RenderPass(window) {
 	this->recreate();
 }
 
-void SSAOPass::recreate() {
+void PostProcessHDRPass::recreate() {
 	VkAttachmentDescription attachments[1]{};
-	// SSAO
-	attachments[0].format = VK_FORMAT_R8_UNORM;
+	// Output image
+	attachments[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	attachments[0].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 	attachments[0].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	attachments[0].finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	attachments[0].finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-	VkAttachmentReference outputAttachments[1]{};
-	outputAttachments[0].attachment = 0;
-	outputAttachments[0].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	VkAttachmentReference swapchainAttachment{};
+	swapchainAttachment.attachment = 0;
+	swapchainAttachment.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkSubpassDescription subpasses[1]{};
 	subpasses[0].pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 	subpasses[0].colorAttachmentCount = 1;
-	subpasses[0].pColorAttachments = outputAttachments;
+	subpasses[0].pColorAttachments = &swapchainAttachment;
 
 	VkSubpassDependency deps[2]{};
 	deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;

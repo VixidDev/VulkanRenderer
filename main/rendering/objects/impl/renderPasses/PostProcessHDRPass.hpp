@@ -2,9 +2,9 @@
 
 #include "../../base/RenderPass.hpp"
 
-class PostProcessPass : public RenderPass {
+class PostProcessHDRPass : public RenderPass {
 public:
-	PostProcessPass(VulkanWindow* window);
+	PostProcessHDRPass(VulkanWindow* window);
 
 	void recreate();
 private:

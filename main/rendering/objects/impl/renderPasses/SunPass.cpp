@@ -33,7 +33,7 @@ void SunPass::recreate() {
 	deps[0].dstSubpass = 0;
 	deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	deps[0].srcAccessMask = VK_ACCESS_NONE_KHR;
+	deps[0].srcAccessMask = VK_ACCESS_NONE;
 	deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	deps[0].dependencyFlags = 0;
 
@@ -42,7 +42,7 @@ void SunPass::recreate() {
 	deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	deps[1].dstAccessMask = VK_ACCESS_NONE_KHR;
+	deps[1].dstAccessMask = VK_ACCESS_NONE;
 	deps[1].dependencyFlags = 0;
 
 	VkRenderPassCreateInfo passInfo{};
