@@ -269,7 +269,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		.addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
 		.compareEnable = 1, 
 		.compareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
-		/*.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE*/ };
+		.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE };
 	this->shadowMapSampler = VkUtils::createTextureSampler(*window, shadowMapSamplerInfo);
 	
 

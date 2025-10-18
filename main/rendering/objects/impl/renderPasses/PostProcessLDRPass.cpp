@@ -28,22 +28,14 @@ void PostProcessLDRPass::recreate() {
 	subpasses[0].colorAttachmentCount = 1;
 	subpasses[0].pColorAttachments = &swapchainAttachment;
 
-	VkSubpassDependency deps[2]{};
+	VkSubpassDependency deps[1]{};
 	deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
 	deps[0].dstSubpass = 0;
 	deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	deps[0].srcAccessMask = VK_ACCESS_NONE_KHR;
+	deps[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	deps[0].dependencyFlags = 0;
-
-	deps[1].srcSubpass = 0;
-	deps[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-	deps[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	deps[1].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	deps[1].dstAccessMask = VK_ACCESS_NONE_KHR;
-	deps[1].dependencyFlags = 0;
 
 	VkRenderPassCreateInfo passInfo{};
 	passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -51,7 +43,7 @@ void PostProcessLDRPass::recreate() {
 	passInfo.pAttachments = attachments;
 	passInfo.subpassCount = 1;
 	passInfo.pSubpasses = subpasses;
-	passInfo.dependencyCount = 2;
+	passInfo.dependencyCount = 1;
 	passInfo.pDependencies = deps;
 
 	VkRenderPass rpass = VK_NULL_HANDLE;

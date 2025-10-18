@@ -41,22 +41,14 @@ void DebugPass::recreate() {
 	subpasses[0].pColorAttachments = subpassAttachments;
 	subpasses[0].pDepthStencilAttachment = &depthAttachment;
 
-	VkSubpassDependency deps[2]{};
-	deps[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+	VkSubpassDependency deps[1]{};
 	deps[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-	deps[0].srcAccessMask = 0;
-	deps[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	deps[0].dstSubpass = 0;
-	deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	deps[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-
-	deps[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-	deps[1].srcSubpass = VK_SUBPASS_EXTERNAL;
-	deps[1].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-	deps[1].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-	deps[1].dstSubpass = 0;
-	deps[1].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
-	deps[1].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	deps[0].srcStageMask = VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	deps[0].dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	deps[0].srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	deps[0].dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	deps[0].dependencyFlags = 0;
 
 	VkRenderPassCreateInfo passInfo{};
 	passInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
@@ -64,7 +56,7 @@ void DebugPass::recreate() {
 	passInfo.pAttachments = attachments;
 	passInfo.subpassCount = 1;
 	passInfo.pSubpasses = subpasses;
-	passInfo.dependencyCount = 2;
+	passInfo.dependencyCount = 1;
 	passInfo.pDependencies = deps;
 
 	VkRenderPass rpass = VK_NULL_HANDLE;
