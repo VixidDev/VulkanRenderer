@@ -153,7 +153,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->getPipelineLayout("lineDebug"), this->getRenderPass("sunView"), &this->sampleCountSetting));
 	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->getPipelineLayout("debugViews"), this->getRenderPass("debug"), &this->sampleCountSetting));
-	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("forward"), &this->sampleCountSetting));
+	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("debug"), &this->sampleCountSetting));
 
 	// Texture Buffers
 	// HDR - output buffer after geometry and lighting (HDR rendering)

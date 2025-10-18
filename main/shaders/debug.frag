@@ -1,6 +1,6 @@
 #version 450
 
-#define PI 3.14159265359
+#include "lighting.glsl"
 
 layout(location = 0) in vec3 v2fPosition;
 layout(location = 1) in vec2 v2fTexCoord;
@@ -12,16 +12,6 @@ layout(set = 0, binding = 0) uniform MVP {
 	mat4 view;
 	vec4 camPos;
 } mvp;
-
-struct ShaderLight {
-	vec3 position;
-	vec3 direction;
-	vec3 colour;
-	ivec3 metadata;
-	// metadata.x = lightType // 0 - Point Light, 1 - Directional Light, 2 - Spot light
-	// metadata.y = shadowMapIndex
-	// metadata.z = intensity
-};
 
 layout(set = 1, binding = 0) readonly buffer Lights {
 	ShaderLight lights[];
@@ -61,38 +51,6 @@ const vec3 colours[7] = vec3[7](
     vec3(213.0, 94.0, 0.0) / 255,    // Orange
     vec3(240.0, 228.0, 66.0) / 255   // Yellow
 );
-
-float distributionFunction(vec3 normal, vec3 halfwayVector, float roughness) {
-	// Normal distribution function
-    float nDotH = max(dot(normal, halfwayVector), 0.0001);
-    float nDotH2 = nDotH * nDotH;
-    float nDotH4 = nDotH2 * nDotH2;
-    float roughness2 = roughness * roughness;
-
-    float ndf_numerator = exp((nDotH2 - 1) / (roughness2 * nDotH2));
-    float ndf_denom = PI * roughness2 * nDotH4;
-
-    float ndf = ndf_numerator / (0.0001 + ndf_denom); // Add an epsilon to denom to prevent / by 0
-    return ndf;
-}
-
-float geometryFunction(vec3 normal, vec3 halfwayVector, vec3 viewDir, vec3 lightDir) {
-	// Geometry function
-    float termLeft = 2 * (max(0, dot(normal, halfwayVector)) * max(0, dot(normal, viewDir)) / dot(viewDir, halfwayVector));
-    float termRight = 2 * (max(0, dot(normal, halfwayVector)) * max(0, dot(normal, lightDir)) / dot(viewDir, halfwayVector));
-
-    float geometry = min(1, min(termLeft, termRight));
-    return geometry;    
-}
-
-vec3 fresnel(float metalness, vec3 halfwayVector, vec3 viewDir) {
-	// Fresnel
-    // Specular base reflectivity
-    vec3 f0 = (1 - metalness) * vec3(0.04f) + (metalness * texture(uTexColour, v2fTexCoord).rgb);
-	float base = max(1 - dot(halfwayVector, viewDir), 0.001);
-    vec3 fresnel = f0 + (1 - f0) * pow(base, 5.0);
-    return fresnel;
-}
 
 void main() {
     vec3 normal;
@@ -139,15 +97,17 @@ void main() {
         // PBR distribution function
         case 4:
             for (int i = 0; i < pConsts.lightCount; i++) {
-                vec3 lightPos = lights[i].position;
+                vec3 lightPos = lights[i].positionAndLightType.xyz;
                 vec3 lightDir = normalize(lightPos - v2fPosition);
                 vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
                 vec3 halfway = normalize(viewDir + lightDir);
 
+                float nDotH = dot(normal, halfway);
+
                 float roughnessSqrt = texture(uRoughness, v2fTexCoord).r;
                 float roughness = roughnessSqrt * roughnessSqrt;
 
-                float distribution = distributionFunction(normal, halfway, roughness);
+                float distribution = BeckmannDistribution(max(nDotH, 0.0001), roughness);
                 total += vec3(distribution);
             }
             
@@ -156,15 +116,16 @@ void main() {
         // PBR geometry function
         case 5:
             for (int i = 0; i < pConsts.lightCount; i++) {
-                vec3 lightPos = lights[i].position;
+                vec3 lightPos = lights[i].positionAndLightType.xyz;
                 vec3 lightDir = normalize(lightPos - v2fPosition);
                 vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
                 vec3 halfway = normalize(viewDir + lightDir);
 
-                float roughnessSqrt = texture(uRoughness, v2fTexCoord).r;
-                float roughness = roughnessSqrt * roughnessSqrt;
+                float nDotH = dot(normal, halfway);
+                float nDotV = dot(normal, viewDir);
+                float nDotL = dot(normal, lightDir);
 
-                float geometry = geometryFunction(normal, halfway, viewDir, lightDir);
+                float geometry = CookTorranceGeometry(viewDir, halfway, nDotH, nDotV, nDotL);
                 total += vec3(geometry);
             }
 
@@ -173,16 +134,20 @@ void main() {
         // PBR fresnel function
         case 6:
             for (int i = 0; i < pConsts.lightCount; i++) {
-                vec3 lightPos = lights[i].position;
+                vec3 lightPos = lights[i].positionAndLightType.xyz;
                 vec3 lightDir = normalize(lightPos - v2fPosition);
                 vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
                 vec3 halfway = normalize(viewDir + lightDir);
 
-                float roughnessSqrt = texture(uRoughness, v2fTexCoord).r;
-                float roughness = roughnessSqrt * roughnessSqrt;
+                float hDotV = dot(halfway, viewDir);
 
                 float metalness = texture(uMetalness, v2fTexCoord).r;
-                vec3 F = fresnel(metalness, halfway, viewDir);
+                vec3 albedo = texture(uTexColour, v2fTexCoord).rgb;
+
+                vec3 F0 = vec3(0.04);
+                F0 = mix(F0, albedo, metalness);
+
+                vec3 F = FresnelSchlick(max(hDotV, 0.0), F0);
                 total += F;
             }
 

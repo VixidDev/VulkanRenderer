@@ -31,7 +31,7 @@ float CookTorranceGeometry(vec3 viewDir, vec3 halfwayVector, float nDotH, float 
     return min(1, min(termLeft, termRight));
 }
 
-vec3 CookTorranceBRDF(vec3 lightDir, vec3 viewDir, vec3 normal, float metalness, float roughness, 
+vec3 CookTorranceBRDF(vec3 lightDir, vec3 viewDir, vec3 normal, float metalness, float roughnessSqrt, 
 					  vec3 F0, vec3 albedo, vec3 radiance, float shadow) 
 {
 	vec3 halfwayVector = normalize(viewDir + lightDir);
@@ -39,6 +39,8 @@ vec3 CookTorranceBRDF(vec3 lightDir, vec3 viewDir, vec3 normal, float metalness,
 	float nDotH = dot(normal, halfwayVector);
 	float nDotV = dot(normal, viewDir);
 	float nDotL = dot(normal, lightDir);
+
+	float roughness = roughnessSqrt * roughnessSqrt;
 
 	float D = BeckmannDistribution(max(nDotH, 0.0001), roughness);
 	vec3  F = FresnelSchlick(max(hDotV, 0.0), F0);

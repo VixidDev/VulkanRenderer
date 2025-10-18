@@ -94,22 +94,17 @@ void OverVisualisationPipeline::recreate() {
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampleInfo.rasterizationSamples = *this->sampleCount;
 
-	VkPipelineColorBlendAttachmentState blendStates[2]{};
+	VkPipelineColorBlendAttachmentState blendStates[1]{};
 	blendStates[0].blendEnable = VK_TRUE;
 	blendStates[0].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	blendStates[0].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
 	blendStates[0].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
 	blendStates[0].colorBlendOp = VK_BLEND_OP_ADD;
-	blendStates[1].blendEnable = VK_TRUE;
-	blendStates[1].colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	blendStates[1].srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	blendStates[1].dstColorBlendFactor = VK_BLEND_FACTOR_ONE;
-	blendStates[1].colorBlendOp = VK_BLEND_OP_ADD;
 
 	VkPipelineColorBlendStateCreateInfo blendInfo{};
 	blendInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
 	blendInfo.logicOpEnable = VK_FALSE;
-	blendInfo.attachmentCount = 2;
+	blendInfo.attachmentCount = 1;
 	blendInfo.pAttachments = blendStates;
 
 	VkPipelineDepthStencilStateCreateInfo depthInfo{};
