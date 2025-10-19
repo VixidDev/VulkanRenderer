@@ -1,16 +1,23 @@
 #pragma once
 
+#include <utility>
+#include <cassert>
+
 #include <volk/volk.h>
 #include <vk_mem_alloc.h>
-
-#include <utility>
-
-#include <cassert>
+#include <stb_image.h>
 
 #include "../VulkanContext.hpp"
 #include "VkObjects.hpp"
 
 namespace vk {
+
+	struct ImageData {
+		stbi_uc* data = nullptr;
+		int width;
+		int height;
+		VkFormat format;
+	};
 
 	class Image {
 	public:
@@ -32,7 +39,7 @@ namespace vk {
 		VmaAllocator mAllocator = VK_NULL_HANDLE;
 	};
 
-	Image loadImage(const char* path, const VulkanContext& context, VkFormat format, std::uint8_t channels);
+	Image loadImage(ImageData& imageData, const VulkanContext& context);
 	Image createImage(const VulkanAllocator& allocator, std::uint32_t width, std::uint32_t height, VkFormat format, VkImageUsageFlags usageFlags = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT, bool useMips = true);
 	Image createDummyImage(const VulkanContext& context, VkFormat format);
 

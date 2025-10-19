@@ -9,14 +9,35 @@ namespace BakedModelLoader {
 	std::vector<std::pair<vk::Image, vk::ImageView>> loadTextures(const VulkanContext& context, BakedModel& bakedModel) {
 		std::vector<std::pair<vk::Image, vk::ImageView>> textures;
 
-		for (BakedTextureInfo textureInfo : bakedModel.textures) {
-			VkFormat format = textureInfo.space == ETextureSpace::srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+		std::size_t nbTextures = bakedModel.textures.size();
+		std::vector<vk::ImageData> imageData;
+		imageData.resize(nbTextures);
 
-			vk::Image image = vk::loadImage(textureInfo.path.c_str(), context, format, textureInfo.channels);
-			vk::ImageView imageView = vk::createImageView(context, image.image, format);
+		#pragma omp parallel for
+		for (int i = 0; i < nbTextures; i++) {
+			vk::ImageData imgData{};
+
+			imgData.format = bakedModel.textures[i].space == ETextureSpace::srgb ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+
+			stbi_set_flip_vertically_on_load(1);
+
+			int baseChannelsi;
+			imgData.data = stbi_load(bakedModel.textures[i].path.c_str(), &imgData.width, &imgData.height, &baseChannelsi, 4);
+
+			if (!imgData.data)
+				throw Utils::Error("%s: Unable to load texture base image (%s)", bakedModel.textures[i].path.c_str(), 0, stbi_failure_reason());
+
+			imageData[i] = imgData;
+		}
+
+		for (vk::ImageData& imgData : imageData) {
+			vk::Image image = vk::loadImage(imgData, context);
+			vk::ImageView imageView = vk::createImageView(context, image.image, imgData.format);
 
 			textures.emplace_back(std::move(image), std::move(imageView));
 		}
+
+		imageData.clear();
 
 		return textures;
 	}

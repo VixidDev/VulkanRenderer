@@ -22,7 +22,7 @@ workspace "VulkanRenderer"
 	filter "toolset:msc-*"
 		defines { "_CRT_SECURE_NO_WARNINGS=1" }
 		defines { "_SCL_SECURE_NO_WARNINGS=1" }
-		buildoptions { "/utf-8" }
+		buildoptions { "/utf-8", "/openmp" }
 	
 	filter "*"
 

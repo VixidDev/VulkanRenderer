@@ -48,21 +48,12 @@ namespace vk {
 		return *this;
 	}
 
-	Image loadImage(char const* path, const VulkanContext& context, VkFormat format, std::uint8_t channels) {
+	Image loadImage(ImageData& imageData, const VulkanContext& context) {
 		const VulkanAllocator& allocator = *context.allocator;
 		VkCommandPool cmdPool = context.window->getDevice()->getCmdPool();
 
-		stbi_set_flip_vertically_on_load(1);
-
-		int baseWidthi, baseHeighti, baseChannelsi;
-		stbi_uc* data = stbi_load(path, &baseWidthi, &baseHeighti, &baseChannelsi, 4);
-		// std::cout << "Desired: " << channels << " baseChannelsi: " << baseChannelsi << std::endl;
-
-		if (!data)
-			throw Utils::Error("%s: Unable to load texture base image (%s)", path, 0, stbi_failure_reason());
-
-		const std::uint32_t baseWidth = std::uint32_t(baseWidthi);
-		const std::uint32_t baseHeight = std::uint32_t(baseHeighti);
+		const std::uint32_t baseWidth = std::uint32_t(imageData.width);
+		const std::uint32_t baseHeight = std::uint32_t(imageData.height);
 		const std::uint32_t sizeInBytes = baseWidth * baseHeight * 4;
 
 		vk::Buffer staging = createBuffer(
@@ -75,14 +66,13 @@ namespace vk {
 		if (const auto res = vmaMapMemory(allocator.allocator, staging.allocation, &sptr); VK_SUCCESS != res)
 			throw Utils::Error("Unable to map memory\n vmaMapMemory() returned %s", Utils::toString(res).c_str());
 
-		std::memcpy(sptr, data, sizeInBytes);
+		std::memcpy(sptr, imageData.data, sizeInBytes);
 		vmaUnmapMemory(allocator.allocator, staging.allocation);
 
-		stbi_image_free(data);
+		stbi_image_free(imageData.data);
 
-		Image ret = createImage(allocator, baseWidth, baseHeight, format,
-			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT
-		);
+		Image ret = createImage(allocator, baseWidth, baseHeight, imageData.format,
+			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 		
 		VkCommandBuffer cbuff = VkUtils::createCommandBuffer(*context.window, cmdPool);
 		VkUtils::beginCommandBuffer(cbuff);

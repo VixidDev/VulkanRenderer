@@ -256,8 +256,6 @@ Swapchain* VulkanWindow::getSwapchain() const {
 	return this->swapchain.get();
 }
 
-//std::chrono::steady_clock::time_point after = std::chrono::high_resolution_clock::now();
-
 VkResult submitAndPresent(
 	VulkanWindow& window, 
 	std::vector<VkCommandBuffer>& cmdBuffers, 

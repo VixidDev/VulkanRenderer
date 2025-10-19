@@ -43,9 +43,17 @@ int Driver::init() {
 int Driver::loadScene() {
 	VulkanContext& context = this->renderer.getContext();
 
+	const Timepoint beforeLoadBakedModel = Clock::now();
 	this->bakedModel = loadBakedModel("assets/main/suntemple.vixidvkmesh");
+	const Timepoint afterLoadBakedModel = Clock::now();
+	float bakedModel = std::chrono::duration_cast<Seconds>(afterLoadBakedModel - beforeLoadBakedModel).count();
+	std::fprintf(stderr, "loadBakedModel took: %.3f ms\n", bakedModel * 1000.0f);
 
+	const Timepoint beforeLoadTextures = Clock::now();
 	this->sceneTextures = BakedModelLoader::loadTextures(context, this->bakedModel);
+	const Timepoint afterLoadTextures = Clock::now();
+	float loadTextures = std::chrono::duration_cast<Seconds>(afterLoadTextures - beforeLoadTextures).count();
+	std::fprintf(stderr, "loadTextures took: %.3f ms\n", loadTextures * 1000.0f);
 
 	// TODO: Update to use similar objects like in Renderer.cpp
 	this->materialDescriptors = BakedModelLoader::createMaterialDescriptors(*this, this->bakedModel);
