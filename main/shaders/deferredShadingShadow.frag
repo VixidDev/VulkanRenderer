@@ -29,14 +29,14 @@ layout(set = 4, binding = 0) uniform sampler2D uSSAO;
 
 layout(set = 5, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
 layout(set = 6, binding = 0) uniform sampler2DShadow sunShadow;
-//layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
+layout(set = 7, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
 
-layout(set = 7, binding = 0) uniform ClipPlanes {
+layout(set = 8, binding = 0) uniform ClipPlanes {
 	float far;
 	float near;
 } planes;
 
-layout(set = 8, binding = 0) readonly buffer LightSpaceMatrices {
+layout(set = 9, binding = 0) readonly buffer LightSpaceMatrices {
 	mat4 lightSpaceMatrices[];
 };
 
@@ -72,6 +72,12 @@ float calculateShadow(ShaderLight light, vec3 pos) {
 
 	int lightType	   = int(light.positionAndLightType.w);
 	int shadowMapIndex = int(light.directionAndMapIndex.w);
+	int lightSpaceMatrixIndex = int(light.spotLightAndMatrixIndex.z);
+
+	// Directional / Spot light related vars
+	mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[lightSpaceMatrixIndex];
+	vec4 lightSpacePos = lightSpaceMatrix * vec4(pos, 1.0);
+	vec3 shadowCoord   = lightSpacePos.xyz / lightSpacePos.w;
 
 	switch (lightType) {
 	case 0: // Point light
@@ -83,11 +89,6 @@ float calculateShadow(ShaderLight light, vec3 pos) {
 		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - pConsts.shadowBias);
 		break;
 	case 1: // Directional light
-		mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[shadowMapIndex];
-
-		vec4 lightSpacePos = lightSpaceMatrix * vec4(pos, 1.0);
-		vec3 shadowCoord = lightSpacePos.xyz / lightSpacePos.w;
-
 		// Scaled shadow bias based on distance from camera.
 		// Will result in slightly different shadowing from
 		// that in forward rendering, especially at far distances.
@@ -98,6 +99,7 @@ float calculateShadow(ShaderLight light, vec3 pos) {
 		shadow = texture(sunShadow, shadowCoord);
 		break;
 	case 2: // Spot light
+		shadow = texture(spotLightShadows, vec4(shadowCoord.xy, shadowMapIndex, shadowCoord.z)); 
 		break;
 	}
 
@@ -157,6 +159,15 @@ void main() {
 		float shadow = calculateShadow(lights[i], pos);
 
 		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, metalness, roughness, F0, albedo, radiance, shadow);
+
+		if (lights[i].positionAndLightType.w == 2) {
+			vec3 lightToFrag = normalize(pos - lights[i].positionAndLightType.xyz);
+			float theta = dot(lightToFrag, lights[i].directionAndMapIndex.xyz);
+			float innerConeAngle = lights[i].spotLightAndMatrixIndex.x;
+			float outerConeAngle = lights[i].spotLightAndMatrixIndex.y;
+			float intensity = (theta - outerConeAngle) / (innerConeAngle - outerConeAngle);
+			brdf = smoothstep(0.0, 1.0, intensity) * brdf;
+		}
 
 		Lo += brdf;
 	}

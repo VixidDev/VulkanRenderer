@@ -129,7 +129,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Pipelines
 	// (alot of the pipelines are identical other than their input pipeline layout, renderpass, and shader stages, possibly use the base class for these?)
 	// (cubemap)shadow - shadow pass stage pipelines
-	this->pipelines.emplace("shadow", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->sunShadowMapRes));
+	this->pipelines.emplace("shadowDirectional", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->sunShadowMapRes));
+	this->pipelines.emplace("shadowSpot", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->spotShadowMapRes));
 	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->getPipelineLayout("cubemapShadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->pointShadowMapRes));
 	// forward - regular forward shading pipeline
 	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->getPipelineLayout("forward"), this->getRenderPass("forward"), &this->sampleCountSetting, &this->shadowsEnabled));
@@ -490,9 +491,12 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	// Create a texture buffers and framebuffers for array shadow maps for non-zero light types
 	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<CubemapArrayDepthTextureBuffer>(&this->context, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->pointShadowMapRes));
 	this->textureBuffers.emplace("directionalShadow", std::make_unique<DepthTextureBuffer>(&this->context, VK_FORMAT_D32_SFLOAT, nullptr, &this->sunShadowMapRes));
+	this->textureBuffers.emplace("spotArrayShadows",  std::make_unique<ArrayDepthTextureBuffer>(&this->context, this->numSpotLights, VK_FORMAT_D32_SFLOAT, &this->spotShadowMapRes));
 #ifndef NDEBUG
+	// TODO: do we really need RGBA16 formats for these?
 	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numPointLights * 6, VK_FORMAT_R16G16B16A16_SFLOAT, &this->pointShadowMapRes));
 	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16G16B16A16_SFLOAT, nullptr, &this->sunShadowMapRes));
+	this->textureBuffers.emplace("spotArrayShadowsDebug",  std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numSpotLights, VK_FORMAT_R16G16B16A16_SFLOAT, &this->spotShadowMapRes));
 #endif
 
 	if (this->numPointLights != 0) {
@@ -517,9 +521,21 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, directionalShadowTextures, this->getRenderPass("shadow"), &this->sunShadowMapRes));
 	}
 
+	if (this->numSpotLights != 0) {
+		std::initializer_list<TextureBuffer*> spotShadowTextures = {
+			this->getTextureBuffer("spotArrayShadows"),
+#ifndef NDEBUG
+			this->getTextureBuffer("spotArrayShadowsDebug")
+#endif
+		};
+
+		this->framebuffers.emplace("spotArrayShadows", std::make_unique<ArrayFramebuffer>(window, spotShadowTextures, this->getRenderPass("shadow"), this->numSpotLights, &this->spotShadowMapRes));
+	}
+
 	// Light type counters (surely I can make a better system than this)
 	int pointLightIndex = 0;
 	int spotLightIndex = 0;
+	int matrixDependentIndex = 0;
 
 	// Populate ssbos
 	for (std::size_t i = 0; i < lights->size(); i++) {
@@ -528,8 +544,10 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		glsl::Light lightStruct = {
 			.positionAndLightType = { light.getPosition(), light.getLightType() },
 			.directionAndMapIndex = { light.getDirection(), 0 },
-			.colourAndIntensity = { light.getColour(), light.getIntensity() }
+			.colourAndIntensity = { light.getColour(), light.getIntensity() },
+			.spotLightAndMatrixIndex = { std::cos(glm::radians(light.getInnerAngle())), std::cos(glm::radians(light.getOuterAngle())), 0, 0 }
 		};
+
 
 		switch (light.getLightType()) {
 		case LightType::POINT:
@@ -549,12 +567,25 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 			this->sunLightIndex = i;
 			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection.get() * this->sunMatrices.view.get());
+
+			lightStruct.spotLightAndMatrixIndex.z = matrixDependentIndex;
+
+			matrixDependentIndex++;
 			break;
 		}
 		case LightType::SPOT:
 		{
 			lightStruct.directionAndMapIndex.w = spotLightIndex;
+			lightStruct.spotLightAndMatrixIndex.z = matrixDependentIndex;
+
+			glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 256.0f);
+			projection[1][1] *= -1.0;
+			glm::mat4 view = glm::lookAt(light.getPosition(), light.getPosition() + light.getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
+
+			this->ssbos.lightMatrices.emplace_back(projection * view);
+
 			spotLightIndex++;
+			matrixDependentIndex++;
 			break;
 		}
 		}
@@ -571,18 +602,24 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		{ this->getTextureBuffer("pointArrayShadows"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
 	std::vector<DescriptorImageSetting> directionalLightShadowDescriptorSettings = {
 		{ this->getTextureBuffer("directionalShadow"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
+	std::vector<DescriptorImageSetting> spotLightShadowsDescriptorSettings = {
+		{ this->getTextureBuffer("spotArrayShadows"),  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
 
 	this->descriptorSets.emplace("pointLightShadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDescriptorSettings));
 	this->descriptorSets.emplace("directionalLightShadow", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowDescriptorSettings));
+	this->descriptorSets.emplace("spotLightShadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, spotLightShadowsDescriptorSettings));
 
 #ifndef NDEBUG
 	std::vector<DescriptorImageSetting> pointLightShadowsDebugDescriptorSettings = {
 		{ this->getTextureBuffer("pointArrayShadowsDebug"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
 	std::vector<DescriptorImageSetting> directionalLightShadowDebugDescriptorSettings = {
 		{ this->getTextureBuffer("directionalShadowDebug"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
+	std::vector<DescriptorImageSetting> spotLightShadowsDebugDescriptorSettings = {
+		{ this->getTextureBuffer("spotArrayShadowsDebug"),  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
 
 	this->descriptorSets.emplace("pointLightShadowsDebug", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDebugDescriptorSettings));
 	this->descriptorSets.emplace("directionalLightShadowDebug", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowDebugDescriptorSettings));
+	this->descriptorSets.emplace("spotLightShadowsDebug", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, spotLightShadowsDebugDescriptorSettings));
 #endif
 
 	std::vector<DescriptorBufferSetting> lightSSBODescriptorSettings = {
@@ -857,6 +894,12 @@ void Renderer::render() {
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
 	}
+	if (this->numSpotLights == 0) {
+		RendererUtils::imageBarrier(this->getTextureBuffer("spotArrayShadow")->getImage().image, 0, 0,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+	}
 
 	// Scene pass
 	if (this->renderingType) {
@@ -1002,7 +1045,7 @@ void Renderer::renderForward() {
 		this->getPipelineLayout("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
-	descriptorSets.reserve(7);
+	descriptorSets.reserve(8);
 	// Add descriptors that will always be present in same order as in shader
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("mvp")));
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lights")));
@@ -1011,6 +1054,7 @@ void Renderer::renderForward() {
 	if (this->shadowsEnabled) {
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("pointLightShadows")));
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("directionalLightShadow")));
+		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("spotLightShadows")));
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lightMatrices")));
 	}
@@ -1204,7 +1248,7 @@ void Renderer::renderDeferred() {
 		this->getPipelineLayout("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
-	descriptorSets.reserve(9);
+	descriptorSets.reserve(10);
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("deferredInputs")));
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("mvp")));
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lights")));
@@ -1214,6 +1258,7 @@ void Renderer::renderDeferred() {
 	if (this->shadowsEnabled) {
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("pointLightShadows")));
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("directionalLightShadow")));
+		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("spotLightShadows")));
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lightMatrices")));
 	}
@@ -1331,6 +1376,7 @@ void Renderer::renderShadowMaps() {
 	// Some light-specific counters
 	std::uint32_t pointLightIndex = 0;
 	std::uint32_t directionalLightIndex = 0;
+	std::uint32_t spotLightIndex = 0;
 
 	// For each light
 	for (std::size_t i = 0; i < this->lights->size(); i++) {
@@ -1403,7 +1449,7 @@ void Renderer::renderShadowMaps() {
 
 			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("directionalShadow"), directionalLightIndex);
 
-			RendererUtils::bindGraphicPipeline(this->getPipeline("shadow")->getHandle());
+			RendererUtils::bindGraphicPipeline(this->getPipeline("shadowDirectional")->getHandle());
 
 			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at(directionalLightIndex);
 
@@ -1433,6 +1479,32 @@ void Renderer::renderShadowMaps() {
 		{
 			assert(this->numSpotLights != 0 && "Trying to render a spot light shadow map but numSpotLights is 0?");
 
+			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("spotArrayShadows"), spotLightIndex);
+
+			RendererUtils::bindGraphicPipeline(this->getPipeline("shadowSpot")->getHandle());
+
+			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z);
+
+			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
+				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &lightMatrix);
+#if !defined(NDEBUG)
+			int projType = 0;
+
+			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
+				VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(int), &projType);
+
+			RendererUtils::bindGraphicDescriptorSets(
+				this->getPipelineLayout("shadow")->getHandle(), 0, 1,
+				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
+#endif
+			RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
+
+			for (std::size_t i = 0; i < meshData.size(); i++)
+				RendererUtils::drawMeshGeometry(meshData[i]);
+
+			RendererUtils::endRenderPass();
+
+			spotLightIndex++;
 			break;
 		}
 		}

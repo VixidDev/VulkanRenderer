@@ -38,6 +38,8 @@ namespace LightsParser {
 			glm::vec3 direction;
 			glm::vec3 colour;
 			int intensity;
+			float innerAngle;
+			float outerAngle;
 
 			if (line.starts_with("point:")) {
 				if (int res =
@@ -61,13 +63,13 @@ namespace LightsParser {
 					directionalLights++;
 			} else if (line.starts_with("spot:")) {
 				if (int res =
-					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %f %f %f %d", &pos.x, &pos.y, &pos.z, &direction.x, &direction.y, &direction.z, &colour.x, &colour.y, &colour.z, &intensity);
-					res != 10) 
+					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %f %f %f %d %f %f", &pos.x, &pos.y, &pos.z, &direction.x, &direction.y, &direction.z, &colour.x, &colour.y, &colour.z, &intensity, &innerAngle, &outerAngle);
+					res != 12) 
 				{
 					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
 					continue;
 				}
-					lightsOut.emplace_back(Light(LightType::SPOT, pos, direction, colour, intensity));
+					lightsOut.emplace_back(Light(LightType::SPOT, pos, direction, colour, intensity, innerAngle, outerAngle));
 			}
 		}
 

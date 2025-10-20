@@ -1,7 +1,7 @@
 #include "Light.hpp"
 
-Light::Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour, int intensity) 
-	: type(type), position(pos), direction(direction), colour(colour), intensity(intensity) {}
+Light::Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour, int intensity, float innerAngle, float outerAngle) 
+	: type(type), position(pos), direction(direction), colour(colour), intensity(intensity), innerAngle(innerAngle), outerAngle(outerAngle) {}
 
 void Light::markDirty() {
 	this->dirty = true;
@@ -29,6 +29,14 @@ glm::vec3 Light::getColour() {
 
 int Light::getIntensity() {
 	return this->intensity;
+}
+
+float Light::getInnerAngle() {
+	return this->innerAngle;
+}
+
+float Light::getOuterAngle() {
+	return this->outerAngle;
 }
 
 bool Light::isDirty() {

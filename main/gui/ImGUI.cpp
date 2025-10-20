@@ -425,10 +425,10 @@ void GUI::draw() {
 					this->spotLightShadowIndex = std::clamp(this->spotLightShadowIndex, 0, std::max(0, (int)renderer.numSpotLights - 1));
 				}
 
-				//ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("spotLightShadowsDebug"));
-				//if (renderer.numSpotLights > 0 && descriptorSet) {
-				//	ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->spotLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
-				//}
+				ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("spotLightShadowsDebug"));
+				if (renderer.numSpotLights > 0 && descriptorSet) {
+					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->spotLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
+				}
 
 				ImGui::EndTabItem();
 			}

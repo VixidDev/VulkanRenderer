@@ -32,12 +32,13 @@ namespace glsl {
 	};
 
 	struct Light {
-		glm::vec4 positionAndLightType{}; // xyz: position,  w: light type
-		glm::vec4 directionAndMapIndex{}; // xyz: direction, w: shadow map index
-		glm::vec4 colourAndIntensity{};   // xyz: colour,	 w: intensity
+		glm::vec4 positionAndLightType{};    // xyz: position,  w: light type
+		glm::vec4 directionAndMapIndex{};    // xyz: direction, w: shadow map index
+		glm::vec4 colourAndIntensity{};      // xyz: colour,	w: intensity
+		glm::vec4 spotLightAndMatrixIndex{}; // xy: spot light angles, z: light space matrix index, w: unused
 	};
 
-	static_assert(sizeof(Light) == 48, "Light stuct must be 48 bytes!");
+	static_assert(sizeof(Light) == 64, "Light stuct must be 64 bytes!");
 
 	// Push constant structs
 	struct LightsAndEmissive {
