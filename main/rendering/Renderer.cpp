@@ -1467,8 +1467,14 @@ void Renderer::renderShadowMaps() {
 #endif
 			RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
+			auto perMeshCallback = [this](MeshData& meshData) {
+				RendererUtils::bindGraphicDescriptorSets(
+					this->getPipelineLayout("shadow")->getHandle(), 1, 1,
+					&this->alphaMaskDescriptors.at(meshData.materialId));
+				};
+
 			for (std::size_t i = 0; i < meshData.size(); i++)
-				RendererUtils::drawMeshGeometry(meshData[i]);
+				RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
 
 			RendererUtils::endRenderPass();
 

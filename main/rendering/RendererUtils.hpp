@@ -43,7 +43,7 @@ namespace RendererUtils {
 	// Rendering
 	void drawDirect(std::uint32_t vertexCount, std::uint32_t instanceCount, std::uint32_t firstVertex, std::uint32_t firstInstance);
 	void drawMesh(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
-	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
+	void drawMeshGeometry(MeshData& meshData, bool useTexCoords = false, const std::function<void(MeshData&)>& perMeshCallback = nullptr);
 	void drawLineMesh(LineMeshData& lineMeshData);
 	void renderImGUI();
 

@@ -1,9 +1,13 @@
 #version 450
 
+layout(location = 0) in vec2 v2fTexCoord;
+
 layout(set = 0, binding = 0) uniform ClipPlanes {
 	float far;
 	float near;
 } planes;
+
+layout(set = 1, binding = 0) uniform sampler2D uAlphaMask;
 
 layout(push_constant) uniform PushConstant {
 	layout(offset = 64) int projectionType; // 0 - Perspective, 1 - Orthographic
@@ -16,6 +20,9 @@ float lineariseDepth(float depth) {
 }
 
 void main() {
+	float alpha = texture(uAlphaMask, v2fTexCoord).a;
+	if (alpha < 0.5) discard;
+
 	// Only perspective projected shadow maps need their depth linearising,
 	// orthographic projected shadow maps already write depth linearly.
 	if (pConsts.projectionType == 0) {

@@ -3,6 +3,7 @@
 #include "../vulkan/objects/VkImage.hpp"
 #include "../vulkan/VulkanContext.hpp"
 #include "../vulkan/VulkanDevice.hpp"
+#include "../rendering/PipelineCreation.hpp"
 
 namespace BakedModelLoader {
 	
@@ -147,6 +148,19 @@ namespace BakedModelLoader {
 			constexpr auto numSets = sizeof(desc) / sizeof(desc[0]);
 			vkUpdateDescriptorSets(window.getDevice()->getDevice(), numSets, desc, 0, nullptr);
 			materialDescriptors.emplace_back(materialDescriptor);
+
+			VkDescriptorSet alphaMaskDescriptor = VkUtils::createDescriptorSet(
+				window, window.getDevice()->getDescPool(), renderer.getDescriptorSetLayout("imageF"));
+
+			VkWriteDescriptorSet alphaDescriptor{};
+			alphaDescriptor.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			alphaDescriptor.dstSet = alphaMaskDescriptor;
+			alphaDescriptor.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			alphaDescriptor.descriptorCount = 1;
+			alphaDescriptor.pImageInfo = &alphaMaskInfo;
+
+			vkUpdateDescriptorSets(window.getDevice()->getDevice(), 1, &alphaDescriptor, 0, nullptr);
+			renderer.alphaMaskDescriptors.emplace_back(alphaMaskDescriptor);
 		}
 		
 		return materialDescriptors;

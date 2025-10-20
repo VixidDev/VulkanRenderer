@@ -167,6 +167,10 @@ public:
 	// Different to the 'intensity' of the light of the sun, 
 	// this is to do with rendering the actual sun in the sky
 	float sunIntensity = 1.0f;
+
+	// Not the best implementation by just sticking this in
+	// here but its the simplest
+	std::vector<VkDescriptorSet> alphaMaskDescriptors;
 private:
 	void createDummyTexture();
 

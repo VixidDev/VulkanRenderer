@@ -143,16 +143,18 @@ namespace RendererUtils {
 		vkCmdDrawIndexed(boundCommandBuffer, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);
 	}
 
-	void drawMeshGeometry(MeshData& meshData, const std::function<void(MeshData&)>& perMeshCallback) {
+	void drawMeshGeometry(MeshData& meshData, bool useTexCoords, const std::function<void(MeshData&)>& perMeshCallback) {
 		if (perMeshCallback)
 			perMeshCallback(meshData);
 
-		VkBuffer vBuffer = meshData.posBuffer.buffer;
+		std::vector<VkBuffer> vBuffers(useTexCoords ? 2 : 1, VK_NULL_HANDLE);
+		vBuffers[0] = meshData.posBuffer.buffer;
+		if (useTexCoords) vBuffers[1] = meshData.texCoordBuffer.buffer;
 		VkBuffer iBuffer = meshData.indicesBuffer.buffer;
-		VkDeviceSize vOffset{};
+		VkDeviceSize vOffset[2]{};
 		VkDeviceSize iOffset{};
 
-		vkCmdBindVertexBuffers(boundCommandBuffer, 0, 1, &vBuffer, &vOffset);
+		vkCmdBindVertexBuffers(boundCommandBuffer, 0, vBuffers.size(), vBuffers.data(), vOffset);
 		vkCmdBindIndexBuffer(boundCommandBuffer, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
 
 		vkCmdDrawIndexed(boundCommandBuffer, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);

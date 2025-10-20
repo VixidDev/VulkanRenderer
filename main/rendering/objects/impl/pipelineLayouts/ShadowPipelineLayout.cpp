@@ -17,6 +17,7 @@ void ShadowPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> shadowLayouts;
 #if !defined(NDEBUG)
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes
+	shadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Alpha mask
 #endif
 
 	VkPushConstantRange depthProjectionMatrix = {
@@ -29,9 +30,9 @@ void ShadowPipelineLayout::recreate() {
 
 #if !defined(NDEBUG)
 	VkPushConstantRange projectionType = {
-	.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-	.offset = depthProjectionMatrix.size,
-	.size = sizeof(int)
+		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+		.offset = depthProjectionMatrix.size,
+		.size = sizeof(int)
 	};
 
 	pushConstants.emplace_back(projectionType);

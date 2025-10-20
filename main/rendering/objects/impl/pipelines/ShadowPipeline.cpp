@@ -45,23 +45,31 @@ void ShadowPipeline::recreate() {
 	stages[1].pName = "main";
 #endif
 
-	VkVertexInputBindingDescription vertexInputs[1]{};
+	VkVertexInputBindingDescription vertexInputs[2]{};
 	// Positions
 	vertexInputs[0].binding = 0;
 	vertexInputs[0].stride = sizeof(float) * 3;
 	vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	// Tex coords
+	vertexInputs[1].binding = 1;
+	vertexInputs[1].stride = sizeof(float) * 2;
+	vertexInputs[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-	VkVertexInputAttributeDescription vertexAttributes[1]{};
+	VkVertexInputAttributeDescription vertexAttributes[2]{};
 	vertexAttributes[0].binding = 0;
 	vertexAttributes[0].location = 0;
 	vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 	vertexAttributes[0].offset = 0;
+	vertexAttributes[1].binding = 1;
+	vertexAttributes[1].location = 1;
+	vertexAttributes[1].format = VK_FORMAT_R32G32_SFLOAT;
+	vertexAttributes[1].offset = 0;
 
 	VkPipelineVertexInputStateCreateInfo inputInfo{};
 	inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	inputInfo.vertexBindingDescriptionCount = 1;
+	inputInfo.vertexBindingDescriptionCount = 2;
 	inputInfo.pVertexBindingDescriptions = vertexInputs;
-	inputInfo.vertexAttributeDescriptionCount = 1;
+	inputInfo.vertexAttributeDescriptionCount = 2;
 	inputInfo.pVertexAttributeDescriptions = vertexAttributes;
 
 	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
