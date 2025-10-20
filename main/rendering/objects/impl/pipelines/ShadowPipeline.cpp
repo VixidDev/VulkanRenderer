@@ -25,25 +25,37 @@ ShadowPipeline::ShadowPipeline(
 
 void ShadowPipeline::recreate() {
 	vk::ShaderModule vert = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/standardShadow.vert.spv");
-#if !defined(NDEBUG)
 	vk::ShaderModule frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/standardShadow.frag.spv");
 
-	const int STAGES = 2;
-#else
-	const int STAGES = 1;
+	//layout(constant_id = 0) const int WRITE_TO_COLOUR = 0;
+	VkSpecializationMapEntry specializationMapEntry = {
+		.constantID = 0,
+		.offset = 0,
+		.size = sizeof(int)
+	};
+
+	int writeToColour = 0;
+#ifndef NDEBUG
+	writeToColour = 1;
 #endif
 
-	VkPipelineShaderStageCreateInfo stages[STAGES]{};
+	VkSpecializationInfo specializationInfo = {
+		.mapEntryCount = 1,
+		.pMapEntries = &specializationMapEntry,
+		.dataSize = sizeof(int),
+		.pData = &writeToColour
+	};
+
+	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	stages[0].module = vert.handle;
 	stages[0].pName = "main";
-#if !defined(NDEBUG)
 	stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
-#endif
+	stages[1].pSpecializationInfo = &specializationInfo;
 
 	VkVertexInputBindingDescription vertexInputs[2]{};
 	// Positions
@@ -139,7 +151,7 @@ void ShadowPipeline::recreate() {
 
 	VkGraphicsPipelineCreateInfo pipeInfo{};
 	pipeInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipeInfo.stageCount = STAGES;
+	pipeInfo.stageCount = 2;
 	pipeInfo.pStages = stages;
 	pipeInfo.pVertexInputState = &inputInfo;
 	pipeInfo.pInputAssemblyState = &assemblyInfo;
