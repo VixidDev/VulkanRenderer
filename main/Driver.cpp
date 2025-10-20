@@ -58,7 +58,7 @@ int Driver::loadScene() {
 	// TODO: Update to use similar objects like in Renderer.cpp
 	this->materialDescriptors = BakedModelLoader::createMaterialDescriptors(*this, this->bakedModel);
 
-	const std::string lightsFile = "assets/main/lights.vl";
+	const std::string lightsFile = "assets-src/main/lights.vl";
 	if (!LightsParser::parseLights(lightsFile, this->lights)) {
 		std::fprintf(stderr, "Failed to parse lights for file '%s'\n", lightsFile.c_str());
 	}

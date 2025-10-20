@@ -1,0 +1,10 @@
+#Lights (vl)
+// Formatting:
+// point:       <vec3: position> <vec3: colour> <int: intensity>
+// directional: <vec3: direction> <vec3: colour> <int: intensity> (I assume every directional light is the sun, and so defining multiple directional lights is undefined (and probably breaks things))
+// spot:        <vec3: position> <vec3: direction> <vec3: colour> <int: intensity> <float: inner angle> <float: outer angle>
+directional:  0.34815531 -0.8703882 -0.34815531                         0.992 0.753 0.608 5
+//point:          -17.4077655 43.51941 17.4077655                           1.0 1.0 1.0 5
+//point:        0.0 7.3 -12.0                                    1.0 1.0 1.0 50
+//point:        0.0 12.0 -18.0                                            1.0 1.0 1.0 50
+spot:         0.0 4.0 -15.0 0.0 0.0 -1.0 1.0 1.0 1.0 50 35.0 40.0
