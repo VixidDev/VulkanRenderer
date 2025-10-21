@@ -1,41 +1,67 @@
-#include "BloomPipeline.hpp"
+#include "VarianceShadowPipeline.hpp"
 
 #include "Error.hpp"
 #include "toString.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
-#include "../../../../vulkan/Swapchain.hpp"
 #include "../../../PipelineCreation.hpp"
 
-BloomPipeline::BloomPipeline(
+VarianceShadowPipeline::VarianceShadowPipeline(
 	VulkanWindow* window,
 	PipelineLayout* pipelineLayout,
-	RenderPass* renderPass
+	RenderPass* renderPass,
+	VkSampleCountFlagBits* sampleCount,
+	VkExtent2D* shadowMapResolution
 ) : Pipeline(window) {
+	this->sampleCount = sampleCount;
+
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
 
-	this->renderExtent = &this->window->getSwapchain()->getExtent();
+	this->renderExtent = shadowMapResolution;
 
 	this->recreate();
 }
 
-void BloomPipeline::recreate() {
-	vk::ShaderModule vert = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/fullScreen.vert.spv");
-	vk::ShaderModule frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/bloom.frag.spv");
+void VarianceShadowPipeline::recreate() {
+	vk::ShaderModule vert = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/varianceShadowMap.vert.spv");
+	vk::ShaderModule frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/varianceShadowMap.frag.spv");
 
 	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	stages[0].module = vert.handle;
 	stages[0].pName = "main";
-
 	stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
 
+	VkVertexInputBindingDescription vertexInputs[2]{};
+	// Positions
+	vertexInputs[0].binding = 0;
+	vertexInputs[0].stride = sizeof(float) * 3;
+	vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	// Tex coords
+	vertexInputs[1].binding = 1;
+	vertexInputs[1].stride = sizeof(float) * 2;
+	vertexInputs[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+	VkVertexInputAttributeDescription vertexAttributes[2]{};
+	vertexAttributes[0].binding = 0;
+	vertexAttributes[0].location = 0;
+	vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	vertexAttributes[0].offset = 0;
+	vertexAttributes[1].binding = 1;
+	vertexAttributes[1].location = 1;
+	vertexAttributes[1].format = VK_FORMAT_R32G32_SFLOAT;
+	vertexAttributes[1].offset = 0;
+
 	VkPipelineVertexInputStateCreateInfo inputInfo{};
 	inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	inputInfo.vertexBindingDescriptionCount = 2;
+	inputInfo.pVertexBindingDescriptions = vertexInputs;
+	inputInfo.vertexAttributeDescriptionCount = 2;
+	inputInfo.pVertexAttributeDescriptions = vertexAttributes;
 
 	VkPipelineInputAssemblyStateCreateInfo assemblyInfo{};
 	assemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -68,7 +94,7 @@ void BloomPipeline::recreate() {
 	rasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
 	rasterInfo.cullMode = VK_CULL_MODE_NONE;
 	rasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-	rasterInfo.depthBiasEnable = VK_FALSE;
+	rasterInfo.depthBiasEnable = VK_TRUE;
 	rasterInfo.lineWidth = 1.0f;
 
 	VkPipelineMultisampleStateCreateInfo multisampleInfo{};
@@ -88,7 +114,7 @@ void BloomPipeline::recreate() {
 	VkPipelineDepthStencilStateCreateInfo depthInfo{};
 	depthInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
 	depthInfo.depthTestEnable = VK_TRUE;
-	depthInfo.depthWriteEnable = VK_FALSE;
+	depthInfo.depthWriteEnable = VK_TRUE;
 	depthInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
 	depthInfo.minDepthBounds = 0.0f;
 	depthInfo.maxDepthBounds = 1.0f;

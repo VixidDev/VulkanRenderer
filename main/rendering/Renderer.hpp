@@ -44,6 +44,14 @@ struct LightMatrices {
 	Cache<glm::mat4> view;
 };
 
+enum TapSize {
+	e5X5,
+	e9X9,
+	e17X17,
+	e25X25,
+	e41X41
+};
+
 class Driver;
 
 using _RenderPass = std::unique_ptr<RenderPass>;
@@ -148,9 +156,11 @@ public:
 	float emissiveStrength = 75.0f;
 
 	int bloomIterations = 1;
+	int bloomTapSize = TapSize::e41X41;
 	float brightnessThreshold = 0.75f;
 	
 	float shadowBias = 0.00025f;
+	int vsmTapSize = TapSize::e5X5;
 
 	float sunOrthoBounds = 37.0f;
 	float sunShadowNear = 0.1f;
@@ -216,6 +226,7 @@ private:
 	vk::Sampler linearRepeatSampler;
 	vk::Sampler linearMirroredRepeatSampler;
 	vk::Sampler linearClampToEdgeSampler;
+	vk::Sampler linearClampToBorderSampler;
 	vk::Sampler nearestRepeatSampler;
 	vk::Sampler nearestClampToEdgeSampler;
 	vk::Sampler depthSampler;

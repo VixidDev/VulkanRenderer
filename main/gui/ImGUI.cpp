@@ -146,6 +146,7 @@ void GUI::draw() {
 			ImGui::EndTabItem();
 		}
 		if (ImGui::BeginTabItem("Lights")) {
+#ifndef NDEBUG
 			if (renderer.getDebugView())
 				ImGui::BeginDisabled();
 			if (!renderer.getShadowsEnabled())
@@ -155,7 +156,7 @@ void GUI::draw() {
 
 			if (!renderer.getShadowsEnabled())
 				ImGui::EndDisabled();
-#ifndef NDEBUG
+
 			if (renderer.getRenderingType())
 				ImGui::BeginDisabled();
 
@@ -163,9 +164,9 @@ void GUI::draw() {
 
 			if (renderer.getRenderingType())
 				ImGui::EndDisabled();
-#endif
 			if (renderer.getDebugView())
 				ImGui::EndDisabled();
+#endif
 
 			ImGui::Separator();
 
@@ -175,6 +176,18 @@ void GUI::draw() {
 
 			ImGui::SliderFloat("Emissive Strength", &renderer.emissiveStrength, 1.0f, 100.0f);
 			ImGui::SliderFloat("Shadow Bias", &renderer.shadowBias, 0.0001f, 0.01f, "%.5f");
+
+			int oldVsmTapSize = renderer.vsmTapSize;
+
+			ImGui::Text("VSM Tap Size:"); ImGui::SameLine();
+			ImGui::RadioButton("5x5", &renderer.vsmTapSize, TapSize::e5X5); ImGui::SameLine();
+			ImGui::RadioButton("9x9", &renderer.vsmTapSize, TapSize::e9X9); ImGui::SameLine();
+			ImGui::RadioButton("17x17", &renderer.vsmTapSize, TapSize::e17X17); ImGui::SameLine();
+			ImGui::RadioButton("25x25", &renderer.vsmTapSize, TapSize::e25X25); ImGui::SameLine();
+			ImGui::RadioButton("41x41", &renderer.vsmTapSize, TapSize::e41X41);
+
+			if (oldVsmTapSize != renderer.vsmTapSize)
+				renderer.setRecreateSwapchain(true, true); // Need to recreate since tap sizes are a specialization constant
 
 			ImGui::Separator();
 
@@ -254,6 +267,18 @@ void GUI::draw() {
 			ImGui::Text("Post Processing Effects");
 			ImGui::Checkbox("Bloom", &bloomPPE->getEnabled());
 			if (bloomPPE->getEnabled()) {
+				int oldBloomTapSize = renderer.bloomTapSize;
+
+				ImGui::Text("Tap Sizes:"); ImGui::SameLine();
+				ImGui::RadioButton("5x5", &renderer.bloomTapSize, TapSize::e5X5); ImGui::SameLine();
+				ImGui::RadioButton("9x9", &renderer.bloomTapSize, TapSize::e9X9); ImGui::SameLine();
+				ImGui::RadioButton("17x17", &renderer.bloomTapSize, TapSize::e17X17); ImGui::SameLine();
+				ImGui::RadioButton("25x25", &renderer.bloomTapSize, TapSize::e25X25); ImGui::SameLine();
+				ImGui::RadioButton("41x41", &renderer.bloomTapSize, TapSize::e41X41);
+
+				if (oldBloomTapSize != renderer.bloomTapSize)
+					renderer.setRecreateSwapchain(true, true); // Need to recreate since tap sizes are a specialization constant
+
 				ImGui::SliderInt("Blur Iterations", &renderer.bloomIterations, 1, 10);
 				ImGui::SliderFloat("Threshold", &renderer.brightnessThreshold, 0.0f, 1.0f);
 			}

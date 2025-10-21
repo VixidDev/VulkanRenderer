@@ -20,7 +20,7 @@ layout(set = 1, binding = 0) readonly buffer Lights {
 layout(set = 2, binding = 0) uniform sampler2D uSSAO;
 
 layout(set = 3, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
-layout(set = 4, binding = 0) uniform sampler2DShadow sunShadow;
+layout(set = 4, binding = 0) uniform sampler2D sunShadow;
 layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
 
 layout(set = 6, binding = 0) uniform ClipPlanes {
@@ -79,9 +79,27 @@ float calculateShadow(ShaderLight light) {
 		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - pConsts.shadowBias);
 		break;
 	case 1: // Directional light
-		shadowCoord.z -= pConsts.shadowBias;
+		//shadowCoord.z -= pConsts.shadowBias;
 
-		shadow = texture(sunShadow, shadowCoord);
+		vec2 moments = texture(sunShadow, shadowCoord.xy).rg;
+
+		mat4 lightViewMatrix = lightSpaceMatrices[lightSpaceMatrixIndex + 1];
+		vec4 lightViewPos = lightViewMatrix * vec4(v2fPosition, 1.0);
+		float fragDepth = (-lightViewPos.z - planes.near) / (planes.far - planes.near);
+
+		float variance = moments.y - (moments.x * moments.x);
+		variance = max(variance, 0.00002);
+
+		float diff = fragDepth - moments.x;
+		float diff2 = diff * diff;
+
+		float pMax = variance / (variance + diff2);
+		//  TODO: (Substitute in 0.9 for the shadow bias as the bleed reduction)
+		// 0.9 is an empirical value specifically for this renderers scene to reduce
+		// light bleeding, different values should be used in different scenes
+		pMax = clamp((pMax - pConsts.shadowBias) / (1.0 - pConsts.shadowBias), 0.0, 1.0);
+
+		shadow = (fragDepth <= moments.x) ? 1.0 : pMax;
 		break;
 	case 2: // Spot light
 		shadow = texture(spotLightShadows, vec4(shadowCoord.xy, shadowMapIndex, shadowCoord.z)); 

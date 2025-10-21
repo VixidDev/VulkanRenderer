@@ -32,7 +32,8 @@ void main() {
 		// Only perspective projected shadow maps need their depth linearising,
 		// orthographic projected shadow maps already write depth linearly.
 		if (pConsts.projectionType == 0) {
-			linearDepth = vec4(vec3(lineariseDepth(gl_FragCoord.z) / 100.0), 1.0);
+			float linearisedDepth = (lineariseDepth(gl_FragCoord.z) - planes.near) / (planes.far - planes.near);
+			linearDepth = vec4(vec3(linearisedDepth), 1.0);
 		} else {
 			linearDepth = vec4(vec3(gl_FragCoord.z), 1.0);
 		}
