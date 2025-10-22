@@ -58,11 +58,9 @@
 #include "objects/impl/pipelines/SunPipeline.hpp"
 #include "objects/impl/pipelines/VarianceShadowPipeline.hpp"
 
+#include "objects/base/ArrayTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/CubemapTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/CubemapArrayDepthTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/ArrayColourTextureBuffer.hpp"
-#include "objects/impl/textureBuffers/ArrayDepthTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/ColourTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/NoiseTextureBuffer.hpp"
 

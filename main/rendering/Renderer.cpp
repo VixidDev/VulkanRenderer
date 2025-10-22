@@ -505,15 +505,15 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	}
 
 	// Create a texture buffers and framebuffers for array shadow maps for non-zero light types
-	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<CubemapArrayDepthTextureBuffer>(&this->context, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->pointShadowMapRes));
+	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<ArrayTextureBuffer>(&this->context, true, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->pointShadowMapRes));
 	this->textureBuffers.emplace("directionalShadow", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R32G32_SFLOAT, nullptr, &this->sunShadowMapRes));
 	this->textureBuffers.emplace("directionalShadowDepth", std::make_unique<DepthTextureBuffer>(&this->context, VK_FORMAT_D32_SFLOAT, nullptr, &this->sunShadowMapRes));
-	this->textureBuffers.emplace("spotArrayShadows",  std::make_unique<ArrayDepthTextureBuffer>(&this->context, this->numSpotLights, VK_FORMAT_D32_SFLOAT, &this->spotShadowMapRes));
+	this->textureBuffers.emplace("spotArrayShadows",  std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_D32_SFLOAT, &this->spotShadowMapRes));
 #ifndef NDEBUG
 	// TODO: do we really need RGBA16 formats for these?
-	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numPointLights * 6, VK_FORMAT_R16G16B16A16_SFLOAT, &this->pointShadowMapRes));
+	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numPointLights * 6, VK_FORMAT_R16G16B16A16_SFLOAT, &this->pointShadowMapRes));
 	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16G16B16A16_SFLOAT, nullptr, &this->sunShadowMapRes));
-	this->textureBuffers.emplace("spotArrayShadowsDebug",  std::make_unique<ArrayColourTextureBuffer>(&this->context, this->numSpotLights, VK_FORMAT_R16G16B16A16_SFLOAT, &this->spotShadowMapRes));
+	this->textureBuffers.emplace("spotArrayShadowsDebug",  std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_R16G16B16A16_SFLOAT, &this->spotShadowMapRes));
 #endif
 
 	if (this->numPointLights != 0) {
@@ -902,7 +902,12 @@ void Renderer::render() {
 	// Shadow pass
 	if (this->shadowsEnabled) {
 		RendererUtils::updateUniformBuffer(this->getUniformBuffer("cameraPlanes"));
-		this->renderShadowMaps();
+
+		if (this->vsmShadowsEnabled) {
+			this->renderVSMShadowMaps();
+		} else {
+			this->renderShadowMaps();
+		}
 	}
 
 	// Transition any dummy light textures to respective layout
@@ -1582,6 +1587,187 @@ void Renderer::renderShadowMaps() {
 	}
 
 	this->driver->getTimestampManager().writeGPUTimestamp("shadows", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+}
+
+void Renderer::renderVSMShadowMaps() {
+//	std::vector<MeshData>& meshData = this->driver->getMeshData();
+//
+//	this->driver->getTimestampManager().writeGPUTimestamp("vsmShadows", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+//
+//	// Some light-specific counters
+//	std::uint32_t pointLightIndex = 0;
+//	std::uint32_t directionalLightIndex = 0;
+//	std::uint32_t spotLightIndex = 0;
+//
+//	// For each light
+//	for (std::size_t i = 0; i < this->lights->size(); i++) {
+//		Light& light = this->lights->at(i);
+//
+//		// Check if we need to re-render this lights shadow map
+//		if (!light.isDirty()) continue;
+//
+//		switch (light.getLightType()) {
+//		case LightType::POINT:
+//		{
+//			assert(this->numPointLights != 0 && "Trying to render a point light shadow map but numPointLights is 0?");
+//
+//			constexpr glm::vec3 directions[6] = {
+//				glm::vec3(1.0f,  0.0f,  0.0f),
+//				glm::vec3(-1.0f,  0.0f,  0.0f),
+//				glm::vec3(0.0f,  1.0f,  0.0f),
+//				glm::vec3(0.0f, -1.0f,  0.0f),
+//				glm::vec3(0.0f,  0.0f,  1.0f),
+//				glm::vec3(0.0f,  0.0f, -1.0f),
+//			};
+//
+//			constexpr glm::vec3 upVectors[6] = {
+//				glm::vec3(0.0f, -1.0f,  0.0f),
+//				glm::vec3(0.0f, -1.0f,  0.0f),
+//				glm::vec3(0.0f,  0.0f,  1.0f),
+//				glm::vec3(0.0f,  0.0f, -1.0f),
+//				glm::vec3(0.0f, -1.0f,  0.0f),
+//				glm::vec3(0.0f, -1.0f,  0.0f),
+//			};
+//
+//			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera->getNearPlane(), this->camera->getFarPlane());
+//
+//			// Render to each face of the cube map
+//			for (std::size_t face = 0; face < 6; face++) {
+//				// Calculate layer index
+//				std::uint32_t layer = (pointLightIndex * 6) + face;
+//
+//				RendererUtils::beginRenderPass(this->getRenderPass("varianceShadow"), this->getFramebuffer("pointArrayShadows"), layer);
+//				RendererUtils::bindGraphicPipeline(this->getPipeline("varianceCubemapShadow")->getHandle());
+//
+//				glm::mat4 cubeView = glm::lookAt(light.getPosition(), light.getPosition() + directions[face], upVectors[face]);
+//				glm::mat4 cubeMatrix = cubePerspective * cubeView;
+//
+//				glsl::CubemapPC fragPC = {
+//					.lightPos = glm::vec4(light.getPosition(), 1.0f),
+//					.farPlane = this->camera->getFarPlane()
+//				};
+//
+//				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
+//					VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &cubeMatrix);
+//				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
+//					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(glsl::CubemapPC), &fragPC);
+//
+//				for (std::size_t i = 0; i < meshData.size(); i++)
+//					RendererUtils::drawMeshGeometry(meshData[i]);
+//
+//				RendererUtils::endRenderPass();
+//			}
+//
+//			pointLightIndex++;
+//			break;
+//		}
+//		case LightType::DIRECTIONAL:
+//		{
+//			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
+//
+//			RendererUtils::beginRenderPass(this->getRenderPass("varianceShadow"), this->getFramebuffer("directionalShadow"), directionalLightIndex);
+//
+//			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceShadow")->getHandle());
+//
+//			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at(directionalLightIndex);
+//
+//			struct TwoMatPC {
+//				glm::mat4 lightViewProj{};
+//				glm::mat4 lightView{};
+//			};
+//
+//			TwoMatPC twoMatPC = {
+//				.lightViewProj = this->sunMatrices.projection.get() * this->sunMatrices.view.get(),
+//				.lightView = this->sunMatrices.view.get()
+//			};
+//
+//			RendererUtils::bindPushConstant(this->getPipelineLayout("varianceShadow")->getHandle(),
+//				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(TwoMatPC), &twoMatPC);
+//			RendererUtils::bindGraphicDescriptorSets(
+//				this->getPipelineLayout("varianceShadow")->getHandle(), 0, 1,
+//				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
+//
+//			auto perMeshCallback = [this](MeshData& meshData) {
+//				RendererUtils::bindGraphicDescriptorSets(
+//					this->getPipelineLayout("varianceShadow")->getHandle(), 1, 1,
+//					&this->alphaMaskDescriptors.at(meshData.materialId));
+//				};
+//
+//			for (std::size_t i = 0; i < meshData.size(); i++)
+//				RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
+//
+//			RendererUtils::endRenderPass();
+//
+//			// Blur variance shadow map
+//			// Horizontal pass
+//			int direction = 0;
+//			RendererUtils::beginRenderPass(this->getRenderPass("varianceBlur"), this->getFramebuffer("writeToVarianceBlur"), directionalLightIndex);
+//			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceBlur")->getHandle());
+//			RendererUtils::bindGraphicDescriptorSets(
+//				this->getPipelineLayout("bloom")->getHandle(), 0, 1,
+//				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("directionalLightShadow")));
+//			RendererUtils::bindPushConstant(this->getPipelineLayout("bloom")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &direction);
+//			RendererUtils::drawDirect(3, 1, 0, 0);
+//			RendererUtils::endRenderPass();
+//
+//			// Vertical pass
+//			direction = 1;
+//			RendererUtils::beginRenderPass(this->getRenderPass("varianceBlur"), this->getFramebuffer("writeToDirectionalShadow"), directionalLightIndex);
+//			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceBlur")->getHandle());
+//			RendererUtils::bindGraphicDescriptorSets(
+//				this->getPipelineLayout("bloom")->getHandle(), 0, 1,
+//				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("varianceBlur")));
+//			RendererUtils::bindPushConstant(this->getPipelineLayout("bloom")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &direction);
+//			RendererUtils::drawDirect(3, 1, 0, 0);
+//			RendererUtils::endRenderPass();
+//
+//			directionalLightIndex++;
+//			break;
+//		}
+//		case LightType::SPOT:
+//		{
+//			assert(this->numSpotLights != 0 && "Trying to render a spot light shadow map but numSpotLights is 0?");
+//
+//			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("spotArrayShadows"), spotLightIndex);
+//
+//			RendererUtils::bindGraphicPipeline(this->getPipeline("shadowSpot")->getHandle());
+//
+//			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z);
+//
+//			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
+//				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &lightMatrix);
+//#ifndef NDEBUG
+//			int projType = 0;
+//
+//			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
+//				VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(int), &projType);
+//
+//			RendererUtils::bindGraphicDescriptorSets(
+//				this->getPipelineLayout("shadow")->getHandle(), 0, 1,
+//				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
+//#endif
+//			RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
+//
+//			auto perMeshCallback = [this](MeshData& meshData) {
+//				RendererUtils::bindGraphicDescriptorSets(
+//					this->getPipelineLayout("shadow")->getHandle(), 1, 1,
+//					&this->alphaMaskDescriptors.at(meshData.materialId));
+//				};
+//
+//			for (std::size_t i = 0; i < meshData.size(); i++)
+//				RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
+//
+//			RendererUtils::endRenderPass();
+//
+//			spotLightIndex++;
+//			break;
+//		}
+//		}
+//
+//		light.markClean();
+//	}
+//
+//	this->driver->getTimestampManager().writeGPUTimestamp("vsmShadows", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 }
 
 void Renderer::submitRender() {

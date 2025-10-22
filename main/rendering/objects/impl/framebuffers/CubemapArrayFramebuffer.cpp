@@ -2,7 +2,7 @@
 
 #include "../../../PipelineCreation.hpp"
 
-#include "../textureBuffers/CubemapArrayDepthTextureBuffer.hpp"
+#include "../../base/ArrayTextureBuffer.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
 #include "Error.hpp"
@@ -42,7 +42,7 @@ void CubemapArrayFramebuffer::recreate() {
 	for (std::size_t i = 0; i < 6 * this->arraySize; i++) {
 		// This line does make it so this class always depends on using a CubemapArrayDepthTextureBuffer, this should probably be changed
 		// to be a type that is templated on this class and not hardcoded.
-		imageView[0] = dynamic_cast<CubemapArrayDepthTextureBuffer*>(this->textureBuffer)->getFramebufferViews()[i].handle;
+		imageView[0] = dynamic_cast<ArrayTextureBuffer*>(this->textureBuffer)->getFramebufferViews()[i].handle;
 
 		VkFramebuffer fb = VK_NULL_HANDLE;
 		if (const auto res = vkCreateFramebuffer(this->window->getDevice()->getDevice(), &fbInfo, nullptr, &fb); VK_SUCCESS != res)
