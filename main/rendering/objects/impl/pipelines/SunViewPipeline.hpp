@@ -7,8 +7,7 @@ public:
 	SunViewPipeline(
 		VulkanWindow* window,
 		PipelineLayout* pipelineLayout,
-		RenderPass* renderPass,
-		VkSampleCountFlagBits* sampleCount);
+		RenderPass* renderPass);
 
 	void recreate();
 private:

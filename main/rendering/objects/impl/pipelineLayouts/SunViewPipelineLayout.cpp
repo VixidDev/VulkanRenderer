@@ -14,7 +14,7 @@ SunViewPipelineLayout::SunViewPipelineLayout(VulkanWindow* window,
 void SunViewPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> layout;
 	layout.emplace_back(this->descriptorLayouts->at("uboVF").handle); // MV matrices
-	layout.emplace_back(this->descriptorLayouts->at("materials").handle); // Material textures
+	layout.emplace_back(this->descriptorLayouts->at("image6F").handle); // Material textures
 
 	std::vector<VkPushConstantRange> pushConstants;
 

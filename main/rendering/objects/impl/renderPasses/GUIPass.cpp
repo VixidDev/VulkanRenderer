@@ -6,9 +6,7 @@
 #include "../../../../vulkan/VulkanDevice.hpp"
 #include "../../../../vulkan/Swapchain.hpp"
 
-GUIPass::GUIPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount) : RenderPass(window) {
-	this->sampleCount = sampleCount;
-
+GUIPass::GUIPass(VulkanWindow* window) : RenderPass(window) {
 	this->recreate();
 }
 

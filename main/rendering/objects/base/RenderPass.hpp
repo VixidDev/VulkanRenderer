@@ -23,7 +23,4 @@ protected:
 
 	vk::RenderPass renderPass;
 	std::vector<VkClearValue> clearValues;
-
-	// Pointer to current sample count setting
-	VkSampleCountFlagBits* sampleCount = nullptr;
 };

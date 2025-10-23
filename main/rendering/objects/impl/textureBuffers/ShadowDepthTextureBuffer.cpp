@@ -6,11 +6,8 @@
 
 ShadowDepthTextureBuffer::ShadowDepthTextureBuffer(
 	VulkanContext* context,
-	VkSampleCountFlagBits* sampleCount,
 	VkExtent2D* renderExtent) : TextureBuffer(context) 
 {
-	this->sampleCount = sampleCount;
-
 	if (!renderExtent)
 		this->renderExtent = &this->context->window->getSwapchain()->getExtent();
 	else

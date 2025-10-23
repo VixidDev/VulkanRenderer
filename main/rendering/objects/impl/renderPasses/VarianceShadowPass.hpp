@@ -4,7 +4,7 @@
 
 class VarianceShadowPass : public RenderPass {
 public:
-	VarianceShadowPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount);
+	VarianceShadowPass(VulkanWindow* window);
 
 	void recreate();
 private:

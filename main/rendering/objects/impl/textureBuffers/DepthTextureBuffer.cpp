@@ -9,12 +9,10 @@
 DepthTextureBuffer::DepthTextureBuffer(
 	VulkanContext* context,
 	VkFormat format,
-	VkSampleCountFlagBits* sampleCount,
 	VkExtent2D* renderExtent
 ) : TextureBuffer(context)
 {
 	this->format = format;
-	this->sampleCount = sampleCount;
 	
 	if (!renderExtent)
 		this->renderExtent = &this->context->window->getSwapchain()->getExtent();
@@ -30,7 +28,7 @@ void DepthTextureBuffer::recreate() {
 		.imageExtent = *this->renderExtent,
 		.imageUsage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		.viewAspectFlags = VK_IMAGE_ASPECT_DEPTH_BIT,
-		.samples = this->sampleCount ? *this->sampleCount : VK_SAMPLE_COUNT_1_BIT };
+		.samples = VK_SAMPLE_COUNT_1_BIT };
 
 	std::pair<vk::Image, vk::ImageView> textureBuffer = createTextureBuffer(*this->context, textureSetting);
 

@@ -4,7 +4,7 @@
 
 class DeferredWritingPass : public RenderPass {
 public:
-	DeferredWritingPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount);
+	DeferredWritingPass(VulkanWindow* window);
 
 	void recreate();
 private:

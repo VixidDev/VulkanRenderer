@@ -8,7 +8,6 @@ public:
 		VulkanWindow* window,
 		PipelineLayout* pipelineLayout,
 		RenderPass* renderPass,
-		VkSampleCountFlagBits* sampleCount,
 		bool* shadowsEnabled,
 		bool* useViewSpaceNormals);
 

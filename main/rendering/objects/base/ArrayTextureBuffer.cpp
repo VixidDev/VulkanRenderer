@@ -154,7 +154,7 @@ void ArrayTextureBuffer::recreate() {
 
 			this->framebufferViews.emplace_back(vk::ImageView(this->context->window->getDevice()->getDevice(), framebufferView));
 		}
-	}	
+	}
 
 	TextureBuffer::recreate();
 }

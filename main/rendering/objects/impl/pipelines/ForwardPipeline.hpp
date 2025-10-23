@@ -8,10 +8,11 @@ public:
 		VulkanWindow* window,
 		PipelineLayout* pipelineLayout,
 		RenderPass* renderPass,
-		VkSampleCountFlagBits* sampleCount,
-		bool* shadowsEnabled);
+		bool* shadowsEnabled,
+		int* vsmShadowsEnabled);
 
 	void recreate();
 private:
 	bool* shadowsEnabled = nullptr;
+	int* vsmShadowsEnabled = nullptr;
 };

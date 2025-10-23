@@ -9,13 +9,12 @@ VarianceShadowPipeline::VarianceShadowPipeline(
 	VulkanWindow* window,
 	PipelineLayout* pipelineLayout,
 	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount,
-	VkExtent2D* shadowMapResolution
+	VkExtent2D* shadowMapResolution,
+	int lightType
 ) : Pipeline(window) {
-	this->sampleCount = sampleCount;
-
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
+	this->lightType = lightType;
 
 	this->renderExtent = shadowMapResolution;
 
@@ -26,15 +25,31 @@ void VarianceShadowPipeline::recreate() {
 	vk::ShaderModule vert = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/varianceShadowMap.vert.spv");
 	vk::ShaderModule frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/varianceShadowMap.frag.spv");
 
+	//layout(constant_id = 0) const int LIGHT_TYPE = 0;
+	VkSpecializationMapEntry specializationMapEntry = {
+		.constantID = 0,
+		.offset = 0,
+		.size = sizeof(int)
+	};
+
+	VkSpecializationInfo specializationInfo = {
+		.mapEntryCount = 1,
+		.pMapEntries = &specializationMapEntry,
+		.dataSize = sizeof(int),
+		.pData = &this->lightType // 0 - Point, 1 - Directional, 2 - Spot
+	};
+
 	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	stages[0].module = vert.handle;
 	stages[0].pName = "main";
+	stages[0].pSpecializationInfo = &specializationInfo;
 	stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
+	stages[1].pSpecializationInfo = &specializationInfo;
 
 	VkVertexInputBindingDescription vertexInputs[2]{};
 	// Positions

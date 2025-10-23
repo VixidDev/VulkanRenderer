@@ -4,10 +4,8 @@
 
 class ForwardPass : public RenderPass {
 public:
-	ForwardPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount);
+	ForwardPass(VulkanWindow* window);
 
 	void recreate();
 private:
-	void recreateNonMSAA();
-	void recreateMSAA();
 };

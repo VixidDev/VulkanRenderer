@@ -10,13 +10,11 @@ DeferredWritingPipeline::DeferredWritingPipeline(
 	VulkanWindow* window,
 	PipelineLayout* pipelineLayout,
 	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount,
 	bool* useViewSpaceNormals
 ) : Pipeline(window) 
 {
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
-	this->sampleCount = sampleCount;
 	this->useViewSpaceNormals = useViewSpaceNormals;
 
 	this->renderExtent = &this->window->getSwapchain()->getExtent();
@@ -135,7 +133,7 @@ void DeferredWritingPipeline::recreate() {
 
 	VkPipelineMultisampleStateCreateInfo multisampleInfo{};
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampleInfo.rasterizationSamples = *this->sampleCount;
+	multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkPipelineColorBlendAttachmentState blendStates[3]{};
 	blendStates[0].blendEnable = VK_FALSE;

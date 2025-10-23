@@ -46,6 +46,7 @@ namespace glsl {
 		float emissiveStrength;
 		float brightnessThreshold;
 		float shadowBias;
+		float bleedReduction;
 		int ssaoEnabled;
 		float ssaoExp;
 	};

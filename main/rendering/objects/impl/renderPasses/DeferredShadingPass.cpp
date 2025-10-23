@@ -5,9 +5,7 @@
 #include "../../../../vulkan/VulkanWindow.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
-DeferredShadingPass::DeferredShadingPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount) : RenderPass(window) {
-	this->sampleCount = sampleCount;
-
+DeferredShadingPass::DeferredShadingPass(VulkanWindow* window) : RenderPass(window) {
 	this->recreate();
 }
 

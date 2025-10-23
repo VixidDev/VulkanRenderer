@@ -4,7 +4,7 @@
 
 class SunViewPass : public RenderPass {
 public:
-	SunViewPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount);
+	SunViewPass(VulkanWindow* window);
 
 	void recreate();
 private:

@@ -15,13 +15,11 @@ public:
 	SunFramebuffer(
 		VulkanWindow* window,
 		std::map<std::string, _TextureBuffer>* textureBuffers,
-		RenderPass* renderPass,
-		VkSampleCountFlagBits* sampleCount);
+		RenderPass* renderPass);
 
 	void recreate();
 
 private:
 	std::map<std::string, _TextureBuffer>* textureBuffers = nullptr;
 	RenderPass* renderPass = nullptr;
-	VkSampleCountFlagBits* sampleCount = nullptr;
 };

@@ -9,12 +9,9 @@
 SunViewPipeline::SunViewPipeline(
 	VulkanWindow* window,
 	PipelineLayout* pipelineLayout,
-	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount
+	RenderPass* renderPass
 ) : Pipeline(window) 
 {
-	this->sampleCount = sampleCount;
-
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
 
@@ -117,7 +114,7 @@ void SunViewPipeline::recreate() {
 
 	VkPipelineMultisampleStateCreateInfo multisampleInfo{};
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampleInfo.rasterizationSamples = *this->sampleCount;
+	multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkPipelineColorBlendAttachmentState blendStates[1]{};
 	blendStates[0].blendEnable = VK_TRUE;

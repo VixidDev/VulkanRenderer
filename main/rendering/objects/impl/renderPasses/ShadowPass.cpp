@@ -5,9 +5,7 @@
 #include "../../../../vulkan/VulkanWindow.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
-ShadowPass::ShadowPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount) : RenderPass(window) {
-	this->sampleCount = sampleCount;
-
+ShadowPass::ShadowPass(VulkanWindow* window) : RenderPass(window) {
 	this->recreate();
 }
 

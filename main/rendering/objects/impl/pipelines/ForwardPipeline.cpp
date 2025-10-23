@@ -10,17 +10,16 @@ ForwardPipeline::ForwardPipeline(
 	VulkanWindow* window,
 	PipelineLayout* pipelineLayout,
 	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount,
-	bool* shadowsEnabled) : Pipeline(window) 
+	bool* shadowsEnabled,
+	int* vsmShadowsEnabled) : Pipeline(window) 
 {
-	this->sampleCount = sampleCount;
-
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
 
 	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
 	this->shadowsEnabled = shadowsEnabled;
+	this->vsmShadowsEnabled = vsmShadowsEnabled;
 
 	this->recreate();
 }
@@ -30,7 +29,11 @@ void ForwardPipeline::recreate() {
 	vk::ShaderModule frag;
 
 	if (*this->shadowsEnabled) {
-		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forwardShadow.frag.spv");
+		if (*this->vsmShadowsEnabled) {
+			frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forwardShadowVSM.frag.spv");
+		} else {
+			frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forwardShadow.frag.spv");
+		}
 	} else {
 		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forward.frag.spv");
 	}
@@ -125,7 +128,7 @@ void ForwardPipeline::recreate() {
 
 	VkPipelineMultisampleStateCreateInfo multisampleInfo{};
 	multisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-	multisampleInfo.rasterizationSamples = *this->sampleCount;
+	multisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
 	VkPipelineColorBlendAttachmentState blendStates[2]{};
 	blendStates[0].blendEnable = VK_TRUE;

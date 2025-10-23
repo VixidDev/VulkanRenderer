@@ -117,6 +117,15 @@ void GUI::draw() {
 			if (ImGui::Checkbox("Shadows", &renderer.getShadowsEnabled())) {
 				renderer.setRecreateSwapchain(true, true);
 			}
+			if (renderer.getShadowsEnabled()) {
+				int oldVSMState = renderer.vsmShadowsEnabled;
+
+				ImGui::RadioButton("Standard", &renderer.vsmShadowsEnabled, 0); ImGui::SameLine();
+				ImGui::RadioButton("VSM", &renderer.vsmShadowsEnabled, 1);
+
+				if (oldVSMState != renderer.vsmShadowsEnabled)
+					renderer.setRecreateSwapchain(true, true);
+			}
 
 			ImGui::Separator();
 
@@ -176,6 +185,7 @@ void GUI::draw() {
 
 			ImGui::SliderFloat("Emissive Strength", &renderer.emissiveStrength, 1.0f, 100.0f);
 			ImGui::SliderFloat("Shadow Bias", &renderer.shadowBias, 0.0001f, 0.01f, "%.5f");
+			ImGui::SliderFloat("Bleed Reduction", &renderer.bleedReduction, 0.0f, 1.0f, "%.5f");
 
 			int oldVsmTapSize = renderer.vsmTapSize;
 

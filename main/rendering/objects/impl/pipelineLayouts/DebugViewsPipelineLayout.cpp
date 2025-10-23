@@ -15,7 +15,7 @@ void DebugViewsPipelineLayout::recreate() {
 	layouts.emplace_back(this->descriptorLayouts->at("uboVF").handle);     // MV matrices
 	layouts.emplace_back(this->descriptorLayouts->at("ssboF").handle);	   // Lights SSBO
 	layouts.emplace_back(this->descriptorLayouts->at("uboF").handle);	   // Camera planes
-	layouts.emplace_back(this->descriptorLayouts->at("materials").handle); // Material textures
+	layouts.emplace_back(this->descriptorLayouts->at("image6F").handle); // Material textures
 
 	VkPushConstantRange debugState = {
 		.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,

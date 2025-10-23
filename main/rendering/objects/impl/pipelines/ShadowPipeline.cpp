@@ -9,12 +9,9 @@ ShadowPipeline::ShadowPipeline(
 	VulkanWindow* window,
 	PipelineLayout* pipelineLayout,
 	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount,
 	VkExtent2D* shadowMapResolution
 ) : Pipeline(window) 
 {
-	this->sampleCount = sampleCount;
-
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
 

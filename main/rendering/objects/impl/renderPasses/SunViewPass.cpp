@@ -5,9 +5,7 @@
 #include "../../../../vulkan/VulkanWindow.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
-SunViewPass::SunViewPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount) : RenderPass(window) {
-	this->sampleCount = sampleCount;
-
+SunViewPass::SunViewPass(VulkanWindow* window) : RenderPass(window) {
 	this->recreate();
 }
 

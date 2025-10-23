@@ -4,7 +4,7 @@
 
 class ShadowPass : public RenderPass {
 public:
-	ShadowPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount);
+	ShadowPass(VulkanWindow* window);
 
 	void recreate();
 private:

@@ -5,9 +5,7 @@
 #include "../../../../vulkan/VulkanWindow.hpp"
 #include "../../../../vulkan/VulkanDevice.hpp"
 
-DeferredWritingPass::DeferredWritingPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount) : RenderPass(window) {
-	this->sampleCount = sampleCount;
-
+DeferredWritingPass::DeferredWritingPass(VulkanWindow* window) : RenderPass(window) {
 	this->recreate();
 }
 

@@ -14,7 +14,7 @@ void SSAOPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> layouts;
 	layouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Projective Uniforms
 	layouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // SSAO Uniforms
-	layouts.emplace_back(this->descriptorLayouts->at("ssaoTextures").handle); // Textures
+	layouts.emplace_back(this->descriptorLayouts->at("image3F").handle); // Textures
 
 	std::vector<VkPushConstantRange> pushConstants;
 

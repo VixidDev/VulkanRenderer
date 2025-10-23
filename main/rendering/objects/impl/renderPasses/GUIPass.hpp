@@ -4,7 +4,7 @@
 
 class GUIPass : public RenderPass {
 public:
-	GUIPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount);
+	GUIPass(VulkanWindow* window);
 
 	void recreate();
 private:

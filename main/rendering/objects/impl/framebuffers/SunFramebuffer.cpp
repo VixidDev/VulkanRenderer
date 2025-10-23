@@ -6,12 +6,10 @@
 SunFramebuffer::SunFramebuffer(
 	VulkanWindow* window,
 	std::map<std::string, _TextureBuffer>* textureBuffers,
-	RenderPass* renderPass,
-	VkSampleCountFlagBits* sampleCount) : Framebuffer(window) 
+	RenderPass* renderPass) : Framebuffer(window) 
 {
 	this->textureBuffers = textureBuffers;
 	this->renderPass = renderPass;
-	this->sampleCount = sampleCount;
 
 	this->renderExtent = &this->window->getSwapchain()->getExtent();
 

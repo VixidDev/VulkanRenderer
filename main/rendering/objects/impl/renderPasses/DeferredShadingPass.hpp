@@ -4,7 +4,7 @@
 
 class DeferredShadingPass : public RenderPass {
 public:
-	DeferredShadingPass(VulkanWindow* window, VkSampleCountFlagBits* sampleCount);
+	DeferredShadingPass(VulkanWindow* window);
 
 	void recreate();
 private:

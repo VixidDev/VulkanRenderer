@@ -57,12 +57,12 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// the more chaotic and unnecessary it seems. Hopefully I get around to reworking it...
 
 	// Render passes
-	this->renderPasses.emplace("forward", std::make_unique<ForwardPass>(window, &this->sampleCountSetting));
-	this->renderPasses.emplace("deferredWriting", std::make_unique<DeferredWritingPass>(window, &this->sampleCountSetting));
-	this->renderPasses.emplace("deferredShading", std::make_unique<DeferredShadingPass>(window, &this->sampleCountSetting));
-	this->renderPasses.emplace("shadow", std::make_unique<ShadowPass>(window, &this->sampleCountSetting));
-	this->renderPasses.emplace("gui", std::make_unique<GUIPass>(window, &this->sampleCountSetting));
-	this->renderPasses.emplace("sunView", std::make_unique<SunViewPass>(window, &this->sampleCountSetting));
+	this->renderPasses.emplace("forward", std::make_unique<ForwardPass>(window));
+	this->renderPasses.emplace("deferredWriting", std::make_unique<DeferredWritingPass>(window));
+	this->renderPasses.emplace("deferredShading", std::make_unique<DeferredShadingPass>(window));
+	this->renderPasses.emplace("shadow", std::make_unique<ShadowPass>(window));
+	this->renderPasses.emplace("gui", std::make_unique<GUIPass>(window));
+	this->renderPasses.emplace("sunView", std::make_unique<SunViewPass>(window));
 	this->renderPasses.emplace("postProcessHDR", std::make_unique<PostProcessHDRPass>(window));
 	this->renderPasses.emplace("postProcessLDR", std::make_unique<PostProcessLDRPass>(window));
 	this->renderPasses.emplace("tonemap", std::make_unique<TonemapPass>(window));
@@ -71,8 +71,8 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->renderPasses.emplace("debug", std::make_unique<DebugPass>(window));
 	this->renderPasses.emplace("skybox", std::make_unique<SkyboxPass>(window));
 	this->renderPasses.emplace("sun", std::make_unique<SunPass>(window));
-	this->renderPasses.emplace("varianceShadow", std::make_unique<VarianceShadowPass>(window, &this->sampleCountSetting));
-	this->renderPasses.emplace("varianceBlur", std::make_unique<VarianceShadowBlurPass>(window));
+	this->renderPasses.emplace("VSMshadow", std::make_unique<VarianceShadowPass>(window));
+	this->renderPasses.emplace("VSMblur", std::make_unique<VarianceShadowBlurPass>(window));
 
 	// Descriptor Set Layouts
 	std::vector<DescriptorSetting> uniformBufferV = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT } };
@@ -80,19 +80,19 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	std::vector<DescriptorSetting> uniformBufferVF = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT } };
 	std::vector<DescriptorSetting> ssboF = { { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT } };
 	std::vector<DescriptorSetting> imageF = { { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
-	std::vector<DescriptorSetting> materialSettings = {
+	std::vector<DescriptorSetting> image6FSettings = {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
-	std::vector<DescriptorSetting> deferredInputs = {
+	std::vector<DescriptorSetting> image4FSettings = {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
-	std::vector<DescriptorSetting> ssaoTextures = {
+	std::vector<DescriptorSetting> image3FSettings = {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT } };
@@ -102,14 +102,14 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSetLayouts.emplace("uboVF", createDescriptorLayout(*device, uniformBufferVF));
 	this->descriptorSetLayouts.emplace("ssboF", createDescriptorLayout(*device, ssboF));
 	this->descriptorSetLayouts.emplace("imageF", createDescriptorLayout(*device, imageF));
-	this->descriptorSetLayouts.emplace("materials", createDescriptorLayout(*device, materialSettings));
-	this->descriptorSetLayouts.emplace("deferredInputs", createDescriptorLayout(*device, deferredInputs));
-	this->descriptorSetLayouts.emplace("ssaoTextures", createDescriptorLayout(*device, ssaoTextures));
+	this->descriptorSetLayouts.emplace("image6F", createDescriptorLayout(*device, image6FSettings));
+	this->descriptorSetLayouts.emplace("image4F", createDescriptorLayout(*device, image4FSettings));
+	this->descriptorSetLayouts.emplace("image3F", createDescriptorLayout(*device, image3FSettings));
 
 	// Pipeline Layouts
 	this->pipelineLayouts.emplace("shadow", std::make_unique<ShadowPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("cubemapShadow", std::make_unique<CubemapShadowPipelineLayout>(window, &this->descriptorSetLayouts));
-	this->pipelineLayouts.emplace("varianceShadow", std::make_unique<VarianceShadowPipelineLayout>(window, &this->descriptorSetLayouts));
+	this->pipelineLayouts.emplace("VSMshadow", std::make_unique<VarianceShadowPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("forward", std::make_unique<ForwardPipelineLayout>(window, &this->descriptorSetLayouts, &this->shadowsEnabled));
 	this->pipelineLayouts.emplace("deferredWriting", std::make_unique<DeferredWritingPipelineLayout>(window, &this->descriptorSetLayouts));
 	this->pipelineLayouts.emplace("deferredShading", std::make_unique<DeferredShadingPipelineLayout>(window, &this->descriptorSetLayouts, &this->shadowsEnabled));
@@ -132,20 +132,24 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Pipelines
 	// (alot of the pipelines are identical other than their input pipeline layout, renderpass, and shader stages, possibly use the base class for these?)
 	// (cubemap)shadow - shadow pass stage pipelines
-	this->pipelines.emplace("shadowDirectional", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->sunShadowMapRes));
-	this->pipelines.emplace("shadowSpot", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->spotShadowMapRes));
-	this->pipelines.emplace("cubemapShadow", std::make_unique<CubemapShadowPipeline>(window, this->getPipelineLayout("cubemapShadow"), this->getRenderPass("shadow"), &this->sampleCountSetting, &this->pointShadowMapRes));
-	this->pipelines.emplace("varianceShadow", std::make_unique<VarianceShadowPipeline>(window, this->getPipelineLayout("varianceShadow"), this->getRenderPass("varianceShadow"), &this->sampleCountSetting, &this->sunShadowMapRes));
+	this->pipelines.emplace("pointShadows", std::make_unique<CubemapShadowPipeline>(window, this->getPipelineLayout("cubemapShadow"), this->getRenderPass("shadow"), &this->pointShadowMapRes));
+	this->pipelines.emplace("directionalShadow", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->sunShadowMapRes));
+	this->pipelines.emplace("spotShadows", std::make_unique<ShadowPipeline>(window, this->getPipelineLayout("shadow"), this->getRenderPass("shadow"), &this->spotShadowMapRes));
+	this->pipelines.emplace("pointShadowsVSM", std::make_unique<VarianceShadowPipeline>(window, this->getPipelineLayout("VSMshadow"), this->getRenderPass("VSMshadow"), &this->pointShadowMapRes, 0));
+	this->pipelines.emplace("directionalShadowVSM", std::make_unique<VarianceShadowPipeline>(window, this->getPipelineLayout("VSMshadow"), this->getRenderPass("VSMshadow"), &this->sunShadowMapRes, 1));
+	this->pipelines.emplace("spotShadowsVSM", std::make_unique<VarianceShadowPipeline>(window, this->getPipelineLayout("VSMshadow"), this->getRenderPass("VSMshadow"), &this->spotShadowMapRes, 2));
 	// forward - regular forward shading pipeline
-	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->getPipelineLayout("forward"), this->getRenderPass("forward"), &this->sampleCountSetting, &this->shadowsEnabled));
+	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->getPipelineLayout("forward"), this->getRenderPass("forward"), &this->shadowsEnabled, &this->vsmShadowsEnabled));
 	// deferredWriting - pipeline stage for writing to g-buffers
-	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("deferredWriting"), &this->sampleCountSetting, &this->ssaoEnabled));
+	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("deferredWriting"), &this->ssaoEnabled));
 	// deferredShading - pipeline stage for shading pass in deferred rendering
-	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferredShading"), &this->sampleCountSetting, &this->shadowsEnabled, &this->ssaoEnabled));
+	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferredShading"), &this->shadowsEnabled, &this->ssaoEnabled));
 	// post processing effects
 	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("postProcessLDR")));
 	this->pipelines.emplace("bloom", std::make_unique<BlurPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("postProcessHDR"), &this->bloomTapSize));
-	this->pipelines.emplace("varianceBlur", std::make_unique<BlurPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("varianceBlur"), &this->vsmTapSize, &this->sunShadowMapRes));
+	this->pipelines.emplace("VSMpointBlur", std::make_unique<BlurPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("VSMblur"), &this->vsmTapSize, &this->pointShadowMapRes));
+	this->pipelines.emplace("VSMdirectionalBlur", std::make_unique<BlurPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("VSMblur"), &this->vsmTapSize, &this->sunShadowMapRes));
+	this->pipelines.emplace("VSMspotBlur", std::make_unique<BlurPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("VSMblur"), &this->vsmTapSize, &this->spotShadowMapRes));
 	this->pipelines.emplace("composition", std::make_unique<CompositionPipeline>(window, this->getPipelineLayout("composition"), this->getRenderPass("postProcessHDR")));
 	this->pipelines.emplace("tonemap", std::make_unique<TonemapPipeline>(window, this->getPipelineLayout("tonemap"), this->getRenderPass("postProcessLDR")));
 	this->pipelines.emplace("fxaa", std::make_unique<FXAAPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("postProcessLDR")));
@@ -156,10 +160,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("sun", std::make_unique<SunPipeline>(window, this->getPipelineLayout("sun"), this->getRenderPass("sun")));
 
 	// Debug pipelines
-	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView"), &this->sampleCountSetting));
-	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->getPipelineLayout("lineDebug"), this->getRenderPass("sunView"), &this->sampleCountSetting));
-	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->getPipelineLayout("debugViews"), this->getRenderPass("debug"), &this->sampleCountSetting));
-	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("debug"), &this->sampleCountSetting));
+	this->pipelines.emplace("sunView", std::make_unique<SunViewPipeline>(window, this->getPipelineLayout("sunView"), this->getRenderPass("sunView")));
+	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->getPipelineLayout("lineDebug"), this->getRenderPass("sunView")));
+	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->getPipelineLayout("debugViews"), this->getRenderPass("debug")));
+	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("debug")));
 
 	// Texture Buffers
 	// HDR - output buffer after geometry and lighting (HDR rendering)
@@ -180,11 +184,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->textureBuffers.emplace("gBuffer3", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 	// blurOutput - output of blur in bloom post processing
 	this->textureBuffers.emplace("blurOutput", std::make_unique<ColourTextureBuffer>(&this->context));
-	this->textureBuffers.emplace("varianceBlurOutput", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R32G32_SFLOAT, nullptr, &this->sunShadowMapRes));
 	// noise - used in SSAO
 	this->textureBuffers.emplace("noise", std::make_unique<NoiseTextureBuffer>(&this->context));
 	// ssao - result of SSAO pass
-	this->textureBuffers.emplace("ssao", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM, nullptr, &swapchain->getHalfExtent()));
+	this->textureBuffers.emplace("ssao", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM, &swapchain->getHalfExtent()));
 	this->textureBuffers.emplace("ssaoHblur", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM));
 	this->textureBuffers.emplace("ssaoVblur", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8_UNORM));
 	// skybox - skybox cubemap
@@ -196,12 +199,12 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	// Framebuffers
 	// forward - 1 colour, 1 depth render targets
-	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->getRenderPass("forward"), &this->sampleCountSetting));
+	this->framebuffers.emplace("forward", std::make_unique<ForwardFramebuffer>(window, &this->textureBuffers, this->getRenderPass("forward")));
 	// deferred - 4 colour (3 g-buffers, 1 colour), 1 depth render targets
-	this->framebuffers.emplace("deferredWriting", std::make_unique<DeferredWritingFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferredWriting"), &this->sampleCountSetting));
-	this->framebuffers.emplace("deferredShading", std::make_unique<DeferredShadingFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferredShading"), &this->sampleCountSetting));
+	this->framebuffers.emplace("deferredWriting", std::make_unique<DeferredWritingFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferredWriting")));
+	this->framebuffers.emplace("deferredShading", std::make_unique<DeferredShadingFramebuffer>(window, &this->textureBuffers, this->getRenderPass("deferredShading")));
 	// sun - 1 colour (sunView buffer), 1 depth render targets
-	this->framebuffers.emplace("sunView", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->getRenderPass("sunView"), &this->sampleCountSetting));
+	this->framebuffers.emplace("sunView", std::make_unique<SunFramebuffer>(window, &this->textureBuffers, this->getRenderPass("sunView")));
 	// gui - writes directly to swapchain buffer
 	this->framebuffers.emplace("gui", std::make_unique<GUIFramebuffer>(window, this->getRenderPass("gui")));
 	// writeTo - framebuffers used to write to a single render target, usually used to ping-pong writing to buffers during post processing
@@ -211,7 +214,6 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->framebuffers.emplace("writeToIntermediateHDR2", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("intermediateHDR2"), this->getRenderPass("postProcessHDR")));
 	this->framebuffers.emplace("writeToIntermediateLDR", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("intermediateLDR"), this->getRenderPass("postProcessLDR")));
 	this->framebuffers.emplace("writeToBlur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("blurOutput"), this->getRenderPass("postProcessHDR")));
-	this->framebuffers.emplace("writeToVarianceBlur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("varianceBlurOutput"), this->getRenderPass("varianceBlur"), &this->sunShadowMapRes));
 	// pre_ssao - writes to normal gbuffer and depth
 	this->framebuffers.emplace("pre_ssao", std::make_unique<PreSSAOFramebuffer>(window, &this->textureBuffers, this->getRenderPass("pre_ssao")));
 	// ssao - write to ssao texture buffer after SSAO pass
@@ -290,6 +292,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// Descriptor Sets
 	// (this looks unbearably messy, surely there is a nicer way of defining what makes up a descriptor
 	// set than this)
+	// TODO: add a 2nd constructor to ImageDescriptorSet and BufferDescriptorSet to be able to take in just 1 struct and not an entire vector?
 	std::vector<DescriptorBufferSetting> mvpDescriptorSettings = {
 		{ this->getUniformBuffer("mvp"), VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER } };
 	std::vector<DescriptorBufferSetting> cameraPlanesDescriptorSettings = {
@@ -337,12 +340,10 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 		{ this->getTextureBuffer("ssaoVblur"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->nearestClampToEdgeSampler.handle } };
 	std::vector<DescriptorImageSetting> skyboxDescriptorSettings = {
 		{ this->getTextureBuffer("skybox"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearRepeatSampler.handle } };
-	std::vector<DescriptorImageSetting> varianceBlurDescriptorSettings = {
-		{ this->getTextureBuffer("varianceBlurOutput"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearClampToBorderSampler.handle } };
 
 	this->descriptorSets.emplace("mvp", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboVF").handle, mvpDescriptorSettings));
 	this->descriptorSets.emplace("cameraPlanes", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, cameraPlanesDescriptorSettings));
-	this->descriptorSets.emplace("deferredInputs", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("deferredInputs").handle, deferredInputsDescriptorSettings));
+	this->descriptorSets.emplace("deferredInputs", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("image4F").handle, deferredInputsDescriptorSettings));
 	this->descriptorSets.emplace("sunView", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, sunViewDescriptorSettings));
 	this->descriptorSets.emplace("HDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, HDROuputDescriptorSettings));
 	this->descriptorSets.emplace("LDR", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, LDROuputDescriptorSettings));
@@ -354,12 +355,11 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->descriptorSets.emplace("projections", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, projectionDescriptorSettings));
 	this->descriptorSets.emplace("invMatrices", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, inverseMatricesDescriptorSettings));
 	this->descriptorSets.emplace("ssao", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("uboF").handle, ssaoDescriptorSettings));
-	this->descriptorSets.emplace("ssaoTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoTexturesDescriptorSettings));
-	this->descriptorSets.emplace("ssaoHBlurTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoHblurDescriptorSettings));
-	this->descriptorSets.emplace("ssaoVBlurTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("ssaoTextures").handle, ssaoVblurDescriptorSettings));
+	this->descriptorSets.emplace("ssaoTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("image3F").handle, ssaoTexturesDescriptorSettings));
+	this->descriptorSets.emplace("ssaoHBlurTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("image3F").handle, ssaoHblurDescriptorSettings));
+	this->descriptorSets.emplace("ssaoVBlurTextures", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("image3F").handle, ssaoVblurDescriptorSettings));
 	this->descriptorSets.emplace("ssaoSampler", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, ssaoSamplerDescriptorSettings));
 	this->descriptorSets.emplace("skybox", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, skyboxDescriptorSettings));
-	this->descriptorSets.emplace("varianceBlur", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, varianceBlurDescriptorSettings));
 
 	// Pre processing effects
 	// (pre processing effects are what I call effects / passes in the renderer
@@ -505,26 +505,47 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	}
 
 	// Create a texture buffers and framebuffers for array shadow maps for non-zero light types
-	this->textureBuffers.emplace("pointArrayShadows", std::make_unique<ArrayTextureBuffer>(&this->context, true, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->pointShadowMapRes));
-	this->textureBuffers.emplace("directionalShadow", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R32G32_SFLOAT, nullptr, &this->sunShadowMapRes));
-	this->textureBuffers.emplace("directionalShadowDepth", std::make_unique<DepthTextureBuffer>(&this->context, VK_FORMAT_D32_SFLOAT, nullptr, &this->sunShadowMapRes));
-	this->textureBuffers.emplace("spotArrayShadows",  std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_D32_SFLOAT, &this->spotShadowMapRes));
+
+	// Standard shadow mapping buffers
+	this->textureBuffers.emplace("pointShadows", std::make_unique<ArrayTextureBuffer>(&this->context, true, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->pointShadowMapRes));
+	this->textureBuffers.emplace("directionalShadow", std::make_unique<DepthTextureBuffer>(&this->context, VK_FORMAT_D32_SFLOAT, &this->sunShadowMapRes));
+	this->textureBuffers.emplace("spotShadows",  std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_D32_SFLOAT, &this->spotShadowMapRes));
+
+	// Variance shadow mapping buffers (each need explicit depth buffer in order to do depth testing during shadow pass and an intermediate buffer for the blur step)
+	this->textureBuffers.emplace("pointShadowsVSM", std::make_unique<ArrayTextureBuffer>(&this->context, true, this->numPointLights, VK_FORMAT_R32G32_SFLOAT, &this->pointShadowMapRes));
+	this->textureBuffers.emplace("pointShadowsDepthVSM", std::make_unique<ArrayTextureBuffer>(&this->context, true, this->numPointLights, VK_FORMAT_D32_SFLOAT, &this->pointShadowMapRes));
+	this->textureBuffers.emplace("pointShadowsBlurVSM", std::make_unique<ArrayTextureBuffer>(&this->context, true, this->numPointLights, VK_FORMAT_R32G32_SFLOAT, &this->pointShadowMapRes));
+
+	this->textureBuffers.emplace("directionalShadowVSM", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R32G32_SFLOAT, &this->sunShadowMapRes));
+	this->textureBuffers.emplace("directionalShadowDepthVSM", std::make_unique<DepthTextureBuffer>(&this->context, VK_FORMAT_D32_SFLOAT, &this->sunShadowMapRes));
+	this->textureBuffers.emplace("directionalShadowBlurVSM", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R32G32_SFLOAT, &this->sunShadowMapRes));
+
+	this->textureBuffers.emplace("spotShadowsVSM", std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_R32G32_SFLOAT, &this->spotShadowMapRes));
+	this->textureBuffers.emplace("spotShadowsDepthVSM", std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_D32_SFLOAT, &this->spotShadowMapRes));
+	this->textureBuffers.emplace("spotShadowsBlurVSM", std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_R32G32_SFLOAT, &this->spotShadowMapRes));
 #ifndef NDEBUG
 	// TODO: do we really need RGBA16 formats for these?
-	this->textureBuffers.emplace("pointArrayShadowsDebug", std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numPointLights * 6, VK_FORMAT_R16G16B16A16_SFLOAT, &this->pointShadowMapRes));
-	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16G16B16A16_SFLOAT, nullptr, &this->sunShadowMapRes));
-	this->textureBuffers.emplace("spotArrayShadowsDebug",  std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_R16G16B16A16_SFLOAT, &this->spotShadowMapRes));
+	this->textureBuffers.emplace("pointShadowsDebug", std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numPointLights * 6, VK_FORMAT_R16G16B16A16_SFLOAT, &this->pointShadowMapRes));
+	this->textureBuffers.emplace("directionalShadowDebug", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R16G16B16A16_SFLOAT, &this->sunShadowMapRes));
+	this->textureBuffers.emplace("spotShadowsDebug",  std::make_unique<ArrayTextureBuffer>(&this->context, false, this->numSpotLights, VK_FORMAT_R16G16B16A16_SFLOAT, &this->spotShadowMapRes));
 #endif
 
 	if (this->numPointLights != 0) {
 		std::initializer_list<TextureBuffer*> pointShadowTextures = {
-			this->getTextureBuffer("pointArrayShadows"),
+			this->getTextureBuffer("pointShadows"),
 #ifndef NDEBUG
-			this->getTextureBuffer("pointArrayShadowsDebug")
+			this->getTextureBuffer("pointShadowsDebug")
 #endif
 		};
 
-		this->framebuffers.emplace("pointArrayShadows", std::make_unique<ArrayFramebuffer>(window, pointShadowTextures, this->getRenderPass("shadow"), this->numPointLights * 6, &this->pointShadowMapRes));
+		std::initializer_list<TextureBuffer*> pointShadowVSMTextures = { this->getTextureBuffer("pointShadowsVSM"), this->getTextureBuffer("pointShadowsDepthVSM") };
+
+		// Standard shadow mapping framebuffers
+		this->framebuffers.emplace("pointShadows", std::make_unique<ArrayFramebuffer>(window, pointShadowTextures, this->getRenderPass("shadow"), this->numPointLights * 6, &this->pointShadowMapRes));
+		// Variance shadow mapping framebuffers
+		this->framebuffers.emplace("pointShadowsVSM", std::make_unique<ArrayFramebuffer>(window, pointShadowVSMTextures, this->getRenderPass("VSMshadow"), this->numPointLights * 6, &this->pointShadowMapRes));
+		this->framebuffers.emplace("writeToPointShadowsBlur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("pointShadowsBlurVSM"), this->getRenderPass("VSMblur"), &this->pointShadowMapRes));
+		this->framebuffers.emplace("writeToPointShadowsVSM", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("pointShadowsVSM"), this->getRenderPass("VSMblur"), &this->pointShadowMapRes));
 	}
 
 	if (this->numDirectionalLights != 0) {
@@ -535,22 +556,30 @@ void Renderer::setLights(std::vector<Light>* lights) {
 #endif
 		};
 
-		std::initializer_list<TextureBuffer*> tempTextures = { this->getTextureBuffer("directionalShadow"), this->getTextureBuffer("directionalShadowDepth") };
+		std::initializer_list<TextureBuffer*> directionalShadowVSMTextures = { this->getTextureBuffer("directionalShadowVSM"), this->getTextureBuffer("directionalShadowDepthVSM") };
 
-		//this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, directionalShadowTextures, this->getRenderPass("shadow"), &this->sunShadowMapRes));
-		this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, tempTextures, this->getRenderPass("varianceShadow"), &this->sunShadowMapRes));
-		this->framebuffers.emplace("writeToDirectionalShadow", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("directionalShadow"), this->getRenderPass("varianceBlur"), &this->sunShadowMapRes));
+		this->framebuffers.emplace("directionalShadow", std::make_unique<ShadowFramebuffer>(window, directionalShadowTextures, this->getRenderPass("shadow"), &this->sunShadowMapRes));
+
+		this->framebuffers.emplace("directionalShadowVSM", std::make_unique<ShadowFramebuffer>(window, directionalShadowVSMTextures, this->getRenderPass("VSMshadow"), &this->sunShadowMapRes));
+		this->framebuffers.emplace("writeToDirectionalShadowBlur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("directionalShadowBlurVSM"), this->getRenderPass("VSMblur"), &this->sunShadowMapRes));
+		this->framebuffers.emplace("writeToDirectionalShadowVSM", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("directionalShadowVSM"), this->getRenderPass("VSMblur"), &this->sunShadowMapRes));
 	}
 
 	if (this->numSpotLights != 0) {
 		std::initializer_list<TextureBuffer*> spotShadowTextures = {
-			this->getTextureBuffer("spotArrayShadows"),
+			this->getTextureBuffer("spotShadows"),
 #ifndef NDEBUG
-			this->getTextureBuffer("spotArrayShadowsDebug")
+			this->getTextureBuffer("spotShadowsDebug")
 #endif
 		};
 
-		this->framebuffers.emplace("spotArrayShadows", std::make_unique<ArrayFramebuffer>(window, spotShadowTextures, this->getRenderPass("shadow"), this->numSpotLights, &this->spotShadowMapRes));
+		std::initializer_list<TextureBuffer*> spotShadowVSMTextures = { this->getTextureBuffer("spotShadowsVSM"), this->getTextureBuffer("spotShadowsDepthVSM") };
+
+		this->framebuffers.emplace("spotShadows", std::make_unique<ArrayFramebuffer>(window, spotShadowTextures, this->getRenderPass("shadow"), this->numSpotLights, &this->spotShadowMapRes));
+
+		this->framebuffers.emplace("spotShadowsVSM", std::make_unique<ArrayFramebuffer>(window, spotShadowVSMTextures, this->getRenderPass("VSMshadow"), this->numSpotLights, &this->spotShadowMapRes));
+		this->framebuffers.emplace("writeToSpotShadowsBlur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("spotShadowsBlurVSM"), this->getRenderPass("VSMblur"), &this->spotShadowMapRes));
+		this->framebuffers.emplace("writeToSpotShadowsVSM", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("spotShadowsVSM"), this->getRenderPass("VSMblur"), &this->spotShadowMapRes));
 	}
 
 	// Light type counters (surely I can make a better system than this)
@@ -568,7 +597,6 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			.colourAndIntensity = { light.getColour(), light.getIntensity() },
 			.spotLightAndMatrixIndex = { std::cos(glm::radians(light.getInnerAngle())), std::cos(glm::radians(light.getOuterAngle())), 0, 0 }
 		};
-
 
 		switch (light.getLightType()) {
 		case LightType::POINT:
@@ -588,11 +616,9 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 			this->sunLightIndex = i;
 			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection.get() * this->sunMatrices.view.get());
-			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.view.get());
 
 			lightStruct.spotLightAndMatrixIndex.z = matrixDependentIndex;
 
-			matrixDependentIndex++;
 			matrixDependentIndex++;
 			break;
 		}
@@ -605,10 +631,12 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			glm::mat4 view = glm::lookAt(light.getPosition(), light.getPosition() + light.getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
 
 			this->ssbos.lightMatrices.emplace_back(projection * view);
+			this->ssbos.lightMatrices.emplace_back(view);
 
 			lightStruct.spotLightAndMatrixIndex.z = matrixDependentIndex;
 
 			spotLightIndex++;
+			matrixDependentIndex++;
 			matrixDependentIndex++;
 			break;
 		}
@@ -622,24 +650,47 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	this->shaderStorageBuffers.emplace("lightMatrices", std::make_unique<ShaderStorageBuffer<glm::mat4>>(&this->context, &this->ssbos.lightMatrices));
 
 	// Create descriptor sets
-	std::vector<DescriptorImageSetting> pointLightShadowsDescriptorSettings = {
-		{ this->getTextureBuffer("pointArrayShadows"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
-	std::vector<DescriptorImageSetting> directionalLightShadowDescriptorSettings = {
-		{ this->getTextureBuffer("directionalShadow"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearClampToBorderSampler.handle } };
-	std::vector<DescriptorImageSetting> spotLightShadowsDescriptorSettings = {
-		{ this->getTextureBuffer("spotArrayShadows"),  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
+	std::vector<DescriptorImageSetting> shadowsDescriptorSettings = {
+		{ this->getTextureBuffer("pointShadows"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle },
+		{ this->getTextureBuffer("directionalShadow"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle },
+		{ this->getTextureBuffer("spotShadows"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, this->shadowMapSampler.handle } };
 
-	this->descriptorSets.emplace("pointLightShadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDescriptorSettings));
-	this->descriptorSets.emplace("directionalLightShadow", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowDescriptorSettings));
-	this->descriptorSets.emplace("spotLightShadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, spotLightShadowsDescriptorSettings));
+	this->descriptorSets.emplace("shadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("image3F").handle, shadowsDescriptorSettings));
+
+	std::vector<DescriptorImageSetting> shadowsVSMDescriptorSettings = {
+		{ this->getTextureBuffer("pointShadowsVSM"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearClampToBorderSampler.handle },
+		{ this->getTextureBuffer("directionalShadowVSM"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearClampToBorderSampler.handle },
+		{ this->getTextureBuffer("spotShadowsVSM"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearClampToBorderSampler.handle } };
+
+	this->descriptorSets.emplace("VSMshadows", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("image3F").handle, shadowsVSMDescriptorSettings));
+
+	// Individual variance shadow map descriptor sets for reading them in during blur step
+	std::vector<DescriptorImageSetting> pointShadowsVSMDescriptorSettings = { shadowsVSMDescriptorSettings[0] };
+	std::vector<DescriptorImageSetting> directionalShadowVSMDescriptorSettings = { shadowsVSMDescriptorSettings[1] };
+	std::vector<DescriptorImageSetting> spotShadowsVSMDescriptorSettings = { shadowsVSMDescriptorSettings[2] };
+
+	this->descriptorSets.emplace("pointShadowsVSM", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointShadowsVSMDescriptorSettings));
+	this->descriptorSets.emplace("directionalShadowVSM", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalShadowVSMDescriptorSettings));
+	this->descriptorSets.emplace("spotShadowsVSM", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, spotShadowsVSMDescriptorSettings));
+
+	std::vector<DescriptorImageSetting> pointShadowsVSMBlurDescriptorSettings = { 
+		{ this->getTextureBuffer("pointShadowsBlurVSM"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearClampToBorderSampler.handle } };
+	std::vector<DescriptorImageSetting> directionalShadowVSMBlurDescriptorSettings = { 
+		{ this->getTextureBuffer("directionalShadowBlurVSM"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearClampToBorderSampler.handle } };
+	std::vector<DescriptorImageSetting> spotShadowsVSMBlurDescriptorSettings = { 
+		{ this->getTextureBuffer("spotShadowsBlurVSM"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, this->linearClampToBorderSampler.handle } };
+
+	this->descriptorSets.emplace("pointShadowsBlurVSM", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointShadowsVSMBlurDescriptorSettings));
+	this->descriptorSets.emplace("directionalShadowBlurVSM", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalShadowVSMBlurDescriptorSettings));
+	this->descriptorSets.emplace("spotShadowsBlurVSM", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, spotShadowsVSMBlurDescriptorSettings));
 
 #ifndef NDEBUG
 	std::vector<DescriptorImageSetting> pointLightShadowsDebugDescriptorSettings = {
-		{ this->getTextureBuffer("pointArrayShadowsDebug"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
+		{ this->getTextureBuffer("pointShadowsDebug"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
 	std::vector<DescriptorImageSetting> directionalLightShadowDebugDescriptorSettings = {
 		{ this->getTextureBuffer("directionalShadowDebug"), VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
 	std::vector<DescriptorImageSetting> spotLightShadowsDebugDescriptorSettings = {
-		{ this->getTextureBuffer("spotArrayShadowsDebug"),  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
+		{ this->getTextureBuffer("spotShadowsDebug"),  VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, this->shadowMapSampler.handle } };
 
 	this->descriptorSets.emplace("pointLightShadowsDebug", std::make_unique<ArrayImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, pointLightShadowsDebugDescriptorSettings));
 	this->descriptorSets.emplace("directionalLightShadowDebug", std::make_unique<ImageDescriptorSet>(window, &this->descriptorSetLayouts.at("imageF").handle, directionalLightShadowDebugDescriptorSettings));
@@ -912,22 +963,34 @@ void Renderer::render() {
 
 	// Transition any dummy light textures to respective layout
 	if (this->numPointLights == 0) {
-		RendererUtils::imageBarrier(this->getTextureBuffer("pointArrayShadows")->getImage().image, 0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("pointShadows")->getImage().image, 0, 0,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
+		RendererUtils::imageBarrier(this->getTextureBuffer("pointShadowsVSM")->getImage().image, 0, 0,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6 });
 	}
 	if (this->numDirectionalLights == 0) {
 		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadow")->getImage().image, 0, 0,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadowVSM")->getImage().image, 0, 0,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 	}
 	if (this->numSpotLights == 0) {
-		RendererUtils::imageBarrier(this->getTextureBuffer("spotArrayShadow")->getImage().image, 0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("spotShadows")->getImage().image, 0, 0,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+		RendererUtils::imageBarrier(this->getTextureBuffer("spotShadowsVSM")->getImage().image, 0, 0,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 	}
 
 	// Scene pass
@@ -1066,6 +1129,7 @@ void Renderer::renderForward() {
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias,
+		.bleedReduction = this->bleedReduction,
 		.ssaoEnabled = this->ssaoEnabled,
 		.ssaoExp = this->ssaoExp
 	};
@@ -1074,25 +1138,23 @@ void Renderer::renderForward() {
 		this->getPipelineLayout("forward")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
-	descriptorSets.reserve(8);
+	descriptorSets.reserve(6);
 	// Add descriptors that will always be present in same order as in shader
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("mvp")));
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lights")));
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("ssaoSampler")));
 
 	if (this->shadowsEnabled) {
-		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("pointLightShadows")));
-		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("directionalLightShadow")));
-		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("spotLightShadows")));
+		if (this->vsmShadowsEnabled) {
+			descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("VSMshadows")));
+		} else {
+			descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("shadows")));
+		}
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lightMatrices")));
 	}
 
-	RendererUtils::bindGraphicDescriptorSets(
-		this->getPipelineLayout("forward")->getHandle(), 0, descriptorSets.size(),
-		descriptorSets.data());
-
-	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
+	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("forward")->getHandle(), 0, descriptorSets.size(), descriptorSets.data());
 
 	std::function<void(MeshData&)> perMeshCallback = [this, &descriptorSets](MeshData& meshData) {
 		// Material descriptor should always be last descriptor since its per mesh
@@ -1100,6 +1162,8 @@ void Renderer::renderForward() {
 			this->getPipelineLayout("forward")->getHandle(), descriptorSets.size(), 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId));
 	};
+
+	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
 
 	// Draw non-alpha masked meshes
 	for (std::size_t i = 0; i < meshData.size(); i++) {
@@ -1444,9 +1508,9 @@ void Renderer::renderShadowMaps() {
 				// Calculate layer index
 				std::uint32_t layer = (pointLightIndex * 6) + face;
 
-				RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("pointArrayShadows"), layer);
+				RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("pointShadows"), layer);
 
-				RendererUtils::bindGraphicPipeline(this->getPipeline("cubemapShadow")->getHandle());
+				RendererUtils::bindGraphicPipeline(this->getPipeline("pointShadows")->getHandle());
 
 				glm::mat4 cubeView = glm::lookAt(light.getPosition(), light.getPosition() + directions[face], upVectors[face]);
 				glm::mat4 cubeMatrix = cubePerspective * cubeView;
@@ -1476,68 +1540,35 @@ void Renderer::renderShadowMaps() {
 		{
 			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
 
-			RendererUtils::beginRenderPass(this->getRenderPass("varianceShadow"), this->getFramebuffer("directionalShadow"), directionalLightIndex);
+			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("directionalShadow"), directionalLightIndex);
 
-			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceShadow")->getHandle());
+			RendererUtils::bindGraphicPipeline(this->getPipeline("directionalShadow")->getHandle());
 
 			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at(directionalLightIndex);
 
-			struct TwoMatPC {
-				glm::mat4 lightViewProj{};
-				glm::mat4 lightView{};
-			};
-
-			TwoMatPC twoMatPC = {
-				.lightViewProj = this->sunMatrices.projection.get() * this->sunMatrices.view.get(),
-				.lightView = this->sunMatrices.view.get()
-			};
-
-			RendererUtils::bindPushConstant(this->getPipelineLayout("varianceShadow")->getHandle(),
-				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(TwoMatPC), &twoMatPC);
+			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
+				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &lightMatrix);
 #ifndef NDEBUG
 			int projType = 1;
 
-			//RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
-				//VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(int), &projType);
+			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
+				VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(int), &projType);
 #endif
 			RendererUtils::bindGraphicDescriptorSets(
-				this->getPipelineLayout("varianceShadow")->getHandle(), 0, 1,
+				this->getPipelineLayout("shadow")->getHandle(), 0, 1,
 				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
 
-			//RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
+			RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
 
 			auto perMeshCallback = [this](MeshData& meshData) {
 				RendererUtils::bindGraphicDescriptorSets(
-					this->getPipelineLayout("varianceShadow")->getHandle(), 1, 1,
+					this->getPipelineLayout("shadow")->getHandle(), 1, 1,
 					&this->alphaMaskDescriptors.at(meshData.materialId));
 				};
 
 			for (std::size_t i = 0; i < meshData.size(); i++)
 				RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
 
-			RendererUtils::endRenderPass();
-
-			// Blur variance shadow map
-			// Horizontal pass
-			int direction = 0;
-			RendererUtils::beginRenderPass(this->getRenderPass("varianceBlur"), this->getFramebuffer("writeToVarianceBlur"), directionalLightIndex);
-			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceBlur")->getHandle());
-			RendererUtils::bindGraphicDescriptorSets(
-				this->getPipelineLayout("bloom")->getHandle(), 0, 1, 
-				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("directionalLightShadow")));
-			RendererUtils::bindPushConstant(this->getPipelineLayout("bloom")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &direction);
-			RendererUtils::drawDirect(3, 1, 0, 0);
-			RendererUtils::endRenderPass();
-
-			// Vertical pass
-			direction = 1;
-			RendererUtils::beginRenderPass(this->getRenderPass("varianceBlur"), this->getFramebuffer("writeToDirectionalShadow"), directionalLightIndex);
-			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceBlur")->getHandle());
-			RendererUtils::bindGraphicDescriptorSets(
-				this->getPipelineLayout("bloom")->getHandle(), 0, 1,
-				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("varianceBlur")));
-			RendererUtils::bindPushConstant(this->getPipelineLayout("bloom")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &direction);
-			RendererUtils::drawDirect(3, 1, 0, 0);
 			RendererUtils::endRenderPass();
 
 			directionalLightIndex++;
@@ -1547,9 +1578,9 @@ void Renderer::renderShadowMaps() {
 		{
 			assert(this->numSpotLights != 0 && "Trying to render a spot light shadow map but numSpotLights is 0?");
 
-			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("spotArrayShadows"), spotLightIndex);
+			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("spotShadows"), spotLightIndex);
 
-			RendererUtils::bindGraphicPipeline(this->getPipeline("shadowSpot")->getHandle());
+			RendererUtils::bindGraphicPipeline(this->getPipeline("spotShadows")->getHandle());
 
 			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z);
 
@@ -1590,184 +1621,222 @@ void Renderer::renderShadowMaps() {
 }
 
 void Renderer::renderVSMShadowMaps() {
-//	std::vector<MeshData>& meshData = this->driver->getMeshData();
-//
-//	this->driver->getTimestampManager().writeGPUTimestamp("vsmShadows", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
-//
-//	// Some light-specific counters
-//	std::uint32_t pointLightIndex = 0;
-//	std::uint32_t directionalLightIndex = 0;
-//	std::uint32_t spotLightIndex = 0;
-//
-//	// For each light
-//	for (std::size_t i = 0; i < this->lights->size(); i++) {
-//		Light& light = this->lights->at(i);
-//
-//		// Check if we need to re-render this lights shadow map
-//		if (!light.isDirty()) continue;
-//
-//		switch (light.getLightType()) {
-//		case LightType::POINT:
-//		{
-//			assert(this->numPointLights != 0 && "Trying to render a point light shadow map but numPointLights is 0?");
-//
-//			constexpr glm::vec3 directions[6] = {
-//				glm::vec3(1.0f,  0.0f,  0.0f),
-//				glm::vec3(-1.0f,  0.0f,  0.0f),
-//				glm::vec3(0.0f,  1.0f,  0.0f),
-//				glm::vec3(0.0f, -1.0f,  0.0f),
-//				glm::vec3(0.0f,  0.0f,  1.0f),
-//				glm::vec3(0.0f,  0.0f, -1.0f),
-//			};
-//
-//			constexpr glm::vec3 upVectors[6] = {
-//				glm::vec3(0.0f, -1.0f,  0.0f),
-//				glm::vec3(0.0f, -1.0f,  0.0f),
-//				glm::vec3(0.0f,  0.0f,  1.0f),
-//				glm::vec3(0.0f,  0.0f, -1.0f),
-//				glm::vec3(0.0f, -1.0f,  0.0f),
-//				glm::vec3(0.0f, -1.0f,  0.0f),
-//			};
-//
-//			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera->getNearPlane(), this->camera->getFarPlane());
-//
-//			// Render to each face of the cube map
-//			for (std::size_t face = 0; face < 6; face++) {
-//				// Calculate layer index
-//				std::uint32_t layer = (pointLightIndex * 6) + face;
-//
-//				RendererUtils::beginRenderPass(this->getRenderPass("varianceShadow"), this->getFramebuffer("pointArrayShadows"), layer);
-//				RendererUtils::bindGraphicPipeline(this->getPipeline("varianceCubemapShadow")->getHandle());
-//
-//				glm::mat4 cubeView = glm::lookAt(light.getPosition(), light.getPosition() + directions[face], upVectors[face]);
-//				glm::mat4 cubeMatrix = cubePerspective * cubeView;
-//
-//				glsl::CubemapPC fragPC = {
-//					.lightPos = glm::vec4(light.getPosition(), 1.0f),
-//					.farPlane = this->camera->getFarPlane()
-//				};
-//
-//				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
-//					VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &cubeMatrix);
-//				RendererUtils::bindPushConstant(this->getPipelineLayout("cubemapShadow")->getHandle(),
-//					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(glsl::CubemapPC), &fragPC);
-//
-//				for (std::size_t i = 0; i < meshData.size(); i++)
-//					RendererUtils::drawMeshGeometry(meshData[i]);
-//
-//				RendererUtils::endRenderPass();
-//			}
-//
-//			pointLightIndex++;
-//			break;
-//		}
-//		case LightType::DIRECTIONAL:
-//		{
-//			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
-//
-//			RendererUtils::beginRenderPass(this->getRenderPass("varianceShadow"), this->getFramebuffer("directionalShadow"), directionalLightIndex);
-//
-//			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceShadow")->getHandle());
-//
-//			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at(directionalLightIndex);
-//
-//			struct TwoMatPC {
-//				glm::mat4 lightViewProj{};
-//				glm::mat4 lightView{};
-//			};
-//
-//			TwoMatPC twoMatPC = {
-//				.lightViewProj = this->sunMatrices.projection.get() * this->sunMatrices.view.get(),
-//				.lightView = this->sunMatrices.view.get()
-//			};
-//
-//			RendererUtils::bindPushConstant(this->getPipelineLayout("varianceShadow")->getHandle(),
-//				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(TwoMatPC), &twoMatPC);
-//			RendererUtils::bindGraphicDescriptorSets(
-//				this->getPipelineLayout("varianceShadow")->getHandle(), 0, 1,
-//				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
-//
-//			auto perMeshCallback = [this](MeshData& meshData) {
-//				RendererUtils::bindGraphicDescriptorSets(
-//					this->getPipelineLayout("varianceShadow")->getHandle(), 1, 1,
-//					&this->alphaMaskDescriptors.at(meshData.materialId));
-//				};
-//
-//			for (std::size_t i = 0; i < meshData.size(); i++)
-//				RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
-//
-//			RendererUtils::endRenderPass();
-//
-//			// Blur variance shadow map
-//			// Horizontal pass
-//			int direction = 0;
-//			RendererUtils::beginRenderPass(this->getRenderPass("varianceBlur"), this->getFramebuffer("writeToVarianceBlur"), directionalLightIndex);
-//			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceBlur")->getHandle());
-//			RendererUtils::bindGraphicDescriptorSets(
-//				this->getPipelineLayout("bloom")->getHandle(), 0, 1,
-//				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("directionalLightShadow")));
-//			RendererUtils::bindPushConstant(this->getPipelineLayout("bloom")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &direction);
-//			RendererUtils::drawDirect(3, 1, 0, 0);
-//			RendererUtils::endRenderPass();
-//
-//			// Vertical pass
-//			direction = 1;
-//			RendererUtils::beginRenderPass(this->getRenderPass("varianceBlur"), this->getFramebuffer("writeToDirectionalShadow"), directionalLightIndex);
-//			RendererUtils::bindGraphicPipeline(this->getPipeline("varianceBlur")->getHandle());
-//			RendererUtils::bindGraphicDescriptorSets(
-//				this->getPipelineLayout("bloom")->getHandle(), 0, 1,
-//				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("varianceBlur")));
-//			RendererUtils::bindPushConstant(this->getPipelineLayout("bloom")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &direction);
-//			RendererUtils::drawDirect(3, 1, 0, 0);
-//			RendererUtils::endRenderPass();
-//
-//			directionalLightIndex++;
-//			break;
-//		}
-//		case LightType::SPOT:
-//		{
-//			assert(this->numSpotLights != 0 && "Trying to render a spot light shadow map but numSpotLights is 0?");
-//
-//			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("spotArrayShadows"), spotLightIndex);
-//
-//			RendererUtils::bindGraphicPipeline(this->getPipeline("shadowSpot")->getHandle());
-//
-//			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z);
-//
-//			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
-//				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &lightMatrix);
-//#ifndef NDEBUG
-//			int projType = 0;
-//
-//			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
-//				VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(glm::mat4), sizeof(int), &projType);
-//
-//			RendererUtils::bindGraphicDescriptorSets(
-//				this->getPipelineLayout("shadow")->getHandle(), 0, 1,
-//				&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
-//#endif
-//			RendererUtils::setDepthBias(this->depthBiasConstant, 0.0f, this->depthBiasSlopeFactor);
-//
-//			auto perMeshCallback = [this](MeshData& meshData) {
-//				RendererUtils::bindGraphicDescriptorSets(
-//					this->getPipelineLayout("shadow")->getHandle(), 1, 1,
-//					&this->alphaMaskDescriptors.at(meshData.materialId));
-//				};
-//
-//			for (std::size_t i = 0; i < meshData.size(); i++)
-//				RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
-//
-//			RendererUtils::endRenderPass();
-//
-//			spotLightIndex++;
-//			break;
-//		}
-//		}
-//
-//		light.markClean();
-//	}
-//
-//	this->driver->getTimestampManager().writeGPUTimestamp("vsmShadows", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	std::vector<MeshData>& meshData = this->driver->getMeshData();
+
+	this->driver->getTimestampManager().writeGPUTimestamp("VSMshadows", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
+	// Some light-specific counters
+	std::uint32_t pointLightIndex = 0;
+	std::uint32_t directionalLightIndex = 0;
+	std::uint32_t spotLightIndex = 0;
+
+	auto perMeshCallback = [this](MeshData& meshData) {
+		RendererUtils::bindGraphicDescriptorSets(
+			this->getPipelineLayout("VSMshadow")->getHandle(), 0, 1,
+			&this->alphaMaskDescriptors.at(meshData.materialId));
+	};
+
+	struct VariancePC {
+		glm::mat4 lightViewProj{};
+		glm::mat4 lightView{};
+	};
+
+	// For each light
+	for (std::size_t i = 0; i < this->lights->size(); i++) {
+		Light& light = this->lights->at(i);
+
+		// Check if we need to re-render this lights shadow map
+		if (!light.isDirty()) continue;
+
+		switch (light.getLightType()) {
+		case LightType::POINT:
+		{
+			assert(this->numPointLights != 0 && "Trying to render a point light shadow map but numPointLights is 0?");
+
+			constexpr glm::vec3 directions[6] = {
+				glm::vec3(1.0f,  0.0f,  0.0f),
+				glm::vec3(-1.0f,  0.0f,  0.0f),
+				glm::vec3(0.0f,  1.0f,  0.0f),
+				glm::vec3(0.0f, -1.0f,  0.0f),
+				glm::vec3(0.0f,  0.0f,  1.0f),
+				glm::vec3(0.0f,  0.0f, -1.0f),
+			};
+
+			constexpr glm::vec3 upVectors[6] = {
+				glm::vec3(0.0f, -1.0f,  0.0f),
+				glm::vec3(0.0f, -1.0f,  0.0f),
+				glm::vec3(0.0f,  0.0f,  1.0f),
+				glm::vec3(0.0f,  0.0f, -1.0f),
+				glm::vec3(0.0f, -1.0f,  0.0f),
+				glm::vec3(0.0f, -1.0f,  0.0f),
+			};
+
+			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera->getNearPlane(), this->camera->getFarPlane());
+
+			// Render to each face of the cube map
+			for (std::size_t face = 0; face < 6; face++) {
+				// Calculate layer index
+				std::uint32_t layer = (pointLightIndex * 6) + face;
+
+				RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("pointShadowsVSM"), layer);
+				RendererUtils::bindGraphicPipeline(this->getPipeline("pointShadowsVSM")->getHandle());
+
+				glm::mat4 cubeView = glm::lookAt(light.getPosition(), light.getPosition() + directions[face], upVectors[face]);
+				glm::mat4 cubeMatrix = cubePerspective * cubeView;
+
+				glsl::CubemapPC fragPC = {
+					.lightPos = glm::vec4(light.getPosition(), 1.0f),
+					.farPlane = this->camera->getFarPlane()
+				};
+
+				VariancePC variancePC = {
+				.lightViewProj = cubeMatrix,
+				.lightView = glm::mat4(1.0)
+				};
+
+				RendererUtils::bindPushConstant(this->getPipelineLayout("VSMshadow")->getHandle(),
+					VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VariancePC), &variancePC);
+				RendererUtils::bindPushConstant(this->getPipelineLayout("VSMshadow")->getHandle(),
+					VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(VariancePC), sizeof(glsl::CubemapPC), &fragPC);
+
+				for (std::size_t i = 0; i < meshData.size(); i++)
+					RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
+
+				RendererUtils::endRenderPass();
+
+				this->blurVSMShadowMap(
+					this->getPipeline("VSMpointBlur"),
+					this->getFramebuffer("writeToPointShadowsBlur"), 
+					this->getFramebuffer("writeToPointShadowsVSM"), 
+					this->getDescriptorSet("pointShadowsVSM"),
+					this->getDescriptorSet("pointShadowsBlurVSM"),
+					layer);
+			}
+
+			pointLightIndex++;
+			break;
+		}
+		case LightType::DIRECTIONAL:
+		{
+			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
+
+			RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("directionalShadowVSM"), directionalLightIndex);
+			RendererUtils::bindGraphicPipeline(this->getPipeline("directionalShadowVSM")->getHandle());
+
+			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at(directionalLightIndex);
+
+			glsl::CubemapPC fragPC = {
+				.lightPos = glm::vec4(light.getPosition(), 1.0f),
+				.farPlane = this->camera->getFarPlane()
+			};
+
+			VariancePC variancePC = {
+				.lightViewProj = lightMatrix,
+				.lightView = glm::mat4(1.0)
+			};
+
+			RendererUtils::bindPushConstant(this->getPipelineLayout("VSMshadow")->getHandle(),
+				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VariancePC), &variancePC);
+			RendererUtils::bindPushConstant(this->getPipelineLayout("VSMshadow")->getHandle(),
+				VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(VariancePC), sizeof(glsl::CubemapPC), &fragPC);
+
+			for (std::size_t i = 0; i < meshData.size(); i++)
+				RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
+
+			RendererUtils::endRenderPass();
+
+			this->blurVSMShadowMap(
+				this->getPipeline("VSMdirectionalBlur"),
+				this->getFramebuffer("writeToDirectionalShadowBlur"),
+				this->getFramebuffer("writeToDirectionalShadowVSM"),
+				this->getDescriptorSet("directionalShadowVSM"),
+				this->getDescriptorSet("directionalShadowBlurVSM"),
+				directionalLightIndex);
+
+			directionalLightIndex++;
+			break;
+		}
+		case LightType::SPOT:
+		{
+			assert(this->numSpotLights != 0 && "Trying to render a spot light shadow map but numSpotLights is 0?");
+
+			RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("spotShadowsVSM"), spotLightIndex);
+			RendererUtils::bindGraphicPipeline(this->getPipeline("spotShadowsVSM")->getHandle());
+
+			glm::mat4 lightViewProj = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z);
+			glm::mat4 lightView = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z + 1);
+
+			glsl::CubemapPC fragPC = {
+				.lightPos = glm::vec4(light.getPosition(), 1.0f),
+				.farPlane = this->camera->getFarPlane()
+			};
+
+			VariancePC variancePC = {
+				.lightViewProj = lightViewProj,
+				.lightView = lightView
+			};
+
+			RendererUtils::bindPushConstant(this->getPipelineLayout("VSMshadow")->getHandle(),
+				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(VariancePC), &variancePC);
+			RendererUtils::bindPushConstant(this->getPipelineLayout("VSMshadow")->getHandle(),
+				VK_SHADER_STAGE_FRAGMENT_BIT, sizeof(VariancePC), sizeof(glsl::CubemapPC), &fragPC);
+
+			for (std::size_t i = 0; i < meshData.size(); i++)
+				RendererUtils::drawMeshGeometry(meshData[i], true, perMeshCallback);
+
+			RendererUtils::endRenderPass();
+
+			this->blurVSMShadowMap(
+				this->getPipeline("VSMspotBlur"),
+				this->getFramebuffer("writeToSpotShadowsBlur"), 
+				this->getFramebuffer("writeToSpotShadowsVSM"), 
+				this->getDescriptorSet("spotShadowsVSM"),
+				this->getDescriptorSet("spotShadowsBlurVSM"),
+				spotLightIndex);
+
+			spotLightIndex++;
+			break;
+		}
+		}		
+
+		light.markClean();
+	}
+
+	this->driver->getTimestampManager().writeGPUTimestamp("VSMshadows", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+}
+
+void Renderer::blurVSMShadowMap(
+	Pipeline* blurPipeline, 
+	Framebuffer* writeToBlurFB, 
+	Framebuffer* writeToMapFB, 
+	DescriptorSet* shadowMapToRead1, 
+	DescriptorSet* shadowMapToRead2, 
+	std::uint32_t imageIndex) 
+{
+	ArrayImageDescriptorSet* arrayDescriptorSet1 = dynamic_cast<ArrayImageDescriptorSet*>(shadowMapToRead1);
+	ArrayImageDescriptorSet* arrayDescriptorSet2 = dynamic_cast<ArrayImageDescriptorSet*>(shadowMapToRead2);
+
+	VkDescriptorSet mapToRead1 = arrayDescriptorSet1 ? arrayDescriptorSet1->getDescriptorSets()[imageIndex] : shadowMapToRead1->getHandle();
+	VkDescriptorSet mapToRead2 = arrayDescriptorSet2 ? arrayDescriptorSet2->getDescriptorSets()[imageIndex] : shadowMapToRead2->getHandle();
+
+	// Blur variance shadow map
+	// Horizontal pass
+	int direction = 0;
+	RendererUtils::beginRenderPass(this->getRenderPass("VSMblur"), writeToBlurFB, imageIndex);
+	RendererUtils::bindGraphicPipeline(blurPipeline->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("bloom")->getHandle(), 0, 1, &mapToRead1);
+	RendererUtils::bindPushConstant(this->getPipelineLayout("bloom")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &direction);
+	RendererUtils::drawDirect(3, 1, 0, 0);
+	RendererUtils::endRenderPass();
+
+	// Vertical pass
+	direction = 1;
+	RendererUtils::beginRenderPass(this->getRenderPass("VSMblur"), writeToMapFB, imageIndex);
+	RendererUtils::bindGraphicPipeline(blurPipeline->getHandle());
+	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("bloom")->getHandle(), 0, 1, &mapToRead2);
+	RendererUtils::bindPushConstant(this->getPipelineLayout("bloom")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(int), &direction);
+	RendererUtils::drawDirect(3, 1, 0, 0);
+	RendererUtils::endRenderPass();
 }
 
 void Renderer::submitRender() {

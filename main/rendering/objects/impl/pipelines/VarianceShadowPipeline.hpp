@@ -8,9 +8,10 @@ public:
 		VulkanWindow* window,
 		PipelineLayout* pipelineLayout,
 		RenderPass* renderPass,
-		VkSampleCountFlagBits* sampleCount,
-		VkExtent2D* shadowMapResolution);
+		VkExtent2D* shadowMapResolution,
+		int lightType);
 
 	void recreate();
 private:
+	int lightType;
 };

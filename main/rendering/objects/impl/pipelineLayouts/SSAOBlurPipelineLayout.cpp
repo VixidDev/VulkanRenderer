@@ -12,7 +12,7 @@ SSAOBlurPipelineLayout::SSAOBlurPipelineLayout(VulkanWindow* window,
 
 void SSAOBlurPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> layouts;
-	layouts.emplace_back(this->descriptorLayouts->at("ssaoTextures").handle); // SSAO textures (depth, normals, ssao)
+	layouts.emplace_back(this->descriptorLayouts->at("image3F").handle); // SSAO textures (depth, normals, ssao)
 	layouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes
 
 	VkPushConstantRange pcr = {

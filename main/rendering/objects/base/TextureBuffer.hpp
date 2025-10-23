@@ -30,6 +30,5 @@ protected:
 
 	VkFormat format = VK_FORMAT_UNDEFINED;
 
-	VkSampleCountFlagBits* sampleCount = nullptr;
 	VkExtent2D* renderExtent = nullptr;
 };

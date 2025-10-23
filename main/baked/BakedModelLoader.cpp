@@ -55,7 +55,7 @@ namespace BakedModelLoader {
 			VkDescriptorSet materialDescriptor = VkUtils::createDescriptorSet(
 				window,
 				window.getDevice()->getDescPool(),
-				renderer.getDescriptorSetLayout("materials"));
+				renderer.getDescriptorSetLayout("image6F"));
 
 			VkWriteDescriptorSet desc[6]{};
 

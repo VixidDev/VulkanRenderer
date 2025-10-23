@@ -13,7 +13,7 @@ PreSSAOPipelineLayout::PreSSAOPipelineLayout(VulkanWindow* window,
 void PreSSAOPipelineLayout::recreate() {
 	std::vector<VkDescriptorSetLayout> layouts;
 	layouts.emplace_back(this->descriptorLayouts->at("uboVF").handle); // MV matrices
-	layouts.emplace_back(this->descriptorLayouts->at("materials").handle); // Materials
+	layouts.emplace_back(this->descriptorLayouts->at("image6F").handle); // Materials
 
 	std::vector<VkPushConstantRange> pushConstants;
 

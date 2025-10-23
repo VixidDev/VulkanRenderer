@@ -160,7 +160,8 @@ public:
 	float brightnessThreshold = 0.75f;
 	
 	float shadowBias = 0.00025f;
-	bool vsmShadowsEnabled = false;
+	float bleedReduction = 0.7f;
+	int vsmShadowsEnabled = 1;
 	int vsmTapSize = TapSize::e5X5;
 
 	float sunOrthoBounds = 37.0f;
@@ -190,6 +191,13 @@ private:
 	void renderDebugViews();
 	void renderShadowMaps();
 	void renderVSMShadowMaps();
+	void blurVSMShadowMap(
+		Pipeline* blurPipeline,
+		Framebuffer* writeToBlurFB, 
+		Framebuffer* writeToMapFB, 
+		DescriptorSet* shadowMapToRead1, 
+		DescriptorSet* shadowMapToRead2, 
+		std::uint32_t imageIndex);
 
 	void getSkyboxDimensions(std::array<const char*, 6>& filenames);
 	void fillSkyboxTexture();

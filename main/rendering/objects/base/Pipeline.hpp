@@ -25,5 +25,4 @@ protected:
 	RenderPass* renderPass = nullptr;
 
 	VkExtent2D* renderExtent = nullptr;
-	VkSampleCountFlagBits* sampleCount = nullptr;
 };
