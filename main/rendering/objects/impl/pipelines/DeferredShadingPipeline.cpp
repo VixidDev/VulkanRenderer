@@ -11,12 +11,14 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 	PipelineLayout* pipelineLayout,
 	RenderPass* renderPass,
 	bool* shadowsEnabled,
+	int* vsmShadowsEnabled,
 	bool* useViewSpaceNormals
 ) : shadowsEnabled(shadowsEnabled),
 	Pipeline(window) 
 {
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
+	this->vsmShadowsEnabled = vsmShadowsEnabled;
 	this->useViewSpaceNormals = useViewSpaceNormals;
 
 	this->renderExtent = &this->window->getSwapchain()->getExtent();
@@ -29,9 +31,13 @@ void DeferredShadingPipeline::recreate() {
 	vk::ShaderModule frag;
 
 	if (*this->shadowsEnabled) {
-		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/deferredShadingShadow.frag.spv");
+		if (*this->vsmShadowsEnabled) {
+			frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/deferredShadowVSM.frag.spv");
+		} else {
+			frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/deferredShadow.frag.spv");
+		}
 	} else {
-		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/deferredShading.frag.spv");
+		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/deferred.frag.spv");
 	}
 
 	this->viewSpaceNormals = *this->useViewSpaceNormals ? 1 : 0;

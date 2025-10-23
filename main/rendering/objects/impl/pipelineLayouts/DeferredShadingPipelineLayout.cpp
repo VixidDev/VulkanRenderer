@@ -27,9 +27,7 @@ void DeferredShadingPipelineLayout::recreate() {
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("ssboF").handle); // Lights SSBO
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Inverse view
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // SSAO texture
-	shadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Point shadow maps
-	shadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Sun shadow map
-	shadowLayouts.emplace_back(this->descriptorLayouts->at("imageF").handle); // Spot shadow maps
+	shadowLayouts.emplace_back(this->descriptorLayouts->at("image3F").handle); // Point shadow maps
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("uboF").handle); // Camera planes
 	shadowLayouts.emplace_back(this->descriptorLayouts->at("ssboF").handle); // Light matrices SSBO
 

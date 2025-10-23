@@ -9,11 +9,13 @@ public:
 		PipelineLayout* pipelineLayout,
 		RenderPass* renderPass,
 		bool* shadowsEnabled,
+		int* vsmShadowsEnabled,
 		bool* useViewSpaceNormals);
 
 	void recreate();
 private:
 	bool* shadowsEnabled = nullptr;
+	int* vsmShadowsEnabled = nullptr;
 	bool* useViewSpaceNormals = nullptr;
 	int viewSpaceNormals = 0;
 };

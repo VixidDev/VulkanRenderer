@@ -143,7 +143,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// deferredWriting - pipeline stage for writing to g-buffers
 	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("deferredWriting"), &this->ssaoEnabled));
 	// deferredShading - pipeline stage for shading pass in deferred rendering
-	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferredShading"), &this->shadowsEnabled, &this->ssaoEnabled));
+	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferredShading"), &this->shadowsEnabled, &this->vsmShadowsEnabled, &this->ssaoEnabled));
 	// post processing effects
 	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("postProcessLDR")));
 	this->pipelines.emplace("bloom", std::make_unique<BlurPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("postProcessHDR"), &this->bloomTapSize));
@@ -1333,6 +1333,7 @@ void Renderer::renderDeferred() {
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias,
+		.bleedReduction = this->bleedReduction,
 		.ssaoEnabled = this->ssaoEnabled,
 		.ssaoExp = this->ssaoExp
 	};
@@ -1341,7 +1342,7 @@ void Renderer::renderDeferred() {
 		this->getPipelineLayout("deferredShading")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::LightsAndEmissive), &lightsAndEmissive);
 
 	std::vector<VkDescriptorSet> descriptorSets;
-	descriptorSets.reserve(10);
+	descriptorSets.reserve(8);
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("deferredInputs")));
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("mvp")));
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lights")));
@@ -1349,9 +1350,11 @@ void Renderer::renderDeferred() {
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("ssaoSampler")));
 
 	if (this->shadowsEnabled) {
-		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("pointLightShadows")));
-		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("directionalLightShadow")));
-		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("spotLightShadows")));
+		if (this->vsmShadowsEnabled) {
+			descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("VSMshadows")));
+		} else {
+			descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("shadows")));
+		}
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lightMatrices")));
 	}

@@ -27,16 +27,16 @@ layout(set = 3, binding = 0) uniform InverseMatrices {
 
 layout(set = 4, binding = 0) uniform sampler2D uSSAO;
 
-layout(set = 5, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
-layout(set = 6, binding = 0) uniform sampler2DShadow sunShadow;
-layout(set = 7, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
+layout(set = 5, binding = 0) uniform samplerCubeArray pointLightShadows;
+layout(set = 5, binding = 1) uniform sampler2D sunShadow;
+layout(set = 5, binding = 2) uniform sampler2DArray spotLightShadows;
 
-layout(set = 8, binding = 0) uniform ClipPlanes {
+layout(set = 6, binding = 0) uniform ClipPlanes {
 	float far;
 	float near;
 } planes;
 
-layout(set = 9, binding = 0) readonly buffer LightSpaceMatrices {
+layout(set = 7, binding = 0) readonly buffer LightSpaceMatrices {
 	mat4 lightSpaceMatrices[];
 };
 
@@ -45,6 +45,7 @@ layout(push_constant) uniform PushConstants {
 	float emissiveStrength;
 	float brightnessThreshold;
 	float shadowBias;
+	float bleedReduction;
 	int ssaoEnabled;
 	float ssaoExp;
 } pConsts;
@@ -67,6 +68,25 @@ vec3 posFromDepth(float depth) {
 	return worldSpace;
 }
 
+float ChebyshevUpperBound(vec2 moments, float depth) {
+	float tDepth = depth - pConsts.shadowBias;
+
+	if (tDepth <= moments.x) {
+		return 1.0;
+	}
+
+	float variance = moments.y - (moments.x * moments.x);
+	variance = max(variance, 0.00002);
+
+	float diff = tDepth - moments.x;
+	float diff2 = diff * diff;
+
+	float pMax = variance / (variance + diff2);
+	pMax = clamp((pMax - pConsts.bleedReduction) / (1.0 - pConsts.bleedReduction), 0.0, 1.0);
+
+	return (tDepth <= moments.x) ? 1.0 : pMax;
+}
+
 float calculateShadow(ShaderLight light, vec3 pos) {
 	float shadow = 0.0;
 
@@ -79,14 +99,20 @@ float calculateShadow(ShaderLight light, vec3 pos) {
 	vec4 lightSpacePos = lightSpaceMatrix * vec4(pos, 1.0);
 	vec3 shadowCoord   = lightSpacePos.xyz / lightSpacePos.w;
 
+	vec2 moments;
+	float fragDepth;
+	vec3 lightToFrag;
+
 	switch (lightType) {
 	case 0: // Point light
-		vec3 lightToFrag = pos - light.positionAndLightType.xyz;
+		lightToFrag = pos - light.positionAndLightType.xyz;
 
-		float currentDepth = length(lightToFrag) / planes.far;
+		fragDepth = length(lightToFrag) / planes.far;
 		vec3 dir = normalize(lightToFrag);
 
-		shadow = texture(pointLightShadows, vec4(dir, shadowMapIndex), currentDepth - pConsts.shadowBias);
+		moments = texture(pointLightShadows, vec4(dir, shadowMapIndex)).rg;
+
+		shadow = ChebyshevUpperBound(moments, fragDepth);
 		break;
 	case 1: // Directional light
 		// Scaled shadow bias based on distance from camera.
@@ -96,10 +122,18 @@ float calculateShadow(ShaderLight light, vec3 pos) {
 		float bias = distanceToCamera > 100.0 ? 0.00005 : 0.00001;
 		shadowCoord.z -= distanceToCamera * bias;
 
-		shadow = texture(sunShadow, shadowCoord);
+		moments = texture(sunShadow, shadowCoord.xy).rg;
+		fragDepth = shadowCoord.z;
+
+		shadow = ChebyshevUpperBound(moments, fragDepth);
 		break;
 	case 2: // Spot light
-		shadow = texture(spotLightShadows, vec4(shadowCoord.xy, shadowMapIndex, shadowCoord.z)); 
+		lightToFrag = pos - light.positionAndLightType.xyz;
+		fragDepth = length(lightToFrag) / planes.far;
+
+		moments = texture(spotLightShadows, vec3(shadowCoord.xy, shadowMapIndex)).rg;
+
+		shadow = ChebyshevUpperBound(moments, fragDepth);
 		break;
 	}
 

@@ -31,6 +31,7 @@ layout(push_constant) uniform PushConstants {
 	float emissiveStrength;
 	float brightnessThreshold;
 	float shadowBias;
+	float bleedReduction;
 	int ssaoEnabled;
 	float ssaoExp;
 } pConsts;
