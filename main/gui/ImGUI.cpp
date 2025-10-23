@@ -443,7 +443,13 @@ void GUI::draw() {
 					this->pointLightShadowIndex = std::clamp(this->pointLightShadowIndex, 0, std::max(0, ((int)renderer.numPointLights * 6) - 1));
 				}
 
-				ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("pointLightShadowsDebug"));
+				ArrayImageDescriptorSet* descriptorSet = nullptr;
+				if (renderer.vsmShadowsEnabled) {
+					descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("pointShadowsVSM"));
+				} else {
+					descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("pointLightShadowsDebug"));
+				}
+
 				if (renderer.numPointLights > 0 && descriptorSet) {
 					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->pointLightShadowIndex], ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
 				}
@@ -451,7 +457,12 @@ void GUI::draw() {
 				ImGui::EndTabItem();
 			}
 			if (ImGui::BeginTabItem("Directional Light")) {
-				ImGui::Image((ImTextureID)renderer.getDescriptorSet("directionalLightShadowDebug")->getHandle(), ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
+
+				if (renderer.vsmShadowsEnabled) {
+					ImGui::Image((ImTextureID)renderer.getDescriptorSet("directionalShadowVSM")->getHandle(), ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
+				} else {
+					ImGui::Image((ImTextureID)renderer.getDescriptorSet("directionalLightShadowDebug")->getHandle(), ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
+				}
 
 				ImGui::EndTabItem();
 			}
@@ -460,7 +471,13 @@ void GUI::draw() {
 					this->spotLightShadowIndex = std::clamp(this->spotLightShadowIndex, 0, std::max(0, (int)renderer.numSpotLights - 1));
 				}
 
-				ArrayImageDescriptorSet* descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("spotLightShadowsDebug"));
+				ArrayImageDescriptorSet* descriptorSet = nullptr;
+				if (renderer.vsmShadowsEnabled) {
+					descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("spotShadowsVSM"));
+				} else {
+					descriptorSet = dynamic_cast<ArrayImageDescriptorSet*>(renderer.getDescriptorSet("spotLightShadowsDebug"));
+				}
+
 				if (renderer.numSpotLights > 0 && descriptorSet) {
 					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->spotLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
 				}
