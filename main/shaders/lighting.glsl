@@ -4,7 +4,7 @@ struct ShaderLight {
 	vec4 positionAndLightType;    // xyz: light position, w: light type
 	vec4 directionAndMapIndex;    // xyz: light direction, w: shadow map index
 	vec4 colourAndIntensity;      // xyz: light colour, w: light intensity
-	vec4 spotLightAndMatrixIndex; // x: spot light inner cone angle, y: spot light outer cone angle, z: light space matrix index, w: unused
+	vec4 extra; // x: spot light inner cone angle, y: spot light outer cone angle, z: light space matrix index, w: is shadow casting
 };
 
 float BeckmannDistribution(float nDotH, float roughness) {

@@ -1,7 +1,7 @@
 #include "Light.hpp"
 
-Light::Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour, int intensity, float innerAngle, float outerAngle) 
-	: type(type), position(pos), direction(direction), colour(colour), intensity(intensity), innerAngle(innerAngle), outerAngle(outerAngle) {}
+Light::Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour, int intensity, float innerAngle, float outerAngle, bool shadowCasting) 
+	: type(type), position(pos), direction(direction), colour(colour), intensity(intensity), innerAngle(innerAngle), outerAngle(outerAngle), shadowCasting(shadowCasting) {}
 
 void Light::markDirty() {
 	this->dirty = true;
@@ -37,6 +37,10 @@ float Light::getInnerAngle() {
 
 float Light::getOuterAngle() {
 	return this->outerAngle;
+}
+
+bool Light::isShadowCasting() {
+	return this->shadowCasting;
 }
 
 bool Light::isDirty() {

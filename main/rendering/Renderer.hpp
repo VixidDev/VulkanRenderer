@@ -255,7 +255,7 @@ private:
 
 	bool shadowsEnabled = true;
 	VkExtent2D sunShadowMapRes = VkExtent2D{ 8192, 8192 };
-	VkExtent2D pointShadowMapRes = VkExtent2D{ 2048, 2048 };
+	VkExtent2D pointShadowMapRes = VkExtent2D{ 1024, 1024 };
 	VkExtent2D spotShadowMapRes = VkExtent2D{ 2048, 2048 };
 	std::array<VkExtent2D, 4> shadowResolutions = {
 		VkExtent2D{ 1024, 1024 },

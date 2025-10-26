@@ -40,36 +40,64 @@ namespace LightsParser {
 			int intensity;
 			float innerAngle;
 			float outerAngle;
+			int shadowCasting;
 
 			if (line.starts_with("point:")) {
 				if (int res =
-					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %d", &pos.x, &pos.y, &pos.z, &colour.x, &colour.y, &colour.z, &intensity);
-					res != 7) 
+					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %d %d", 
+						&pos.x, &pos.y, &pos.z, &colour.x, &colour.y, &colour.z, &intensity, &shadowCasting);
+					res != 8) 
 				{
 					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
 					continue;
 				}
-					lightsOut.emplace_back(Light(LightType::POINT, pos, glm::vec3(0.0f), colour, intensity));
+
+				if (shadowCasting == 0 || shadowCasting == 1) {
+					if (shadowCasting == 1) shadowCasting = true;
+					if (shadowCasting == 0) shadowCasting = false;
+					lightsOut.emplace_back(Light(LightType::POINT, pos, glm::vec3(0.0f), colour, intensity, 0.0f, 0.0f, shadowCasting));
+				} else {
+					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
+					continue;
+				}
 			} else if (line.starts_with("directional:")) {
-				int temp = 0;
 				if (int res =
-					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %d", &direction.x, &direction.y, &direction.z, &colour.x, &colour.y, &colour.z, &intensity);
-					res != 7) 
+					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %d %d", 
+						&direction.x, &direction.y, &direction.z, &colour.x, &colour.y, &colour.z, &intensity, &shadowCasting);
+					res != 8) 
 				{
 					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
 					continue;
 				}
-					lightsOut.emplace_back(Light(LightType::DIRECTIONAL, glm::vec3(0.0f), direction, colour, intensity));
-					directionalLights++;
+
+				if (shadowCasting == 0 || shadowCasting == 1) {
+					if (shadowCasting == 1) shadowCasting = true;
+					if (shadowCasting == 0) shadowCasting = false;
+					lightsOut.emplace_back(Light(LightType::DIRECTIONAL, glm::vec3(0.0f), direction, colour, intensity, 0.0f, 0.0f, shadowCasting));
+				} else {
+					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
+					continue;
+				}
+
+				directionalLights++;
 			} else if (line.starts_with("spot:")) {
 				if (int res =
-					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %f %f %f %d %f %f", &pos.x, &pos.y, &pos.z, &direction.x, &direction.y, &direction.z, &colour.x, &colour.y, &colour.z, &intensity, &innerAngle, &outerAngle);
-					res != 12) 
+					std::sscanf(line.c_str(), "%*s %f %f %f %f %f %f %f %f %f %d %f %f %d", 
+						&pos.x, &pos.y, &pos.z, &direction.x, &direction.y, &direction.z, &colour.x, &colour.y, &colour.z, &intensity, &innerAngle, &outerAngle, &shadowCasting);
+					res != 13) 
 				{
 					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
 					continue;
 				}
-					lightsOut.emplace_back(Light(LightType::SPOT, pos, direction, colour, intensity, innerAngle, outerAngle));
+
+				if (shadowCasting == 0 || shadowCasting == 1) {
+					if (shadowCasting == 1) shadowCasting = true;
+					if (shadowCasting == 0) shadowCasting = false;
+					lightsOut.emplace_back(Light(LightType::SPOT, pos, direction, colour, intensity, innerAngle, outerAngle, shadowCasting));
+				} else {
+					std::fprintf(stderr, "parseLights(): Line: '%s' could not be parsed correctly! Skipping this light.\n", line.c_str());
+					continue;
+				}
 			}
 		}
 

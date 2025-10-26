@@ -491,6 +491,8 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	for (std::size_t i = 0; i < lights->size(); i++) {
 		Light light = lights->at(i);
 
+		if (!light.isShadowCasting()) continue;
+
 		switch (light.getLightType()) {
 		case LightType::POINT:
 			this->numPointLights++;
@@ -539,13 +541,15 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		};
 
 		std::initializer_list<TextureBuffer*> pointShadowVSMTextures = { this->getTextureBuffer("pointShadowsVSM"), this->getTextureBuffer("pointShadowsDepthVSM") };
+		std::initializer_list<TextureBuffer*> pointShadowBlurVSMTexture = { this->getTextureBuffer("pointShadowsBlurVSM") };
+		std::initializer_list<TextureBuffer*> pointShadowVSMTexture = { this->getTextureBuffer("pointShadowsVSM") };
 
 		// Standard shadow mapping framebuffers
 		this->framebuffers.emplace("pointShadows", std::make_unique<ArrayFramebuffer>(window, pointShadowTextures, this->getRenderPass("shadow"), this->numPointLights * 6, &this->pointShadowMapRes));
 		// Variance shadow mapping framebuffers
 		this->framebuffers.emplace("pointShadowsVSM", std::make_unique<ArrayFramebuffer>(window, pointShadowVSMTextures, this->getRenderPass("VSMshadow"), this->numPointLights * 6, &this->pointShadowMapRes));
-		this->framebuffers.emplace("writeToPointShadowsBlur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("pointShadowsBlurVSM"), this->getRenderPass("VSMblur"), &this->pointShadowMapRes));
-		this->framebuffers.emplace("writeToPointShadowsVSM", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("pointShadowsVSM"), this->getRenderPass("VSMblur"), &this->pointShadowMapRes));
+		this->framebuffers.emplace("writeToPointShadowsBlur", std::make_unique<ArrayFramebuffer>(window, pointShadowBlurVSMTexture, this->getRenderPass("VSMblur"), this->numPointLights * 6 , &this->pointShadowMapRes));
+		this->framebuffers.emplace("writeToPointShadowsVSM", std::make_unique<ArrayFramebuffer>(window, pointShadowVSMTexture, this->getRenderPass("VSMblur"), this->numPointLights * 6, &this->pointShadowMapRes));
 	}
 
 	if (this->numDirectionalLights != 0) {
@@ -595,7 +599,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			.positionAndLightType = { light.getPosition(), light.getLightType() },
 			.directionAndMapIndex = { light.getDirection(), 0 },
 			.colourAndIntensity = { light.getColour(), light.getIntensity() },
-			.spotLightAndMatrixIndex = { std::cos(glm::radians(light.getInnerAngle())), std::cos(glm::radians(light.getOuterAngle())), 0, 0 }
+			.extra = { std::cos(glm::radians(light.getInnerAngle())), std::cos(glm::radians(light.getOuterAngle())), 0, (int)light.isShadowCasting() }
 		};
 
 		switch (light.getLightType()) {
@@ -617,7 +621,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			this->sunLightIndex = i;
 			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection.get() * this->sunMatrices.view.get());
 
-			lightStruct.spotLightAndMatrixIndex.z = matrixDependentIndex;
+			lightStruct.extra.z = matrixDependentIndex;
 
 			matrixDependentIndex++;
 			break;
@@ -633,7 +637,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			this->ssbos.lightMatrices.emplace_back(projection * view);
 			this->ssbos.lightMatrices.emplace_back(view);
 
-			lightStruct.spotLightAndMatrixIndex.z = matrixDependentIndex;
+			lightStruct.extra.z = matrixDependentIndex;
 
 			spotLightIndex++;
 			matrixDependentIndex++;
@@ -1118,9 +1122,10 @@ void Renderer::renderForward() {
 	if (this->ssaoEnabled) {
 		this->ssaoEffect->apply(this->imageIndex, true);
 	} else {
-		RendererUtils::imageBarrier(this->getTextureBuffer("ssaoVblur")->getImage().image, 0, VK_ACCESS_SHADER_READ_BIT,
+		RendererUtils::imageBarrier(this->getTextureBuffer("ssaoVblur")->getImage().image, 
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 	}
 
@@ -1486,7 +1491,7 @@ void Renderer::renderShadowMaps() {
 		Light& light = this->lights->at(i);
 
 		// Check if we need to re-render this lights shadow map
-		if (!light.isDirty()) continue;
+		if (!light.isDirty() || !light.isShadowCasting()) continue;
 
 		switch (light.getLightType()) {
 		case LightType::POINT:
@@ -1592,7 +1597,7 @@ void Renderer::renderShadowMaps() {
 
 			RendererUtils::bindGraphicPipeline(this->getPipeline("spotShadows")->getHandle());
 
-			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z);
+			glm::mat4 lightMatrix = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].extra.z);
 
 			RendererUtils::bindPushConstant(this->getPipelineLayout("shadow")->getHandle(),
 				VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &lightMatrix);
@@ -1656,7 +1661,7 @@ void Renderer::renderVSMShadowMaps() {
 		Light& light = this->lights->at(i);
 
 		// Check if we need to re-render this lights shadow map
-		if (!light.isDirty()) continue;
+		if (!light.isDirty() || !light.isShadowCasting()) continue;
 
 		switch (light.getLightType()) {
 		case LightType::POINT:
@@ -1773,8 +1778,8 @@ void Renderer::renderVSMShadowMaps() {
 			RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("spotShadowsVSM"), spotLightIndex);
 			RendererUtils::bindGraphicPipeline(this->getPipeline("spotShadowsVSM")->getHandle());
 
-			glm::mat4 lightViewProj = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z);
-			glm::mat4 lightView = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].spotLightAndMatrixIndex.z + 1);
+			glm::mat4 lightViewProj = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].extra.z);
+			glm::mat4 lightView = this->ssbos.lightMatrices.at((int)this->ssbos.lights[i].extra.z + 1);
 
 			glsl::CubemapPC fragPC = {
 				.lightPos = glm::vec4(light.getPosition(), 1.0f),

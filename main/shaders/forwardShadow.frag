@@ -63,7 +63,7 @@ float calculateShadow(ShaderLight light) {
 
 	int lightType	   = int(light.positionAndLightType.w);
 	int shadowMapIndex = int(light.directionAndMapIndex.w);
-	int lightSpaceMatrixIndex = int(light.spotLightAndMatrixIndex.z);
+	int lightSpaceMatrixIndex = int(light.extra.z);
 
 	// Directional / Spot light related vars
 	mat4 lightSpaceMatrix = biasMat * lightSpaceMatrices[lightSpaceMatrixIndex];
@@ -139,15 +139,19 @@ void main() {
 		float intensity  = lights[i].colourAndIntensity.w;
 		vec3 radiance    = lightColour * intensity * attenuation;
 
-		float shadow = calculateShadow(lights[i]);
+		float shadow = 1.0;
+		// If light is a shadow caster, calculate shadow
+		if (lights[i].extra.w == 1) {
+			shadow = calculateShadow(lights[i]);
+		}
 
 		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, metalness, roughness, F0, albedo, radiance, shadow);
 
 		if (lights[i].positionAndLightType.w == 2) {
 			vec3 lightToFrag = normalize(v2fPosition - lights[i].positionAndLightType.xyz);
 			float theta = dot(lightToFrag, lights[i].directionAndMapIndex.xyz);
-			float innerConeAngle = lights[i].spotLightAndMatrixIndex.x;
-			float outerConeAngle = lights[i].spotLightAndMatrixIndex.y;
+			float innerConeAngle = lights[i].extra.x;
+			float outerConeAngle = lights[i].extra.y;
 			float intensity = (theta - outerConeAngle) / (innerConeAngle - outerConeAngle);
 			brdf = smoothstep(0.0, 1.0, intensity) * brdf;
 		}

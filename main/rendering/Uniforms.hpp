@@ -35,7 +35,7 @@ namespace glsl {
 		glm::vec4 positionAndLightType{};    // xyz: position,  w: light type
 		glm::vec4 directionAndMapIndex{};    // xyz: direction, w: shadow map index
 		glm::vec4 colourAndIntensity{};      // xyz: colour,	w: intensity
-		glm::vec4 spotLightAndMatrixIndex{}; // xy: spot light angles, z: light space matrix index, w: unused
+		glm::vec4 extra{}; // xy: spot light angles, z: light space matrix index, w: is shadow casting
 	};
 
 	static_assert(sizeof(Light) == 64, "Light stuct must be 64 bytes!");

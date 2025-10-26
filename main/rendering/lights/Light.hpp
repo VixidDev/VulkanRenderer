@@ -10,7 +10,7 @@ enum LightType {
 
 class Light {
 public:
-	Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour, int intensity, float innerAngle = 0.0f, float outerAngle = 0.0f);
+	Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour, int intensity, float innerAngle, float outerAngle, bool shadowCasting);
 
 	void markDirty();
 	void markClean();
@@ -22,6 +22,7 @@ public:
 	int getIntensity();
 	float getInnerAngle();
 	float getOuterAngle();
+	bool isShadowCasting();
 	bool isDirty();
 
 	void toString();
@@ -33,6 +34,7 @@ private:
 	int intensity;
 	float innerAngle;
 	float outerAngle;
+	bool shadowCasting;
 
 	// Flag to mark that this light needs its shadow
 	// map re-rendered
