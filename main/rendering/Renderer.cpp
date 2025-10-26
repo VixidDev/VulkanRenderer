@@ -753,7 +753,7 @@ bool Renderer::checkSwapchain() {
 
 bool Renderer::acquireSwapchainImage() {
 	this->frameIndex++;
-	this->frameIndex %= this->cmdBuffers.size();
+	this->frameIndex %= Swapchain::MAX_FRAMES_IN_FLIGHT;
 
 	VkUtils::waitForFences(*this->context.window, this->frameDoneFences, this->frameIndex);
 
@@ -775,7 +775,7 @@ bool Renderer::acquireSwapchainImage() {
 		// is not signalled
 
 		--this->frameIndex;
-		this->frameIndex %= this->cmdBuffers.size();
+		this->frameIndex %= Swapchain::MAX_FRAMES_IN_FLIGHT;
 
 		return true;
 	}
@@ -963,33 +963,39 @@ void Renderer::render() {
 
 	// Transition any dummy light textures to respective layout
 	if (this->numPointLights == 0) {
-		RendererUtils::imageBarrier(this->getTextureBuffer("pointShadows")->getImage().image, 0, 0,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
-		RendererUtils::imageBarrier(this->getTextureBuffer("pointShadowsVSM")->getImage().image, 0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("pointShadows")->getImage().image, 
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
+		RendererUtils::imageBarrier(this->getTextureBuffer("pointShadowsVSM")->getImage().image, 
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 6 });
 	}
 	if (this->numDirectionalLights == 0) {
-		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadow")->getImage().image, 0, 0,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
-		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadowVSM")->getImage().image, 0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadow")->getImage().image, 
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadowVSM")->getImage().image, 
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 	}
 	if (this->numSpotLights == 0) {
-		RendererUtils::imageBarrier(this->getTextureBuffer("spotShadows")->getImage().image, 0, 0,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
-		RendererUtils::imageBarrier(this->getTextureBuffer("spotShadowsVSM")->getImage().image, 0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("spotShadows")->getImage().image, 
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
+		RendererUtils::imageBarrier(this->getTextureBuffer("spotShadowsVSM")->getImage().image, 
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 	}
 
@@ -1112,9 +1118,9 @@ void Renderer::renderForward() {
 	if (this->ssaoEnabled) {
 		this->ssaoEffect->apply(this->imageIndex, true);
 	} else {
-		RendererUtils::imageBarrier(this->getTextureBuffer("ssaoVblur")->getImage().image, 0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("ssaoVblur")->getImage().image, 0, VK_ACCESS_SHADER_READ_BIT,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 	}
 
@@ -1316,9 +1322,10 @@ void Renderer::renderDeferred() {
 	if (this->ssaoEnabled) {
 		this->ssaoEffect->apply(this->imageIndex);
 	} else {
-		RendererUtils::imageBarrier(this->getTextureBuffer("ssaoVblur")->getImage().image, 0, 0,
+		RendererUtils::imageBarrier(this->getTextureBuffer("ssaoVblur")->getImage().image, 
+			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
 			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
+			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
 	}
 

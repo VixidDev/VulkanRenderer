@@ -53,8 +53,6 @@ public:
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT));
 		}
-
-		//this->update();
 	}
 
 	void update(std::uint32_t frameIndex, VkCommandBuffer cmdBuff = VK_NULL_HANDLE) override {
@@ -77,6 +75,14 @@ public:
 			};
 
 			vkCmdCopyBuffer(cmdBuff, this->stagingBuffers[frameIndex].buffer, this->gpuBuffers[frameIndex].buffer, 1, &copyRegion);
+
+			VkUtils::bufferBarrier(
+				cmdBuff,
+				this->gpuBuffers[frameIndex].buffer,
+				/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT,
+				/* dstAccessMask */ VK_ACCESS_SHADER_READ_BIT,
+				/* srcStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT,
+				/* dstStageMask */ VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT); // Pass in stage flags in constructor in case SSBO is in a different stage
 		};
 
 		// Upload to GPU

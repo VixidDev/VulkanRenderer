@@ -28,8 +28,8 @@ layout(set = 3, binding = 0) uniform InverseMatrices {
 layout(set = 4, binding = 0) uniform sampler2D uSSAO;
 
 layout(set = 5, binding = 0) uniform samplerCubeArrayShadow pointLightShadows;
-layout(set = 5, binding = 0) uniform sampler2DShadow sunShadow;
-layout(set = 5, binding = 0) uniform sampler2DArrayShadow spotLightShadows;
+layout(set = 5, binding = 1) uniform sampler2DShadow sunShadow;
+layout(set = 5, binding = 2) uniform sampler2DArrayShadow spotLightShadows;
 
 layout(set = 6, binding = 0) uniform ClipPlanes {
 	float far;
