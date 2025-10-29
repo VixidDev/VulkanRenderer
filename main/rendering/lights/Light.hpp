@@ -38,5 +38,5 @@ private:
 
 	// Flag to mark that this light needs its shadow
 	// map re-rendered
-	bool dirty;
+	bool dirty = true;
 };

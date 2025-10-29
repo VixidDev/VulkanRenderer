@@ -69,10 +69,12 @@ void main() {
 	}
 
 	vec3 viewDir = normalize(mvp.camPos.xyz - pos);
-
+	float nDotV  = dot(normal, viewDir);
 	vec3 albedo     = texture(gBuffer2, v2fTexCoord).rgb;
 	float metalness = texture(gBuffer3, v2fTexCoord).a;
 	float roughness = texture(gBuffer2, v2fTexCoord).a;
+	float a = roughness * roughness;
+	float a2 = a * a;
 
 	vec3 F0 = vec3(0.04);
 	F0 = mix(F0, albedo, metalness);
@@ -99,7 +101,8 @@ void main() {
 		float intensity  = lights[i].colourAndIntensity.w;
 		vec3 radiance    = lightColour * intensity * attenuation;
 
-		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, metalness, roughness, F0, albedo, radiance, 1.0);
+		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, nDotV, metalness, roughness, 
+									 a, a2, F0, albedo, radiance, 1.0);
 
 		Lo += brdf;
 	}

@@ -139,11 +139,11 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("directionalShadowVSM", std::make_unique<VarianceShadowPipeline>(window, this->getPipelineLayout("VSMshadow"), this->getRenderPass("VSMshadow"), &this->sunShadowMapRes, 1));
 	this->pipelines.emplace("spotShadowsVSM", std::make_unique<VarianceShadowPipeline>(window, this->getPipelineLayout("VSMshadow"), this->getRenderPass("VSMshadow"), &this->spotShadowMapRes, 2));
 	// forward - regular forward shading pipeline
-	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->getPipelineLayout("forward"), this->getRenderPass("forward"), &this->shadowsEnabled, &this->vsmShadowsEnabled));
+	this->pipelines.emplace("forward", std::make_unique<ForwardPipeline>(window, this->getPipelineLayout("forward"), this->getRenderPass("forward"), &this->shadowsEnabled, &this->vsmShadowsEnabled, &this->numLights));
 	// deferredWriting - pipeline stage for writing to g-buffers
 	this->pipelines.emplace("deferredWriting", std::make_unique<DeferredWritingPipeline>(window, this->getPipelineLayout("deferredWriting"), this->getRenderPass("deferredWriting"), &this->ssaoEnabled));
 	// deferredShading - pipeline stage for shading pass in deferred rendering
-	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferredShading"), &this->shadowsEnabled, &this->vsmShadowsEnabled, &this->ssaoEnabled));
+	this->pipelines.emplace("deferredShading", std::make_unique<DeferredShadingPipeline>(window, this->getPipelineLayout("deferredShading"), this->getRenderPass("deferredShading"), &this->shadowsEnabled, &this->vsmShadowsEnabled, &this->ssaoEnabled, &this->numLights));
 	// post processing effects
 	this->pipelines.emplace("mosaic", std::make_unique<MosaicPipeline>(window, this->getPipelineLayout("mosaic"), this->getRenderPass("postProcessLDR")));
 	this->pipelines.emplace("bloom", std::make_unique<BlurPipeline>(window, this->getPipelineLayout("bloom"), this->getRenderPass("postProcessHDR"), &this->bloomTapSize));
@@ -1734,6 +1734,8 @@ void Renderer::renderVSMShadowMaps() {
 		case LightType::DIRECTIONAL:
 		{
 			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
+
+			std::fprintf(stderr, "Rendering Directional Light shadow map!\n");
 
 			RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("directionalShadowVSM"), directionalLightIndex);
 			RendererUtils::bindGraphicPipeline(this->getPipeline("directionalShadowVSM")->getHandle());

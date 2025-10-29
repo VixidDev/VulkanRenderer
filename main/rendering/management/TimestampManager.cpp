@@ -10,12 +10,16 @@ TimestampManager::TimestampManager(VulkanContext* context) : context(context) {
 }
 
 void TimestampManager::resetGPUQueryPool() {
+	if (!this->recordGPUTimestamps) return;
+
 	RendererUtils::resetQueryPool(this->gpuQueryPool, 0, 100);
 	this->gpuQueryCounter = 0;
 	this->gpuTimestampReferences.clear();
 }
 
 void TimestampManager::flushCPUTimestamps() {
+	if (!this->recordCPUTimestamps) return;
+
 	// Save references and timestamps to be read by ImGui so we can reset the actual counters
 	this->lastFrameCpuTimestampReferences = this->cpuTimestampReferences;
 	this->lastFrameCpuTimestamps = this->cpuTimestamps;
@@ -26,6 +30,8 @@ void TimestampManager::flushCPUTimestamps() {
 }
 
 void TimestampManager::clearCPUTimestamps() {
+	if (!this->recordCPUTimestamps) return;
+
 	this->cpuQueryCounter = 0;
 	this->cpuTimestampReferences.clear();
 	this->cpuTimestamps.clear();
@@ -34,6 +40,8 @@ void TimestampManager::clearCPUTimestamps() {
 }
 
 void TimestampManager::writeGPUTimestamp(std::string reference, VkPipelineStageFlagBits stageFlag) {
+	if (!this->recordGPUTimestamps) return;
+
 	for (auto& [name, indexReference] : this->gpuTimestampReferences) {
 		if (name == reference) {
 			if (indexReference.end != -1) {
@@ -52,6 +60,8 @@ void TimestampManager::writeGPUTimestamp(std::string reference, VkPipelineStageF
 }
 
 void TimestampManager::writeCPUTimestamp(std::string reference) {
+	if (!this->recordCPUTimestamps) return;
+
 	std::uint64_t timestamp = std::chrono::duration_cast<Nanoseconds>(Clock::now().time_since_epoch()).count();
 
 	for (auto& [name, indexReference] : this->cpuTimestampReferences) {
@@ -74,6 +84,8 @@ void TimestampManager::writeCPUTimestamp(std::string reference) {
 }
 
 void TimestampManager::readBackGPUTimestamps() {
+	if (!this->recordGPUTimestamps) return;
+
 	VkUtils::getQueryPoolResults(
 		*this->context->window,
 		this->gpuQueryPool,

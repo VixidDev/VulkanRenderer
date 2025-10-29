@@ -52,6 +52,8 @@ layout(push_constant) uniform PushConstants {
 layout(location = 0) out vec4 oColour;
 layout(location = 1) out vec4 oBrightness;
 
+layout(constant_id = 0) const int NUM_LIGHTS = 0;
+
 const mat4 biasMat = mat4( 
 	0.5, 0.0, 0.0, 0.0,
 	0.0, 0.5, 0.0, 0.0,
@@ -139,50 +141,56 @@ void main() {
 		normal = normalize(v2fTBN * tangentNormal);
 	}
 
+	// Precompute non-light dependent variables
 	vec3 viewDir  = normalize(mvp.camPos.xyz - v2fPosition);
-
+	float nDotV   = dot(normal, viewDir);
 	vec3 albedo     = texture(uTexColour, v2fTexCoord).rgb;
 	float metalness = texture(uMetalness, v2fTexCoord).r;
 	float roughness = texture(uRoughness, v2fTexCoord).r;
+	float a = roughness * roughness;
+	float a2 = a * a;
 
 	vec3 F0 = vec3(0.04);
 	F0 = mix(F0, albedo, metalness);
 
 	vec3 Lo = vec3(0.0);
 	// Iterate over all lights
-	for (int i = 0; i < pConsts.lightCount; i++) {
+	for (int i = 0; i < NUM_LIGHTS; i++) {
+		ShaderLight light = lights[i];
 
-		vec3 lightPos = lights[i].positionAndLightType.xyz;
+		vec3 lightPos = light.positionAndLightType.xyz;
 		float distToLight = length(lightPos - v2fPosition);
 		vec3 lightDir = normalize(lightPos - v2fPosition);
 		
 		float attenuation = 1.0;
-		if (lights[i].positionAndLightType.w == 1) {
+		if (light.positionAndLightType.w == 1) {
 			// Directional lights have an attenuation of 1 so keep as is.
 			// Light dir should be parallel for every fragment for directional lights
-			lightDir = -lights[i].directionAndMapIndex.xyz;
+			lightDir = -light.directionAndMapIndex.xyz;
 		} else {
 			// Keep point and spot lights with squared attenuation
 			attenuation = 1.0 / (distToLight * distToLight);
 		}
 
-		vec3 lightColour = lights[i].colourAndIntensity.rgb;
-		float intensity  = lights[i].colourAndIntensity.w;
+		vec3 lightColour = light.colourAndIntensity.rgb;
+		float intensity  = light.colourAndIntensity.w;
 		vec3 radiance    = lightColour * intensity * attenuation;
 
 		float shadow = 1.0;
 		// If light is a shadow caster, calculate shadow
 		if (lights[i].extra.w == 1) {
-			shadow = calculateShadow(lights[i]);
+			shadow = calculateShadow(light);
 		}
 
-		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, metalness, roughness, F0, albedo, radiance, shadow);
+		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, nDotV, metalness, roughness, 
+									 a, a2, F0, albedo, radiance, shadow);
 
+		// Get smooth edge for spot lights
 		if (lights[i].positionAndLightType.w == 2) {
-			vec3 lightToFrag = normalize(v2fPosition - lights[i].positionAndLightType.xyz);
+			vec3 lightToFrag = normalize(v2fPosition - light.positionAndLightType.xyz);
 			float theta = dot(lightToFrag, lights[i].directionAndMapIndex.xyz);
-			float innerConeAngle = lights[i].extra.x;
-			float outerConeAngle = lights[i].extra.y;
+			float innerConeAngle = light.extra.x;
+			float outerConeAngle = light.extra.y;
 			float intensity = (theta - outerConeAngle) / (innerConeAngle - outerConeAngle);
 			brdf = smoothstep(0.0, 1.0, intensity) * brdf;
 		}

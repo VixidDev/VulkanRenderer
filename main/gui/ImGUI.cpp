@@ -15,6 +15,8 @@
 // Concrete types
 #include "../rendering/objects/impl/descriptorSets/ArrayImageDescriptorSet.hpp"
 #include "../rendering/postProcessing/TonemapPostProcess.hpp"
+#include "../rendering/objects/impl/pipelines/ForwardPipeline.hpp"
+#include "../rendering/objects/impl/pipelines/DeferredShadingPipeline.hpp"
 
 GUI::GUI(Driver* driver) : driver(driver) {
 	this->frameTimes.reserve(1000);
@@ -179,7 +181,11 @@ void GUI::draw() {
 
 			ImGui::Separator();
 
-			ImGui::InputInt("Num of lights", &renderer.numLights);
+			if (ImGui::InputInt("Num of lights", &renderer.numLights)) {
+				// Recreate rendering pipelines to update NUM_LIGHTS specialization constants
+				dynamic_cast<ForwardPipeline*>(renderer.getPipeline("forward"))->recreate();
+				dynamic_cast<DeferredShadingPipeline*>(renderer.getPipeline("deferredShading"))->recreate();
+			}
 
 			ImGui::Separator();
 
@@ -341,10 +347,16 @@ void GUI::draw() {
 	ImGui::Begin("Performance");
 
 	float frameTime = this->driver->getTimeDelta();
-	ImGui::Text("FPS: %d - Avg FPS: %d", static_cast<int>(1 / frameTime), this->avgFps);
-	ImGui::Text("Frame Time: %.3f ms - Avg Frame Time: %.3f ms", frameTime * 1000.0f, this->avgFrameTime * 1000.0f);
+	ImGui::Text("FPS: %d\nAvg FPS: %d", static_cast<int>(1 / frameTime), this->avgFps);
+	ImGui::Text("Frame Time: %.3f ms\nAvg Frame Time: %.3f ms", frameTime * 1000.0f, this->avgFrameTime * 1000.0f);
 
 	TimestampManager& timestampManager = this->driver->getTimestampManager();
+
+	// Recording GPU timestamps surprisingly takes a lot of CPU time to record and read back
+	// so give option to disable recording either CPU or GPU timestamps
+	ImGui::Checkbox("Record CPU Timestamps", &timestampManager.recordCPUTimestamps);
+	ImGui::Checkbox("Record GPU Timestamps", &timestampManager.recordGPUTimestamps);
+
 	TimestampReferences& cpuTimestampReferences = timestampManager.getCPUTimestampReferences();
 
 	this->calculateAvgCpuTimestamps();

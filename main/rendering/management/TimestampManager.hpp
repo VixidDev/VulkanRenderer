@@ -39,6 +39,9 @@ public:
 	TimestampReferences& getGPUTimestampReferences();
 	TimestampReferences& getCPUTimestampReferences();
 
+	bool recordGPUTimestamps = true;
+	bool recordCPUTimestamps = true;
+
 private:
 	VulkanContext* context = nullptr;
 

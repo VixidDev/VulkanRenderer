@@ -11,7 +11,8 @@ ForwardPipeline::ForwardPipeline(
 	PipelineLayout* pipelineLayout,
 	RenderPass* renderPass,
 	bool* shadowsEnabled,
-	int* vsmShadowsEnabled) : Pipeline(window) 
+	int* vsmShadowsEnabled,
+	int* numLights) : Pipeline(window) 
 {
 	this->pipelineLayout = pipelineLayout;
 	this->renderPass = renderPass;
@@ -20,6 +21,7 @@ ForwardPipeline::ForwardPipeline(
 
 	this->shadowsEnabled = shadowsEnabled;
 	this->vsmShadowsEnabled = vsmShadowsEnabled;
+	this->numLights = numLights;
 
 	this->recreate();
 }
@@ -38,6 +40,20 @@ void ForwardPipeline::recreate() {
 		frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/forward.frag.spv");
 	}
 
+	// layout(constant_id = 0) const int NUM_LIGHTS = 0;
+	VkSpecializationMapEntry specializationMapEntry = {
+		.constantID = 0,
+		.offset = 0,
+		.size = sizeof(int)
+	};
+
+	VkSpecializationInfo specializationInfo = {
+		.mapEntryCount = 1,
+		.pMapEntries = &specializationMapEntry,
+		.dataSize = sizeof(int),
+		.pData = this->numLights
+	};
+
 	VkPipelineShaderStageCreateInfo stages[2]{};
 	stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -48,6 +64,7 @@ void ForwardPipeline::recreate() {
 	stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
+	stages[1].pSpecializationInfo = &specializationInfo;
 
 	VkVertexInputBindingDescription vertexInputs[4]{};
 	// Positions

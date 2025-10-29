@@ -26,9 +26,6 @@ workspace "VulkanRenderer"
 	
 	filter "*"
 
-	-- default options for GLSLC
-	glslcOptions = "-O --target-env=vulkan1.2"
-
 	-- default libraries
 	filter "system:linux"
 		links "dl"
@@ -48,12 +45,11 @@ workspace "VulkanRenderer"
 	filter "*"
 
 	--configurations
-	filter "debug"
+	filter "Debug"
 		symbols "On"
 		defines { "_DEBUG=1" }
-		glslcOptions = glslcOptions .. " -g"
 
-	filter "release"
+	filter "Release"
 		optimize "On"
 		defines { "NDEBUG=1" }
 
@@ -63,7 +59,7 @@ workspace "VulkanRenderer"
 include "third_party" 
 
 -- GLSLC helpers
-dofile("third_party/glslc.lua")
+--dofile("third_party/glslc.lua")
 
 -- Projects
 
@@ -97,6 +93,11 @@ project "main"
 
 	dependson "x-glm"
 
+	buildcommands {
+    	"\"%{wks.location}/buildShaders.bat\" %{cfg.buildcfg}"
+	}
+	buildoutputs { "_dummy" }
+
 project "shaders"
 	local shaders = { 
 		"main/shaders/*.vert",
@@ -104,15 +105,14 @@ project "shaders"
 		"main/shaders/*.comp",
 		"main/shaders/*.geom",
 		"main/shaders/*.tesc",
-		"main/shaders/*.tese"
+		"main/shaders/*.tese",
+		"main/shaders/*.glsl",
 	}
 
 	kind "Utility"
 	location "main/shaders"
 
 	files(shaders)
-
-	handle_glsl_files(glslcOptions, "assets/main/shaders", {})
 
 project "main-bake"
 	local sources = { 
@@ -146,5 +146,6 @@ project "utils"
 	files(sources)
 
 project()
+
 
 --EOF

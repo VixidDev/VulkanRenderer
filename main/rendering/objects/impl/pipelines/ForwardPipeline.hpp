@@ -9,10 +9,12 @@ public:
 		PipelineLayout* pipelineLayout,
 		RenderPass* renderPass,
 		bool* shadowsEnabled,
-		int* vsmShadowsEnabled);
+		int* vsmShadowsEnabled,
+		int* numLights);
 
 	void recreate();
 private:
 	bool* shadowsEnabled = nullptr;
 	int* vsmShadowsEnabled = nullptr;
+	int* numLights = nullptr;
 };

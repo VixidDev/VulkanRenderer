@@ -10,7 +10,8 @@ public:
 		RenderPass* renderPass,
 		bool* shadowsEnabled,
 		int* vsmShadowsEnabled,
-		bool* useViewSpaceNormals);
+		bool* useViewSpaceNormals,
+		int* numLights);
 
 	void recreate();
 private:
@@ -18,4 +19,5 @@ private:
 	int* vsmShadowsEnabled = nullptr;
 	bool* useViewSpaceNormals = nullptr;
 	int viewSpaceNormals = 0;
+	int* numLights = nullptr;
 };

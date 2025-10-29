@@ -12,7 +12,8 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 	RenderPass* renderPass,
 	bool* shadowsEnabled,
 	int* vsmShadowsEnabled,
-	bool* useViewSpaceNormals
+	bool* useViewSpaceNormals,
+	int* numLights
 ) : shadowsEnabled(shadowsEnabled),
 	Pipeline(window) 
 {
@@ -20,6 +21,7 @@ DeferredShadingPipeline::DeferredShadingPipeline(
 	this->renderPass = renderPass;
 	this->vsmShadowsEnabled = vsmShadowsEnabled;
 	this->useViewSpaceNormals = useViewSpaceNormals;
+	this->numLights = numLights;
 
 	this->renderExtent = &this->window->getSwapchain()->getExtent();
 
@@ -42,18 +44,31 @@ void DeferredShadingPipeline::recreate() {
 
 	this->viewSpaceNormals = *this->useViewSpaceNormals ? 1 : 0;
 
-	// layout(constant_id = 0) const int VIEW_SPACE_NORMALS = 0;
-	VkSpecializationMapEntry specializationMapEntry = {
-		.constantID = 0,
-		.offset = 0,
-		.size = sizeof(int)
+	struct SpecializationData {
+		int viewSpaceNormals{};
+		int numLights{};
 	};
 
+	SpecializationData specializationData = {
+		.viewSpaceNormals = this->viewSpaceNormals,
+		.numLights = *this->numLights
+	};
+
+	// layout(constant_id = 0) const int VIEW_SPACE_NORMALS = 0;
+	// layout(constant_id = 1) const int NUM_LIGHTS = 0;
+	VkSpecializationMapEntry specializationMapEntries[2]{};
+	specializationMapEntries[0].constantID = 0;
+	specializationMapEntries[0].offset = 0;
+	specializationMapEntries[0].size = sizeof(int);
+	specializationMapEntries[1].constantID = 1;
+	specializationMapEntries[1].offset = sizeof(int);
+	specializationMapEntries[1].size = sizeof(int);
+
 	VkSpecializationInfo specializationInfo = {
-		.mapEntryCount = 1,
-		.pMapEntries = &specializationMapEntry,
-		.dataSize = sizeof(int),
-		.pData = &this->viewSpaceNormals
+		.mapEntryCount = 2,
+		.pMapEntries = specializationMapEntries,
+		.dataSize = sizeof(SpecializationData),
+		.pData = &specializationData
 	};
 
 	VkPipelineShaderStageCreateInfo stages[2]{};

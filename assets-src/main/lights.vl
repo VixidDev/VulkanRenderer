@@ -1,10 +1,35 @@
 #Lights (vl)
 // Formatting:
-// point:       <vec3: position> <vec3: colour> <int: intensity>
-// directional: <vec3: direction> <vec3: colour> <int: intensity> (I assume every directional light is the sun, and so defining multiple directional lights is undefined (and probably breaks things))
-// spot:        <vec3: position> <vec3: direction> <vec3: colour> <int: intensity> <float: inner angle> <float: outer angle>
-directional:  0.34815531 -0.8703882 -0.34815531                         0.992 0.753 0.608 5
-//point:          -17.4077655 43.51941 17.4077655                           1.0 1.0 1.0 5
-//point:        0.0 7.3 -12.0                                    1.0 1.0 1.0 50
-//point:        0.0 12.0 -18.0                                            1.0 1.0 1.0 50
-spot:         0.0 4.0 -15.0 0.0 0.0 -1.0 1.0 1.0 1.0 50 35.0 40.0
+// point:       <vec3: position>                    <vec3: colour> <int: intensity> <int: shadow casting>
+// directional:                   <vec3: direction> <vec3: colour> <int: intensity> <int: shadow casting>
+// spot:        <vec3: position>  <vec3: direction> <vec3: colour> <int: intensity> <float: inner angle> <float: outer angle> <int: shadow casting>
+// (I assume every directional light is the sun, and so defining multiple directional lights is undefined (and probably breaks things))
+directional: 0.34815531 -0.8703882 -0.34815531                         0.992 0.753 0.608 5 1
+spot:   0.0 4.0 -15.0       0.0 0.0 -1.0       1.0 1.0 1.0   50   35.0 40.0 1
+// Brazier lights
+// Main room
+point: -2.0 -0.9 -10.2      0.8353 0.1804 0.0117     1 0
+point:  2.0 -0.9 -10.2      0.8353 0.1804 0.0117     1 0
+point: -5.7 -0.9 -12.2      0.8353 0.1804 0.0117     1 0
+point:  5.7 -0.9 -12.2      0.8353 0.1804 0.0117     1 0
+point: -7.9 -0.9 -15.8      0.8353 0.1804 0.0117     1 0
+point:  7.9 -0.9 -15.8      0.8353 0.1804 0.0117     1 0
+point: -3.1 -0.9 -25.8      0.8353 0.1804 0.0117     1 0
+point:  3.1 -0.9 -25.8      0.8353 0.1804 0.0117     1 0
+// Stand alone brazier
+point: -7.45 -0.9 -36.0     0.8353 0.1804 0.0117     1 0
+// 3 around 2nd angel
+point: -2.4 -3.0 -46.5      0.8353 0.1804 0.0117     1 0
+point:  2.4 -3.0 -46.5      0.8353 0.1804 0.0117     1 0
+point:  0.0 -3.7 -49.6      0.8353 0.1804 0.0117     1 0
+// 2 hallway
+point: -7.2 -2.9 -61.2      0.8353 0.1804 0.0117     1 0
+point:  7.2 -2.9 -61.2      0.8353 0.1804 0.0117     1 0
+// Back room
+point: -2.0 -2.9 -66.5      0.8353 0.1804 0.0117     1 0
+point:  2.0 -2.9 -66.5      0.8353 0.1804 0.0117     1 0
+point: -2.0 -2.9 -68.9      0.8353 0.1804 0.0117     1 0
+point:  2.0 -2.9 -68.9      0.8353 0.1804 0.0117     1 0
+point: -1.6 -2.9 -88.8      0.8353 0.1804 0.0117     1 0
+point:  1.6 -2.9 -88.8      0.8353 0.1804 0.0117     1 0
+point:  0.0 -3.9 -76.1      0.8353 0.1804 0.0117     1 0
