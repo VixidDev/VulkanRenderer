@@ -1735,8 +1735,6 @@ void Renderer::renderVSMShadowMaps() {
 		{
 			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
 
-			std::fprintf(stderr, "Rendering Directional Light shadow map!\n");
-
 			RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("directionalShadowVSM"), directionalLightIndex);
 			RendererUtils::bindGraphicPipeline(this->getPipeline("directionalShadowVSM")->getHandle());
 

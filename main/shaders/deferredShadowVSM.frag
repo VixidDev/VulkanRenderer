@@ -154,7 +154,7 @@ void main() {
 
 	vec3 normal = texture(gBuffer1, v2fTexCoord).rgb;
 	// Map normals from [0, 1] (gBuffer format is UNORM) back to [-1, 1]
-	normal = normal * 2.0 - 1.0;
+	normal = normalize(normal * 2.0 - 1.0);
 
 	if (VIEW_SPACE_NORMALS == 1) {
 		normal = normalize(mat3(inverses.invView) * normal);
