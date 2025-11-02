@@ -182,6 +182,12 @@ void GUI::draw() {
 			ImGui::Separator();
 
 			if (ImGui::InputInt("Num of lights", &renderer.numLights)) {
+				// Ideally we use this in very few places, but we use it here since we need to wait
+				// for either the Forward or Deferred Shading pipeline to have finished execution on
+				// the GPU before recreating them (since recreation destroys the current one) in order
+				// to update the shader specialization constants. Also the number of lights should rarely
+				// be ever changed anyway.
+				vkDeviceWaitIdle(renderer.getContext().window->getDevice()->getDevice());
 				// Recreate rendering pipelines to update NUM_LIGHTS specialization constants
 				dynamic_cast<ForwardPipeline*>(renderer.getPipeline("forward"))->recreate();
 				dynamic_cast<DeferredShadingPipeline*>(renderer.getPipeline("deferredShading"))->recreate();
