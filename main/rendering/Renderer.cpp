@@ -179,7 +179,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	// depth - standard depth buffer
 	this->textureBuffers.emplace("depth", std::make_unique<DepthTextureBuffer>(&this->context));
 	// gBuffers - g-buffers used in deferred rendering
-	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_A2R10G10B10_UNORM_PACK32));
+	this->textureBuffers.emplace("gBuffer1", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_B10G11R11_UFLOAT_PACK32));
 	this->textureBuffers.emplace("gBuffer2", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 	this->textureBuffers.emplace("gBuffer3", std::make_unique<ColourTextureBuffer>(&this->context, VK_FORMAT_R8G8B8A8_UNORM));
 	// blurOutput - output of blur in bloom post processing
@@ -969,7 +969,7 @@ void Renderer::render() {
 	if (this->numPointLights == 0) {
 		RendererUtils::imageBarrier(this->getTextureBuffer("pointShadows")->getImage().image, 
 			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 6 });
 		RendererUtils::imageBarrier(this->getTextureBuffer("pointShadowsVSM")->getImage().image, 
@@ -981,7 +981,7 @@ void Renderer::render() {
 	if (this->numDirectionalLights == 0) {
 		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadow")->getImage().image, 
 			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
 		RendererUtils::imageBarrier(this->getTextureBuffer("directionalShadowVSM")->getImage().image, 
@@ -993,7 +993,7 @@ void Renderer::render() {
 	if (this->numSpotLights == 0) {
 		RendererUtils::imageBarrier(this->getTextureBuffer("spotShadows")->getImage().image, 
 			VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_NONE,
-			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
 			VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
 			VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
 		RendererUtils::imageBarrier(this->getTextureBuffer("spotShadowsVSM")->getImage().image, 
