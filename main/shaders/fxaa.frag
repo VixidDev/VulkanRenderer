@@ -26,7 +26,7 @@ void main() {
 		FxaaFloat4(0.0),	// FxaaFloat4 fxaaConsoleRcpFrameOpt
 		FxaaFloat4(0.0),	// FxaaFloat4 fxaaConsoleRcpFrameOpt2
 		FxaaFloat4(0.0),	// FxaaFloat4 fxaaConsole360RcpFrameOpt2
-		1.0,				// FxaaFloat  fxaaQualitySubpix
+		0.0,				// FxaaFloat  fxaaQualitySubpix
 		0.166,				// FxaaFloat  fxaaQualityEdgeThreshold
 		0.0833,				// FxaaFloat  fxaaQualityEdgeThresholdMin
 		0.0,				// FxaaFloat  fxaaConsoleEdgeSharpness
