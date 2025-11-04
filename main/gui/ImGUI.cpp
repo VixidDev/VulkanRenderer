@@ -80,7 +80,7 @@ static void HelpMarker(const char* desc) {
 void GUI::draw() {
 	Renderer& renderer = this->driver->getRenderer();
 
-	ImGui::ShowDemoWindow();
+	//ImGui::ShowDemoWindow();
 
 	SSAOPreProcess* ssaoPPE = renderer.getSSAOPreProcess();
 
@@ -153,6 +153,8 @@ void GUI::draw() {
 			if (ImGui::SliderFloat("Camera Far Plane", &camera->getFarPlane(), 1.0f, 1024.0f)) {
 				camera->markProjectionDirty();
 			}
+
+			ImGui::SliderFloat("Sensitivity", &camera->getSensitivity(), 0.0001f, 1.0f);
 
 			ImGui::EndTabItem();
 		}
@@ -332,13 +334,12 @@ void GUI::draw() {
 				ImGui::RadioButton("Show Normals", &renderer.getDebugState(), 0);
 				ImGui::RadioButton("Show Mipmap Levels", &renderer.getDebugState(), 1);
 				ImGui::RadioButton("Show Linear Depth", &renderer.getDebugState(), 2);
-				ImGui::RadioButton("Show Partial Derivatives", &renderer.getDebugState(), 3);
 				ImGui::RadioButton("Show Overdraw", &renderer.getDebugState(), 7);
 				ImGui::RadioButton("Show Overshading", &renderer.getDebugState(), 8);
 				ImGui::Text("PBR Debug"); ImGui::SameLine(); HelpMarker("Some of the PBR debug views will appear overexposed when multiple lights are active, they only really serve to show if the selected PBR function is working");
-				ImGui::RadioButton("Show Distribution Function", &renderer.getDebugState(), 4);
-				ImGui::RadioButton("Show Geometry Function", &renderer.getDebugState(), 5);
-				ImGui::RadioButton("Show Fresnel Function", &renderer.getDebugState(), 6);
+				ImGui::RadioButton("Show Distribution Function", &renderer.getDebugState(), 3);
+				ImGui::RadioButton("Show Geometry Function", &renderer.getDebugState(), 4);
+				ImGui::RadioButton("Show Fresnel Function", &renderer.getDebugState(), 5);
 			}
 
 			ImGui::EndTabItem();
