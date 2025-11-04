@@ -26,7 +26,7 @@ Deferred pass therefore only uses 128 bits per pixel to pass data from the writi
 
 ### Shadows
 
-Integrated both Standard Shadow Mapping, utilising hardware PCF filtering using `Shadow` samplers in shaders, aswell as Variance Shadow Mapping to allow for softer shadow edges with an adjustable tap filter for the blurring stage. Shadows are implemented for point lights, directional lights, and spot lights. Each with their shadow map resolution being variable.
+Integrated both Standard Shadow Mapping, utilising hardware PCF filtering using `Shadow` samplers in shaders, as well as Variance Shadow Mapping to allow for softer shadow edges with an adjustable tap filter for the blurring stage. Shadows are implemented for point lights, directional lights, and spot lights. Each with their shadow map resolution being variable.
 
 | Standard Shadow Mapping | Variance Shadow Mapping |
 |---|---|
@@ -56,7 +56,7 @@ Given the depth, view-space normals, and a 4x4 noise texture precomputed on init
 
 After the occlusion is written to a texture of format `VK_FORMAT_R8_UNORM` it is blurred to hide the noise-y appearance due to using a 4x4 random noise texture and to have generally smooth ambient occlusions. When blurring the occlusion texture, edges of geometry which resulted in no occlusion can blur into edges of heavy occlusion and create a halo-ing effect around geometry where there should be ambient occlusion. To solve this a bilateral filter is used during the blurring process so large differences in depth and normals skip being blurred.
 
-To improve performance the SSAO step is done at half resolution and then upscaled during the blurring stage. Since we use Gaussian blurring it is seperable and we can split the blur stage into a horizontal and vertical blur pass reducing the number of samples from $N^2$ to $2N$. We also can utilise bilinear texture filtering to get information about multiple pixels by not sampling at center of texel positions. More info about this can be found [here](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/).
+To improve performance the SSAO step is done at half resolution and then upscaled during the blurring stage. Since we use Gaussian blurring it is separable and we can split the blur stage into a horizontal and vertical blur pass reducing the number of samples from $N^2$ to $2N$. We also can utilise bilinear texture filtering to get information about multiple pixels by not sampling at centre of texel positions. More info about this can be found [here](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/).
 
 (Clicking on and opening up the images may be required to see the differences clearly)
 
@@ -122,7 +122,7 @@ As a quick and efficient anti-aliasing method, FXAA is integrated to provide cle
 
 Another post-processing effect that results in giving a 'Mosaic' effect to simulate older-style graphics by essentially reducing the screen resolution by taking a kernel of pixels and using 1 pixel value from that kernel region and using it for the entire kernel. The resolution reduction is essentially a reduction of 5 in the width and a reduction of 3 in the height.
 
-The larger the native resolution the less 'pixellated' or 'mosaic' the final image, but heavy pixellation on larger resolutions start to look quite unappealing, hence the reduction in resolution by a scale factor instead of making the reduced resolution the same for every native resolution.
+The larger the native resolution the less 'pixellated' or 'mosaic' the final image, but heavy pixelation on larger resolutions start to look quite unappealing, hence the reduction in resolution by a scale factor instead of making the reduced resolution the same for every native resolution.
 
 <div align="center">
     <img alt="mosaic_1920_1080" src="screenshots/mosaic_1920_1080.png" width="32%"/>
@@ -183,7 +183,7 @@ Both CPU and GPU timestamps are wrapped in a `TimestampManager` to easily handle
     <p>(Not everything that happens on the CPU and GPU are recorded in this screenshot, it is only an example)</p>
 </div>
 
-## Optmisations
+## Optimisations
 
 There are some optimisations that were used not specific to a certain features implementation. Such as: 
 
