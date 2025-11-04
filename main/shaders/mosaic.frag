@@ -9,13 +9,12 @@ layout(location = 0) out vec4 oColor;
 void main() {
     vec2 size = textureSize(resultImage, 0);
 
-    // TODO: maybe scale kernel size based on framebuffer extent
-    // since current size is not very noticable on large resolutions
-    // like 4k
-    float kernelWidth = 5.0f / size.x;
-    float kernelHeight = 3.0f / size.y;
+    // Kernel sizes essentially results in reducing 
+    // width resolution by 5 and width resolution by 3
+    float kernelWidth  = 1.0 / (size.x / 5.0);
+    float kernelHeight = 1.0 / (size.y / 3.0);
 
-    vec2 sampleCoord = vec2(kernelWidth * floor(v2fTexCoord.x / kernelWidth), 
+    vec2 sampleCoord = vec2(kernelWidth  * floor(v2fTexCoord.x / kernelWidth), 
                             kernelHeight * floor(v2fTexCoord.y / kernelHeight));
                             
     // Get size of half a pixel
