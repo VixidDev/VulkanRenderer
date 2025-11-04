@@ -38,11 +38,15 @@ public:
 	glm::mat4 getView();
 	glm::mat4 getInvView();
 
+	float& getSensitivity();
+
 	std::array<glm::vec4, 8> getFrustumCorners();
 
 	float getYaw();
 	float getPitch();
 private:
+	void playAnimation(float timeDelta);
+
 	Swapchain* swapchain;
 
 	float fov;
@@ -62,4 +66,8 @@ private:
 	float pitch = 0.0f;
 	float lastX = 0.0f;
 	float lastY = 0.0f;
+
+	bool animating = false;
+	float animationDuration = 16.0f;
+	float animationTimer = 0.0f;
 };
