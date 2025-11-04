@@ -161,8 +161,8 @@ The renderer also provides various debug visualisations to help visualise some v
 |---|---|---|---|
 | Normals | <img alt="debug_normals" src="screenshots/debug_normals.png" width="100%"/> | Mipmap level | <img alt="debug_mipmap_levels" src="screenshots/debug_mipmap_levels.png" width="100%"/> |
 | Linear depth | <img alt="debug_linear_depth" src="screenshots/debug_linear_depth.png" width="100%"/> | Overdraw | <img alt="debug_overdraw" src="screenshots/debug_overdraw.png" width="100%"/> |
-| Overshading | <img alt="debug_overshading" src="screenshots/debug_overshading.png" width="100%"/> | PBR Distribution | <img alt="debug_pbr_distribution" src="screenshots/pbr_distribution.png" width="100%"/> |
-| PBR Geometry | <img alt="debug_pbr_geometry" src="screenshots/pbr_geometry.png" width="100%"/> | PBR Fresnel | <img alt="debug_pbr_fresnel" src="screenshots/pbr_fresnel.png" width="100%"/> |
+| Overshading | <img alt="debug_overshading" src="screenshots/debug_overshading.png" width="100%"/> | PBR Distribution | <img alt="debug_pbr_distribution" src="screenshots/debug_pbr_distribution.png" width="100%"/> |
+| PBR Geometry | <img alt="debug_pbr_geometry" src="screenshots/debug_pbr_geometry.png" width="100%"/> | PBR Fresnel | <img alt="debug_pbr_fresnel" src="screenshots/debug_pbr_fresnel.png" width="100%"/> |
 
 ### Skybox & Sun
 
