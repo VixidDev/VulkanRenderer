@@ -2,7 +2,7 @@
 
 Initially a university project to create a Vulkan renderer of the [Sun Temple](https://developer.nvidia.com/ue4-sun-temple) scene from [NVIDIA ORCA](https://developer.nvidia.com/orca), then further developed to implement various rendering techniques.
 
-<video alt="preview_video" src="screenshots/updated_preview.mp4" controls></video>
+https://github.com/user-attachments/assets/85dbd5be-3ceb-4167-818c-3193f74f3f9a
 
 ## Features
 
@@ -58,6 +58,8 @@ After the occlusion is written to a texture of format `VK_FORMAT_R8_UNORM` it is
 
 To improve performance the SSAO step is done at half resolution and then upscaled during the blurring stage. Since we use Gaussian blurring it is seperable and we can split the blur stage into a horizontal and vertical blur pass reducing the number of samples from $N^2$ to $2N$. We also can utilise bilinear texture filtering to get information about multiple pixels by not sampling at center of texel positions. More info about this can be found [here](https://www.rastergrid.com/blog/2010/09/efficient-gaussian-blur-with-linear-sampling/).
 
+(Clicking on and opening up the images may be required to see the differences clearly)
+
 <div align="center">
     <img alt="ssao_off" src="screenshots/ssao_off.png" width="40%"/>
     <img alt="ssao_on" src="screenshots/ssao_on.png" width="40%"/>
@@ -77,9 +79,9 @@ Bloom is one of the post-processing effects incorporated into the renderer. It i
 Afterwards the resulting blurred texture is composited together with the original shaded scene before either being presented or going through further post-processing.
 
 <div align="center">
-    <img alt="bloom_off" src="screenshots/bloom_off.png" width="33%"/>
-    <img alt="bloom_on_1" src="screenshots/bloom_on_1.png" width="33%"/>
-    <img alt="bloom_on_10" src="screenshots/bloom_on_10.png" width="33%"/>
+    <img alt="bloom_off" src="screenshots/bloom_off.png" width="32%"/>
+    <img alt="bloom_on_1" src="screenshots/bloom_on_1.png" width="32%"/>
+    <img alt="bloom_on_10" src="screenshots/bloom_on_10.png" width="32%"/>
     <p>1st: Bloom off. 2nd: Bloom on (1 iteration). 3rd: Bloom on (10 iterations).</p>
 </div>
 
@@ -91,8 +93,8 @@ The tonemap stage is currently before any LDR dependent / HDR independent stages
 
 Tonemapping functions:
 - Just gamma: Only applies the sRGB gamma correction with no other colour adjustment.
-- [Filmic]((http://filmicworlds.com/blog/filmic-tonemapping-operators/)): Approximation of Digital Fusion Cineon mode by Jim Hejl and Richard Burgess-Dawson.
-- [Uncharted]((http://filmicworlds.com/blog/filmic-tonemapping-operators/)): The tonemapping function used in Uncharted 2 by John Hable.
+- [Filmic](http://filmicworlds.com/blog/filmic-tonemapping-operators/): Approximation of Digital Fusion Cineon mode by Jim Hejl and Richard Burgess-Dawson.
+- [Uncharted](http://filmicworlds.com/blog/filmic-tonemapping-operators/): The tonemapping function used in Uncharted 2 by John Hable.
 - [ACES](https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl): The ACES tonemapping approximation by Stephen Hill.
 - [AgX](https://iolite-engine.com/blog_posts/minimal_agx_implementation): Benjamin Wrensch's approximation of Troy Sobotka's AgX tonemapping function.
 
@@ -100,11 +102,11 @@ At the end of the tonemapping shader, luma is also calculated and stored in the 
 
 | Tonemap | Image |
 |---|---|
-| Just gamma | <img alt="just_gamma_tonemap" src="screenshots/tonemapping_gamma.png" width="50%"/> |
-| Filmic | <img alt="filmic_tonemap" src="screenshots/tonemapping_filmic.png" width="50%"/> |
-| Uncharted | <img alt="uncharted_tonemap" src="screenshots/tonemapping_uncharted.png" width="50%"/> |
-| ACES | <img alt="aces_tonemap" src="screenshots/tonemapping_aces.png" width="50%"/> |
-| AgX | <img alt="agx_tonemap" src="screenshots/tonemapping_agx.png" width="50%"/> |
+| Just gamma | <img alt="just_gamma_tonemap" src="screenshots/tonemapping_gamma.png" width="100%"/> |
+| Filmic | <img alt="filmic_tonemap" src="screenshots/tonemapping_filmic.png" width="100%"/> |
+| Uncharted | <img alt="uncharted_tonemap" src="screenshots/tonemapping_uncharted.png" width="100%"/> |
+| ACES | <img alt="aces_tonemap" src="screenshots/tonemapping_aces.png" width="100%"/> |
+| AgX | <img alt="agx_tonemap" src="screenshots/tonemapping_agx.png" width="100%"/> |
 
 ### Fast-Approximation Anti-Aliasing (FXAA)
 
@@ -123,9 +125,9 @@ Another post-processing effect that results in giving a 'Mosaic' effect to simul
 The larger the native resolution the less 'pixellated' or 'mosaic' the final image, but heavy pixellation on larger resolutions start to look quite unappealing, hence the reduction in resolution by a scale factor instead of making the reduced resolution the same for every native resolution.
 
 <div align="center">
-    <img alt="mosaic_1920_1080" src="screenshots/mosaic_1920_1080.png" width="33%"/>
-    <img alt="mosaic_2560_1440" src="screenshots/mosaic_2560_1440.png" width="33%"/>
-    <img alt="mosaic_3840_2066" src="screenshots/mosaic_3840_2066.png" width="33%"/>
+    <img alt="mosaic_1920_1080" src="screenshots/mosaic_1920_1080.png" width="32%"/>
+    <img alt="mosaic_2560_1440" src="screenshots/mosaic_2560_1440.png" width="32%"/>
+    <img alt="mosaic_3840_2066" src="screenshots/mosaic_3840_2066.png" width="32%"/>
     <p>1st: Mosaic @ 1920x1080. 2nd: Mosaic @ 2560x1440. 3rd: Mosaic @ 3840x2066.</p>
 </div>
 
@@ -161,8 +163,8 @@ The renderer also provides various debug visualisations to help visualise some v
 |---|---|---|---|
 | Normals | <img alt="debug_normals" src="screenshots/debug_normals.png" width="100%"/> | Mipmap level | <img alt="debug_mipmap_levels" src="screenshots/debug_mipmap_levels.png" width="100%"/> |
 | Linear depth | <img alt="debug_linear_depth" src="screenshots/debug_linear_depth.png" width="100%"/> | Overdraw | <img alt="debug_overdraw" src="screenshots/debug_overdraw.png" width="100%"/> |
-| Overshading | <img alt="debug_overshading" src="screenshots/debug_overshading.png" width="100%"/> | PBR Distribution | <img alt="debug_pbr_distribution" src="screenshots/pbr_distribution.png" width="100%"/> |
-| PBR Geometry | <img alt="debug_pbr_geometry" src="screenshots/pbr_geometry.png" width="100%"/> | PBR Fresnel | <img alt="debug_pbr_fresnel" src="screenshots/pbr_fresnel.png" width="100%"/> |
+| Overshading | <img alt="debug_overshading" src="screenshots/debug_overshading.png" width="100%"/> | PBR Distribution | <img alt="debug_pbr_distribution" src="screenshots/debug_pbr_distribution.png" width="100%"/> |
+| PBR Geometry | <img alt="debug_pbr_geometry" src="screenshots/debug_pbr_geometry.png" width="100%"/> | PBR Fresnel | <img alt="debug_pbr_fresnel" src="screenshots/debug_pbr_fresnel.png" width="100%"/> |
 
 ### Skybox & Sun
 
