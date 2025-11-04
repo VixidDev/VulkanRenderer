@@ -62,7 +62,11 @@ void main() {
 		normal = normalize(v2fTBN * tangentNormal);
 	}
 
-    vec3 total = vec3(0.0);
+    vec3 lightPos;
+    vec3 lightDir;
+    vec3 viewDir;
+    float roughness;
+    vec3 halfway;
 
     switch(pConsts.debugState) {
         // Normals
@@ -80,78 +84,58 @@ void main() {
             break;
         // Linear fragment depth
         case 2:
-            oColour = vec4(vec3(lineariseDepth(gl_FragCoord.z) / 100.0), 1.0);
-            break;
-        // Partial derivatives
-        case 3:
-            float depth = lineariseDepth(gl_FragCoord.z);
-
-            float dx = dFdx(depth) * 5;
-            float dy = dFdy(depth) * 5;
-
-            // float dx = abs(dFdx(gl_FragCoord.z)) * 200;
-            // float dy = abs(dFdy(gl_FragCoord.z)) * 200;
-
-            oColour = vec4(dx, dy, 0.0, 1.0);
+            oColour = vec4(vec3((lineariseDepth(gl_FragCoord.z) - planes.near) / (planes.far - planes.near)), 1.0);
             break;
         // PBR distribution function
-        case 4:
-            for (int i = 0; i < pConsts.lightCount; i++) {
-                vec3 lightPos = lights[i].positionAndLightType.xyz;
-                vec3 lightDir = normalize(lightPos - v2fPosition);
-                vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
-                vec3 halfway = normalize(viewDir + lightDir);
+        case 3:
+            lightPos = lights[0].positionAndLightType.xyz;
+            lightDir = normalize(lightPos - v2fPosition);
+            viewDir = normalize(mvp.camPos.rgb - v2fPosition);
+            halfway = normalize(viewDir + lightDir);
 
-                float nDotH = dot(normal, halfway);
+            float nDotH = dot(normal, halfway);
 
-                float roughnessSqrt = texture(uRoughness, v2fTexCoord).r;
-                float roughness = roughnessSqrt * roughnessSqrt;
+            roughness = texture(uRoughness, v2fTexCoord).r;
+            float a = roughness * roughness;
+            float a2 = a * a;
 
-                float distribution = BeckmannDistribution(max(nDotH, 0.0001), roughness);
-                total += vec3(distribution);
-            }
+            float distribution = BeckmannDistribution(max(nDotH, 0.0), a2);
             
-            oColour = vec4(total, 1.0);
+            oColour = vec4(vec3(distribution), 1.0);
             break;
         // PBR geometry function
-        case 5:
-            for (int i = 0; i < pConsts.lightCount; i++) {
-                vec3 lightPos = lights[i].positionAndLightType.xyz;
-                vec3 lightDir = normalize(lightPos - v2fPosition);
-                vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
-                vec3 halfway = normalize(viewDir + lightDir);
+        case 4:
+            lightPos = lights[0].positionAndLightType.xyz;
+            lightDir = normalize(lightPos - v2fPosition);
+            viewDir = normalize(mvp.camPos.rgb - v2fPosition);
 
-                float nDotH = dot(normal, halfway);
-                float nDotV = dot(normal, viewDir);
-                float nDotL = dot(normal, lightDir);
+            float nDotL = dot(normal, lightDir);
+            float nDotV = dot(normal, viewDir);
 
-                float geometry = CookTorranceGeometry(viewDir, halfway, nDotH, nDotV, nDotL);
-                total += vec3(geometry);
-            }
+            roughness = texture(uRoughness, v2fTexCoord).r;
 
-            oColour = vec4(total, 1.0);
+            float geometry = GeometrySmith(nDotL, nDotV, roughness);
+
+            oColour = vec4(vec3(geometry), 1.0);
             break;
         // PBR fresnel function
-        case 6:
-            for (int i = 0; i < pConsts.lightCount; i++) {
-                vec3 lightPos = lights[i].positionAndLightType.xyz;
-                vec3 lightDir = normalize(lightPos - v2fPosition);
-                vec3 viewDir = normalize(mvp.camPos.rgb - v2fPosition);
-                vec3 halfway = normalize(viewDir + lightDir);
+        case 5:
+            lightPos = lights[0].positionAndLightType.xyz;
+            lightDir = normalize(lightPos - v2fPosition);
+            viewDir = normalize(mvp.camPos.rgb - v2fPosition);
+            halfway = normalize(viewDir + lightDir);
 
-                float hDotV = dot(halfway, viewDir);
+            float hDotV = dot(halfway, viewDir);
 
-                float metalness = texture(uMetalness, v2fTexCoord).r;
-                vec3 albedo = texture(uTexColour, v2fTexCoord).rgb;
+            float metalness = texture(uMetalness, v2fTexCoord).r;
+            vec3 albedo = texture(uTexColour, v2fTexCoord).rgb;
 
-                vec3 F0 = vec3(0.04);
-                F0 = mix(F0, albedo, metalness);
+            vec3 F0 = vec3(0.04);
+            F0 = mix(F0, albedo, metalness);
 
-                vec3 F = FresnelSchlick(max(hDotV, 0.0), F0);
-                total += F;
-            }
+            vec3 F = FresnelSchlick(hDotV, F0);
 
-            oColour = vec4(total, 1.0);
+            oColour = vec4(F, 1.0);
             break;
         default:
             oColour = texture(uTexColour, v2fTexCoord).rgba;
