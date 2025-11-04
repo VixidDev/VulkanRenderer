@@ -13,7 +13,6 @@ void DeferredWritingPass::recreate() {
 	VkAttachmentDescription attachments[4]{};
 	// G-Buffers
 	// normals = rgb
-	//attachments[0].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
 	attachments[0].format = VK_FORMAT_B10G11R11_UFLOAT_PACK32;
 	attachments[0].samples = VK_SAMPLE_COUNT_1_BIT;
 	attachments[0].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
