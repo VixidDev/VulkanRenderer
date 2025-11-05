@@ -74,9 +74,9 @@ To improve performance the SSAO step is done at half resolution and then upscale
 
 ### Bloom
 
-Bloom is one of the post-processing effects incorporated into the renderer. It is implemented by writing to a 'brightness' render target for bright enough pixels during the shading stage of either forward or deferred. This texture is then blurred using a Gaussian blur the same way as with SSAO blurring, through horizontal and vertical passes. Since multiple blur iterations can be configured to be used to achieve a greater bloom effect, the render target and framebuffer for each iteration and direction (horizontal or vertical pass) is ping-ponged so only 2 buffers ever used for an arbitrary number of iterations.
+Bloom is one of the post-processing effects incorporated into the renderer. It is implemented by writing to a 'brightness' render target for bright enough pixels during the shading stage of either forward or deferred. This texture is then blurred using a Gaussian blur the same way as with SSAO blurring, through horizontal and vertical passes. Since multiple blur iterations can be configured to be used to achieve a greater bloom effect, the render target and framebuffer for each iteration and direction (horizontal or vertical pass) is ping-ponged so only 2 buffers are ever used for an arbitrary number of iterations.
 
-Afterwards the resulting blurred texture is composited together with the original shaded scene before either being presented or going through further post-processing.
+Afterwards the resulting blurred texture is composited together with the original shaded scene, before either being presented or going through further post-processing.
 
 <div align="center">
     <img alt="bloom_off" src="screenshots/bloom_off.png" width="32%"/>
@@ -87,7 +87,7 @@ Afterwards the resulting blurred texture is composited together with the origina
 
 ### Tonemapping
 
-Since rendering is done in HDR due to some features needing HDR computed values (i.e. bloom) a tonemapping stage is needed. This stage is always enabled since we render to an sRGB swapchain image by blitting the final image instead of rendering directly to it in a render pass, and this stage does the sRGB correction as part of it. 
+Since rendering is done in HDR due to some features needing HDR computed values (i.e. bloom), a tonemapping stage is needed. This stage is always enabled since we render to an sRGB swapchain image by blitting the final image instead of rendering directly to it in a render pass, and this stage does the sRGB correction.
 
 The tonemap stage is currently before any LDR dependent / HDR independent stages (i.e. FXAA or Mosaic) and applies one of the various tonemap functions that are implemented. These tonemapping functions either have sRGB correction built-in or have it applied afterwards.
 
@@ -98,7 +98,7 @@ Tonemapping functions:
 - [ACES](https://github.com/TheRealMJP/BakingLab/blob/master/BakingLab/ACES.hlsl): The ACES tonemapping approximation by Stephen Hill.
 - [AgX](https://iolite-engine.com/blog_posts/minimal_agx_implementation): Benjamin Wrensch's approximation of Troy Sobotka's AgX tonemapping function.
 
-At the end of the tonemapping shader, luma is also calculated and stored in the alpha channel of the render target since FXAA could be the next stage if it is enabled, where it is needed as an input.
+At the end of the tonemapping shader, luma is also calculated and stored in the alpha channel of the render target, since FXAA could be the next stage if it is enabled, where it is needed as an input.
 
 | Tonemap | Image |
 |---|---|
@@ -110,7 +110,7 @@ At the end of the tonemapping shader, luma is also calculated and stored in the 
 
 ### Fast-Approximation Anti-Aliasing (FXAA)
 
-As a quick and efficient anti-aliasing method, FXAA is integrated to provide clean and sharp edges on geometry viewed at non-planar or perpendicular angles, as well as single-pixel light bleeding in geometry such as foliage. The implemented FXAA uses the commonly used `Fxaa3_11.h` shader header file from Timothy Lottes using the highest quality defines for the PC preset: `FXAA_PC 1` and `FXAA_QUALITY__PRESET 39`, the `fxaaQualitySubpix` parameter is also set to `0.0` for the least amount of pixel blurring.
+As a quick and efficient anti-aliasing method, FXAA is integrated to provide clean and sharp edges on geometry viewed at angles, as well as single-pixel light bleeding in geometry such as foliage. The implemented FXAA uses the commonly used `Fxaa3_11.h` shader header file from Timothy Lottes using the highest quality defines for the PC preset: `FXAA_PC 1` and `FXAA_QUALITY__PRESET 39`, the `fxaaQualitySubpix` parameter is also set to `0.0` for the least amount of pixel blurring.
 
 <div align="center">
     <img alt="fxaa_off" src="screenshots/fxaa_off.png" width="49%"/>
