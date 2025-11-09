@@ -605,7 +605,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		switch (light.getLightType()) {
 		case LightType::POINT:
 		{
-			lightStruct.directionAndMapIndex.w = pointLightIndex;
+			lightStruct.directionAndMapIndex.w = (float)pointLightIndex;
 			pointLightIndex++;
 			break;
 		}
@@ -621,14 +621,14 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			this->sunLightIndex = i;
 			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection.get() * this->sunMatrices.view.get());
 
-			lightStruct.extra.z = matrixDependentIndex;
+			lightStruct.extra.z = (float)matrixDependentIndex;
 
 			matrixDependentIndex++;
 			break;
 		}
 		case LightType::SPOT:
 		{
-			lightStruct.directionAndMapIndex.w = spotLightIndex;
+			lightStruct.directionAndMapIndex.w = (float)spotLightIndex;
 
 			glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 256.0f);
 			projection[1][1] *= -1.0;
@@ -637,7 +637,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 			this->ssbos.lightMatrices.emplace_back(projection * view);
 			this->ssbos.lightMatrices.emplace_back(view);
 
-			lightStruct.extra.z = matrixDependentIndex;
+			lightStruct.extra.z = (float)matrixDependentIndex;
 
 			spotLightIndex++;
 			matrixDependentIndex++;
@@ -1165,12 +1165,12 @@ void Renderer::renderForward() {
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("lightMatrices")));
 	}
 
-	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("forward")->getHandle(), 0, descriptorSets.size(), descriptorSets.data());
+	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("forward")->getHandle(), 0, std::uint32_t(descriptorSets.size()), descriptorSets.data());
 
 	std::function<void(MeshData&)> perMeshCallback = [this, &descriptorSets](MeshData& meshData) {
 		// Material descriptor should always be last descriptor since its per mesh
 		RendererUtils::bindGraphicDescriptorSets(
-			this->getPipelineLayout("forward")->getHandle(), descriptorSets.size(), 1,
+			this->getPipelineLayout("forward")->getHandle(), std::uint32_t(descriptorSets.size()), 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId));
 	};
 
@@ -1214,7 +1214,7 @@ void Renderer::renderForward() {
 	descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("mvp")));
 
 	RendererUtils::bindGraphicDescriptorSets(
-		this->getPipelineLayout("sunView")->getHandle(), 0, descriptorSets.size(),
+		this->getPipelineLayout("sunView")->getHandle(), 0, std::uint32_t(descriptorSets.size()),
 		descriptorSets.data());
 
 	RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
@@ -1222,7 +1222,7 @@ void Renderer::renderForward() {
 	perMeshCallback = [this, &descriptorSets](MeshData& meshData) {
 		// Material descriptor should always be last descriptor since its per mesh
 		RendererUtils::bindGraphicDescriptorSets(
-			this->getPipelineLayout("sunView")->getHandle(), descriptorSets.size(), 1,
+			this->getPipelineLayout("sunView")->getHandle(), std::uint32_t(descriptorSets.size()), 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId));
 		};
 
@@ -1372,7 +1372,7 @@ void Renderer::renderDeferred() {
 	}
 
 	RendererUtils::bindGraphicDescriptorSets(
-		this->getPipelineLayout("deferredShading")->getHandle(), 0, descriptorSets.size(),
+		this->getPipelineLayout("deferredShading")->getHandle(), 0, std::uint32_t(descriptorSets.size()),
 		descriptorSets.data());
 
 	RendererUtils::drawDirect(3, 1, 0, 0);
@@ -1420,7 +1420,7 @@ void Renderer::renderDebugViews() {
 		descriptorSets.emplace_back(RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("cameraPlanes")));
 
 		RendererUtils::bindGraphicDescriptorSets(
-			this->getPipelineLayout("debugViews")->getHandle(), 0, descriptorSets.size(),
+			this->getPipelineLayout("debugViews")->getHandle(), 0, std::uint32_t(descriptorSets.size()),
 			descriptorSets.data());
 
 		RendererUtils::setCullMode(VK_CULL_MODE_BACK_BIT);
@@ -1428,13 +1428,13 @@ void Renderer::renderDebugViews() {
 		RendererUtils::bindGraphicPipeline(this->getPipeline("overVisualisation")->getHandle());
 
 		RendererUtils::bindGraphicDescriptorSets(
-			this->getPipelineLayout("overVisualisation")->getHandle(), 0, descriptorSets.size(),
+			this->getPipelineLayout("overVisualisation")->getHandle(), 0, std::uint32_t(descriptorSets.size()),
 			descriptorSets.data());
 	}
 
 	auto perMeshCallbackDebug = [this, &descriptorSets](MeshData& meshData) {
 		RendererUtils::bindGraphicDescriptorSets(
-			this->getPipelineLayout("debugViews")->getHandle(), descriptorSets.size(), 1,
+			this->getPipelineLayout("debugViews")->getHandle(), std::uint32_t(descriptorSets.size()), 1,
 			&this->driver->getMaterialDescriptors().at(meshData.materialId));
 		};
 
@@ -1521,7 +1521,7 @@ void Renderer::renderShadowMaps() {
 			// Render to each face of the cube map
 			for (std::size_t face = 0; face < 6; face++) {
 				// Calculate layer index
-				std::uint32_t layer = (pointLightIndex * 6) + face;
+				std::uint32_t layer = (pointLightIndex * 6) + std::uint32_t(face);
 
 				RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("pointShadows"), layer);
 
@@ -1691,7 +1691,7 @@ void Renderer::renderVSMShadowMaps() {
 			// Render to each face of the cube map
 			for (std::size_t face = 0; face < 6; face++) {
 				// Calculate layer index
-				std::uint32_t layer = (pointLightIndex * 6) + face;
+				std::uint32_t layer = (pointLightIndex * 6) + std::uint32_t(face);
 
 				RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("pointShadowsVSM"), layer);
 				RendererUtils::bindGraphicPipeline(this->getPipeline("pointShadowsVSM")->getHandle());
@@ -2097,7 +2097,7 @@ LightMatrices& Renderer::getSunMatrices() {
 }
 
 std::uint32_t Renderer::getSunLightIndex() {
-	return this->sunLightIndex;
+	return std::uint32_t(this->sunLightIndex);
 }
 
 void Renderer::setRecreateSwapchain(bool value, bool force) {

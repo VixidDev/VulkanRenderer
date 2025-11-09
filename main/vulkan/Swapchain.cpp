@@ -24,10 +24,10 @@ Swapchain::Swapchain(VulkanWindow* window) : window(window) {
 		VkPresentModeKHR mode = this->presentModes.at(i);
 		
 		if (mode == VK_PRESENT_MODE_FIFO_KHR)
-			this->presentMode = i;
+			this->presentMode = (int)i;
 
 		if (mode == VK_PRESENT_MODE_FIFO_RELAXED_KHR) {
-			this->presentMode = i;
+			this->presentMode = (int)i;
 			break;
 		}
 	}
@@ -80,8 +80,8 @@ SwapChanges Swapchain::recreate(bool firstTime) {
 		this->swapchainExtent.height = std::clamp(std::uint32_t(height), min.height, max.height);
 	}
 
-	this->halfSwapchainExtent.width = this->swapchainExtent.width / 2.0f;
-	this->halfSwapchainExtent.height = this->swapchainExtent.height / 2.0f;
+	this->halfSwapchainExtent.width = std::uint32_t(this->swapchainExtent.width / 2.0f);
+	this->halfSwapchainExtent.height = std::uint32_t(this->swapchainExtent.height / 2.0f);
 
 	VkSwapchainCreateInfoKHR swapchainInfo{};
 	swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;

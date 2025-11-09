@@ -208,14 +208,14 @@ void updateImageDescriptorSet(const VulkanDevice& device, VkDescriptorSet descri
 		VkWriteDescriptorSet desc{};
 		desc.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		desc.dstSet = descriptorSet;
-		desc.dstBinding = i;
+		desc.dstBinding = std::uint32_t(i);
 		desc.descriptorType = imageViews[i].descriptorType;
 		desc.descriptorCount = 1;
 		desc.pImageInfo = &descImageInfos[i];
 		descs.push_back(desc);
 	}
 
-	vkUpdateDescriptorSets(device.getDevice(), descs.size(), descs.data(), 0, nullptr);
+	vkUpdateDescriptorSets(device.getDevice(), std::uint32_t(descs.size()), descs.data(), 0, nullptr);
 }
 
 std::vector<VkDescriptorSet> createBufferDescriptors(const VulkanWindow& window, VkDescriptorSetLayout descSetLayout, std::vector<DescriptorBufferSetting>& buffers) {
@@ -253,12 +253,12 @@ void updateBufferDescriptorSet(const VulkanDevice& device, VkDescriptorSet descr
 		VkWriteDescriptorSet desc{};
 		desc.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		desc.dstSet = descriptorSet;
-		desc.dstBinding = i;
+		desc.dstBinding = std::uint32_t(i);
 		desc.descriptorType = buffers[i].descriptorType;
 		desc.descriptorCount = 1;
 		desc.pBufferInfo = &descBufferInfos[i];
 		descs.push_back(desc);
 	}
 
-	vkUpdateDescriptorSets(device.getDevice(), descs.size(), descs.data(), 0, nullptr);
+	vkUpdateDescriptorSets(device.getDevice(), std::uint32_t(descs.size()), descs.data(), 0, nullptr);
 }

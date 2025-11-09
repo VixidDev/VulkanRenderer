@@ -100,7 +100,7 @@ void GUI::draw() {
 			const std::vector<std::string>& presentModeStrings = renderer.getContext().window->getSwapchain()->getPresentModeStrings();
 			int& presentMode = renderer.getContext().window->getSwapchain()->getPresentMode();
 			for (std::size_t i = 0; i < presentModeStrings.size(); i++) {
-				if (ImGui::RadioButton(presentModeStrings[i].c_str(), &presentMode, i)) {
+				if (ImGui::RadioButton(presentModeStrings[i].c_str(), &presentMode, (int)i)) {
 					renderer.setRecreateSwapchain(true, true);
 				}
 			}
@@ -470,7 +470,7 @@ void GUI::draw() {
 				}
 
 				if (renderer.numPointLights > 0 && descriptorSet) {
-					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->pointLightShadowIndex], ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
+					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->pointLightShadowIndex], ImVec2((float)(this->shadowMapSize[0]), (float)(this->shadowMapSize[1])));
 				}
 
 				ImGui::EndTabItem();
@@ -478,9 +478,9 @@ void GUI::draw() {
 			if (ImGui::BeginTabItem("Directional Light")) {
 
 				if (renderer.vsmShadowsEnabled) {
-					ImGui::Image((ImTextureID)renderer.getDescriptorSet("directionalShadowVSM")->getHandle(), ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
+					ImGui::Image((ImTextureID)renderer.getDescriptorSet("directionalShadowVSM")->getHandle(), ImVec2((float)(this->shadowMapSize[0]), (float)(this->shadowMapSize[1])));
 				} else {
-					ImGui::Image((ImTextureID)renderer.getDescriptorSet("directionalLightShadowDebug")->getHandle(), ImVec2(static_cast<float>(this->shadowMapSize[0]), static_cast<float>(this->shadowMapSize[1])));
+					ImGui::Image((ImTextureID)renderer.getDescriptorSet("directionalLightShadowDebug")->getHandle(), ImVec2((float)(this->shadowMapSize[0]), (float)(this->shadowMapSize[1])));
 				}
 
 				ImGui::EndTabItem();
@@ -498,7 +498,7 @@ void GUI::draw() {
 				}
 
 				if (renderer.numSpotLights > 0 && descriptorSet) {
-					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->spotLightShadowIndex], ImVec2(this->shadowMapSize[0], this->shadowMapSize[1]));
+					ImGui::Image((ImTextureID)descriptorSet->getDescriptorSets()[this->spotLightShadowIndex], ImVec2((float)this->shadowMapSize[0], (float)this->shadowMapSize[1]));
 				}
 
 				ImGui::EndTabItem();
@@ -571,7 +571,7 @@ void GUI::calculateFPS(float timeDelta) {
 	this->secondTimer -= timeDelta;
 	if (this->secondTimer <= 0.0f) {
 		this->avgFrameTime = std::reduce(this->frameTimes.begin(), this->frameTimes.end()) / this->frames;
-		this->avgFps = 1 / this->avgFrameTime;
+		this->avgFps = (int)(1 / this->avgFrameTime);
 		this->frameTimes.clear();
 		this->frames = 0;
 	}

@@ -154,7 +154,7 @@ namespace RendererUtils {
 		VkDeviceSize vOffset[2]{};
 		VkDeviceSize iOffset{};
 
-		vkCmdBindVertexBuffers(boundCommandBuffer, 0, vBuffers.size(), vBuffers.data(), vOffset);
+		vkCmdBindVertexBuffers(boundCommandBuffer, 0, std::uint32_t(vBuffers.size()), vBuffers.data(), vOffset);
 		vkCmdBindIndexBuffer(boundCommandBuffer, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
 
 		vkCmdDrawIndexed(boundCommandBuffer, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);

@@ -13,7 +13,7 @@ BufferDescriptorSet::BufferDescriptorSet(
 
 void BufferDescriptorSet::recreate() {
 	for (std::size_t i = 0; i < this->descriptorSets.size(); i++) {
-		updateBufferDescriptorSet(*this->window->getDevice(), this->descriptorSets[i], this->descBufferSettings, i);
+		updateBufferDescriptorSet(*this->window->getDevice(), this->descriptorSets[i], this->descBufferSettings, (int)i);
 	}
 }
 

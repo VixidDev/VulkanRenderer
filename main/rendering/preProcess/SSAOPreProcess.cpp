@@ -89,7 +89,7 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 		RendererUtils::getDescriptorSetHandle(this->projectionsUniformDescriptor), 
 		RendererUtils::getDescriptorSetHandle(this->ssaoUniformDescriptor), 
 		RendererUtils::getDescriptorSetHandle(this->ssaoTexturesDescriptor) };
-	RendererUtils::bindGraphicDescriptorSets(this->pipelineLayout->getHandle(), 0, descriptorSets.size(), descriptorSets.data());
+	RendererUtils::bindGraphicDescriptorSets(this->pipelineLayout->getHandle(), 0, std::uint32_t(descriptorSets.size()), descriptorSets.data());
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
 
