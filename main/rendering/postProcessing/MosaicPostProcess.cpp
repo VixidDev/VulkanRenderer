@@ -11,6 +11,7 @@ MosaicPostProcess::MosaicPostProcess(Renderer* renderer) : PostProcessingEffect(
 }
 
 TextureBuffer* MosaicPostProcess::apply(WriteToFramebufferPair framebuffers, std::uint32_t imageIndex, VkDescriptorSetPair readImages) {
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Mosaic Pass");
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("mosaic", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	RendererUtils::beginRenderPass(this->renderPass, framebuffers.second, imageIndex);
@@ -20,6 +21,7 @@ TextureBuffer* MosaicPostProcess::apply(WriteToFramebufferPair framebuffers, std
 	RendererUtils::endRenderPass();
 
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("mosaic", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	return framebuffers.second->getRenderTarget();
 }

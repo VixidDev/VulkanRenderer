@@ -35,6 +35,12 @@ namespace RendererUtils {
 		VkUtils::endCommandBuffer(boundCommandBuffer);
 	}
 
+	VkCommandBuffer getCommandBuffer() {
+		checkCommandBuffer();
+
+		return boundCommandBuffer;
+	}
+
 	void updateUniformBuffer(IUniformBuffer* uniformBuffer) {
 		checkCommandBuffer();
 

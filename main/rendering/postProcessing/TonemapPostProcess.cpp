@@ -15,6 +15,7 @@ TonemapPostProcess::TonemapPostProcess(Renderer* renderer) : PostProcessingEffec
 // Takes in HDR texture and tonemaps to LDR, converts to sRGB colour space and outputs
 // Luma value in A channel for FXAA
 TextureBuffer* TonemapPostProcess::apply(WriteToFramebufferPair framebuffers, std::uint32_t imageIndex, VkDescriptorSetPair readImages) {
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Tonemap Pass");
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("tonemap", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	RendererUtils::beginRenderPass(this->renderPass, framebuffers.second, imageIndex);
@@ -25,6 +26,7 @@ TextureBuffer* TonemapPostProcess::apply(WriteToFramebufferPair framebuffers, st
 	RendererUtils::endRenderPass();
 
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("tonemap", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	return framebuffers.second->getRenderTarget();
 }

@@ -941,23 +941,26 @@ void Renderer::render() {
 	this->driver->getTimestampManager().writeGPUTimestamp("entireFrame", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Update uniform and shader storage buffers
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Update Buffers");
 	// TODO: add a dirty flag feature somewhere as these buffers do not need to be updated
 	// every frame and can save on computation time
 	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
 	RendererUtils::updateUniformBuffer(this->getUniformBuffer("invMatrices"));
 	RendererUtils::updateShaderStorageBuffer(this->getShaderStorageBuffer("lights"));
 	RendererUtils::updateShaderStorageBuffer(this->getShaderStorageBuffer("lightMatrices"));
+	if (this->shadowsEnabled) RendererUtils::updateUniformBuffer(this->getUniformBuffer("cameraPlanes"));
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	// Debug pass (if its enabled)
 	if (this->debugView) {
+		VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Debug Pass");
 		this->renderDebugViews();
+		VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 		return;
 	}
 
 	// Shadow pass
 	if (this->shadowsEnabled) {
-		RendererUtils::updateUniformBuffer(this->getUniformBuffer("cameraPlanes"));
-
 		if (this->vsmShadowsEnabled) {
 			this->renderVSMShadowMaps();
 		} else {
@@ -1005,9 +1008,13 @@ void Renderer::render() {
 
 	// Scene pass
 	if (this->renderingType) {
+		VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Deferred Pass");
 		this->renderDeferred();
+		VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 	} else {
+		VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Forward Pass");
 		this->renderForward();
+		VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 	}
 
 	// Post processing effects
@@ -1078,9 +1085,11 @@ void Renderer::render() {
 
 	// Render GUI
 	this->driver->getTimestampManager().writeGPUTimestamp("gui", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "GUI Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("gui"), this->getFramebuffer("gui"), this->imageIndex);
 	RendererUtils::renderImGUI();
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 	this->driver->getTimestampManager().writeGPUTimestamp("gui", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
 	this->driver->getTimestampManager().writeGPUTimestamp("entireFrame", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
@@ -1092,6 +1101,7 @@ void Renderer::renderForward() {
 
 	// Draw skybox
 	// (a skybox render pass would look identical to postProcess so we just use that)
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Skybox Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("postProcessHDR"), this->getFramebuffer("writeToHDR"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("skybox")->getHandle());
 	RendererUtils::bindGraphicDescriptorSets(
@@ -1100,6 +1110,7 @@ void Renderer::renderForward() {
 		this->getPipelineLayout("skybox")->getHandle(), 1, 1, &RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("skybox")));
 	RendererUtils::drawDirect(36, 1, 0, 0);
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	glsl::SunPC sunPC = {
 		.sunDir = glm::vec4(this->ssbos.lights[this->sunLightIndex].directionAndMapIndex),
@@ -1108,6 +1119,7 @@ void Renderer::renderForward() {
 	};
 
 	// Draw Sun
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Sun Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("sun"), this->getFramebuffer("writeToHDR"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("sun")->getHandle());
 	RendererUtils::bindPushConstant(this->getPipelineLayout("sun")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::SunPC), &sunPC);
@@ -1117,6 +1129,7 @@ void Renderer::renderForward() {
 		this->getPipelineLayout("sun")->getHandle(), 1, 1, &RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("invMatrices")));
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	// Do SSAO pass
 	if (this->ssaoEnabled) {
@@ -1132,6 +1145,7 @@ void Renderer::renderForward() {
 	this->driver->getTimestampManager().writeGPUTimestamp("forward", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Forward pass
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Geometry Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("forward"), this->getFramebuffer("forward"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("forward")->getHandle());
 
@@ -1193,6 +1207,7 @@ void Renderer::renderForward() {
 	}
 
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	this->driver->getTimestampManager().writeGPUTimestamp("forward", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
@@ -1207,6 +1222,7 @@ void Renderer::renderForward() {
 	RendererUtils::updateUniformBuffer(this->getUniformBuffer("mvp"));
 
 	// Sun position view
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Sun View Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("sunView"), this->getFramebuffer("sunView"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("sunView")->getHandle());
 
@@ -1254,6 +1270,7 @@ void Renderer::renderForward() {
 	}
 
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 }
 
 void Renderer::renderDeferred() {
@@ -1262,6 +1279,7 @@ void Renderer::renderDeferred() {
 	this->driver->getTimestampManager().writeGPUTimestamp("deferredWriting", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Writing to G-buffers pass
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Deferred Writing Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("deferredWriting"), this->getFramebuffer("deferredWriting"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("deferredWriting")->getHandle());
 
@@ -1294,11 +1312,13 @@ void Renderer::renderDeferred() {
 	}
 
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	this->driver->getTimestampManager().writeGPUTimestamp("deferredWriting", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 
 	// Draw skybox
 	// (a skybox render pass would look identical to postProcess so we just use that)
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Deferred Skybox Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("postProcessHDR"), this->getFramebuffer("writeToHDR"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("skybox")->getHandle());
 	RendererUtils::bindGraphicDescriptorSets(
@@ -1307,6 +1327,7 @@ void Renderer::renderDeferred() {
 		this->getPipelineLayout("skybox")->getHandle(), 1, 1, &this->getDescriptorSet("skybox")->getHandle());
 	RendererUtils::drawDirect(36, 1, 0, 0);
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	glsl::SunPC sunPC = {
 		.sunDir = glm::vec4(this->ssbos.lights[this->sunLightIndex].directionAndMapIndex),
@@ -1315,6 +1336,7 @@ void Renderer::renderDeferred() {
 	};
 
 	// Draw Sun
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Sun Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("sun"), this->getFramebuffer("writeToHDR"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("sun")->getHandle());
 	RendererUtils::bindPushConstant(this->getPipelineLayout("sun")->getHandle(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glsl::SunPC), &sunPC);
@@ -1322,6 +1344,7 @@ void Renderer::renderDeferred() {
 	RendererUtils::bindGraphicDescriptorSets(this->getPipelineLayout("sun")->getHandle(), 1, 1, &this->getDescriptorSet("invMatrices")->getHandle());
 	RendererUtils::drawDirect(3, 1, 0, 0);
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	// SSAO Pass
 	if (this->ssaoEnabled) {
@@ -1337,6 +1360,7 @@ void Renderer::renderDeferred() {
 	this->driver->getTimestampManager().writeGPUTimestamp("deferredShading", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Shading pass
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Deferred Shading Pass");
 	RendererUtils::beginRenderPass(this->getRenderPass("deferredShading"), this->getFramebuffer("deferredShading"), this->imageIndex);
 	RendererUtils::bindGraphicPipeline(this->getPipeline("deferredShading")->getHandle());
 
@@ -1378,6 +1402,7 @@ void Renderer::renderDeferred() {
 	RendererUtils::drawDirect(3, 1, 0, 0);
 
 	RendererUtils::endRenderPass();
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	this->driver->getTimestampManager().writeGPUTimestamp("deferredShading", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
 }
@@ -1386,6 +1411,8 @@ void Renderer::renderDebugViews() {
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
 	this->driver->getTimestampManager().writeGPUTimestamp("debugViews", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
+
+	RendererUtils::updateUniformBuffer(this->getUniformBuffer("cameraPlanes"));
 
 	// Determine debug state flags
 	bool isOvervisualisation = this->debugState > 6;
@@ -1477,8 +1504,17 @@ void Renderer::renderDebugViews() {
 }
 
 void Renderer::renderShadowMaps() {
+	// Quick check over all lights to determine if we can early exit
+	bool canExit = true;
+	for (Light& light : *this->lights) {
+		if (light.isDirty() && light.isShadowCasting()) canExit = false;
+	}
+
+	if (canExit) return;
+
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Standard Shadow Pass");
 	this->driver->getTimestampManager().writeGPUTimestamp("shadows", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Some light-specific counters
@@ -1518,6 +1554,9 @@ void Renderer::renderShadowMaps() {
 
 			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera->getNearPlane(), this->camera->getFarPlane());
 
+			std::string labelName = std::format("Point Light (id:%d) Pass", i);
+			VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), labelName.c_str());
+
 			// Render to each face of the cube map
 			for (std::size_t face = 0; face < 6; face++) {
 				// Calculate layer index
@@ -1548,12 +1587,17 @@ void Renderer::renderShadowMaps() {
 				RendererUtils::endRenderPass();
 			}
 
+			VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
+
 			pointLightIndex++;
 			break;
 		}
 		case LightType::DIRECTIONAL:
 		{
 			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
+
+			std::string labelName = std::format("Directional Light (id:%d) Pass", i);
+			VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), labelName.c_str());
 
 			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("directionalShadow"), directionalLightIndex);
 
@@ -1586,12 +1630,17 @@ void Renderer::renderShadowMaps() {
 
 			RendererUtils::endRenderPass();
 
+			VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
+
 			directionalLightIndex++;
 			break;
 		}
 		case LightType::SPOT:
 		{
 			assert(this->numSpotLights != 0 && "Trying to render a spot light shadow map but numSpotLights is 0?");
+
+			std::string labelName = std::format("Spot Light (id:%d) Pass", i);
+			VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), labelName.c_str());
 
 			RendererUtils::beginRenderPass(this->getRenderPass("shadow"), this->getFramebuffer("spotShadows"), spotLightIndex);
 
@@ -1624,6 +1673,8 @@ void Renderer::renderShadowMaps() {
 
 			RendererUtils::endRenderPass();
 
+			VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
+
 			spotLightIndex++;
 			break;
 		}
@@ -1633,11 +1684,21 @@ void Renderer::renderShadowMaps() {
 	}
 
 	this->driver->getTimestampManager().writeGPUTimestamp("shadows", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 }
 
 void Renderer::renderVSMShadowMaps() {
+	// Quick check over all lights to determine if we can early exit
+	bool canExit = true;
+	for (Light& light : *this->lights) {
+		if (light.isDirty() && light.isShadowCasting()) canExit = false;
+	}
+
+	if (canExit) return;
+
 	std::vector<MeshData>& meshData = this->driver->getMeshData();
 
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "VSM Shadow Pass");
 	this->driver->getTimestampManager().writeGPUTimestamp("VSMshadows", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Some light-specific counters
@@ -1688,6 +1749,9 @@ void Renderer::renderVSMShadowMaps() {
 
 			const glm::mat4 cubePerspective = glm::perspective(glm::radians(90.0f), 1.0f, this->camera->getNearPlane(), this->camera->getFarPlane());
 
+			std::string labelName = std::format("VSM Point Light (id:%d) Pass", i);
+			VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), labelName.c_str());
+
 			// Render to each face of the cube map
 			for (std::size_t face = 0; face < 6; face++) {
 				// Calculate layer index
@@ -1719,6 +1783,8 @@ void Renderer::renderVSMShadowMaps() {
 
 				RendererUtils::endRenderPass();
 
+				VkUtils::insertCmdLabel(RendererUtils::getCommandBuffer(), "VSM Point Light Blur Pass");
+
 				this->blurVSMShadowMap(
 					this->getPipeline("VSMpointBlur"),
 					this->getFramebuffer("writeToPointShadowsBlur"), 
@@ -1728,12 +1794,17 @@ void Renderer::renderVSMShadowMaps() {
 					layer);
 			}
 
+			VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
+
 			pointLightIndex++;
 			break;
 		}
 		case LightType::DIRECTIONAL:
 		{
 			assert(this->numDirectionalLights != 0 && "Trying to render a directional light shadow map but numDirectionalLights is 0?");
+
+			std::string labelName = std::format("VSM Directional Light (id:%d) Pass", i);
+			VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), labelName.c_str());
 
 			RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("directionalShadowVSM"), directionalLightIndex);
 			RendererUtils::bindGraphicPipeline(this->getPipeline("directionalShadowVSM")->getHandle());
@@ -1760,6 +1831,8 @@ void Renderer::renderVSMShadowMaps() {
 
 			RendererUtils::endRenderPass();
 
+			VkUtils::insertCmdLabel(RendererUtils::getCommandBuffer(), "VSM Point Light Blur Pass");
+
 			this->blurVSMShadowMap(
 				this->getPipeline("VSMdirectionalBlur"),
 				this->getFramebuffer("writeToDirectionalShadowBlur"),
@@ -1768,12 +1841,17 @@ void Renderer::renderVSMShadowMaps() {
 				this->getDescriptorSet("directionalShadowBlurVSM"),
 				directionalLightIndex);
 
+			VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
+
 			directionalLightIndex++;
 			break;
 		}
 		case LightType::SPOT:
 		{
 			assert(this->numSpotLights != 0 && "Trying to render a spot light shadow map but numSpotLights is 0?");
+
+			std::string labelName = std::format("VSM Spot Light (id:%d) Pass", i);
+			VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), labelName.c_str());
 
 			RendererUtils::beginRenderPass(this->getRenderPass("VSMshadow"), this->getFramebuffer("spotShadowsVSM"), spotLightIndex);
 			RendererUtils::bindGraphicPipeline(this->getPipeline("spotShadowsVSM")->getHandle());
@@ -1801,6 +1879,8 @@ void Renderer::renderVSMShadowMaps() {
 
 			RendererUtils::endRenderPass();
 
+			VkUtils::insertCmdLabel(RendererUtils::getCommandBuffer(), "VSM Point Light Blur Pass");
+
 			this->blurVSMShadowMap(
 				this->getPipeline("VSMspotBlur"),
 				this->getFramebuffer("writeToSpotShadowsBlur"), 
@@ -1808,6 +1888,8 @@ void Renderer::renderVSMShadowMaps() {
 				this->getDescriptorSet("spotShadowsVSM"),
 				this->getDescriptorSet("spotShadowsBlurVSM"),
 				spotLightIndex);
+
+			VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 			spotLightIndex++;
 			break;
@@ -1818,6 +1900,7 @@ void Renderer::renderVSMShadowMaps() {
 	}
 
 	this->driver->getTimestampManager().writeGPUTimestamp("VSMshadows", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 }
 
 void Renderer::blurVSMShadowMap(

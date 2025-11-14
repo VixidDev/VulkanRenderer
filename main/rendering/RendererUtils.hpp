@@ -11,6 +11,8 @@ namespace RendererUtils {
 	void beginCommandBuffer(VkCommandBufferUsageFlags usageFlags = 0);
 	void endCommandBuffer();
 
+	VkCommandBuffer getCommandBuffer();
+
 	// Buffers
 	void updateUniformBuffer(IUniformBuffer* uniformBuffer);
 	void updateShaderStorageBuffer(IShaderStorageBuffer* shaderStorageBuffer);

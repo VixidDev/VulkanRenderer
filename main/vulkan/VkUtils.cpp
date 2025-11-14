@@ -296,4 +296,73 @@ namespace VkUtils {
 		}
 	}
 
+	// Debug labels
+	void beginQueueLabel(VkQueue queue, const char* name, std::array<float, 4> colour) {
+#ifndef NDEBUG
+		VkDebugUtilsLabelEXT label = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+			.pLabelName = name,
+			.color = *colour.data()
+		};
+		vkQueueBeginDebugUtilsLabelEXT(queue, &label);
+#endif
+	}
+	
+	void insertQueueLabel(VkQueue queue, const char* name, std::array<float, 4> colour) {
+#ifndef NDEBUG
+		VkDebugUtilsLabelEXT label = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+			.pLabelName = name,
+			.color = *colour.data()
+		};
+		vkQueueInsertDebugUtilsLabelEXT(queue, &label);
+#endif
+	}
+	
+	void endQueueLabel(VkQueue queue) {
+#ifndef NDEBUG
+		vkQueueEndDebugUtilsLabelEXT(queue);
+#endif
+	}
+
+	void beginCmdLabel(VkCommandBuffer cmdBuf, const char* name, std::array<float, 4> colour) {
+#ifndef NDEBUG
+		VkDebugUtilsLabelEXT label = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+			.pLabelName = name,
+			.color = *colour.data()
+		};
+		vkCmdBeginDebugUtilsLabelEXT(cmdBuf, &label);
+#endif
+	}
+	
+	void insertCmdLabel(VkCommandBuffer cmdBuf, const char* name, std::array<float, 4> colour) {
+#ifndef NDEBUG
+		VkDebugUtilsLabelEXT label = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+			.pLabelName = name,
+			.color = *colour.data()
+		};
+		vkCmdInsertDebugUtilsLabelEXT(cmdBuf, &label);
+#endif
+	}
+
+	void endCmdLabel(VkCommandBuffer cmdBuf) {
+#ifndef NDEBUG
+		vkCmdEndDebugUtilsLabelEXT(cmdBuf);
+#endif
+	}
+
+	void setObjectName(VkDevice device, VkObjectType type, std::uint64_t handle, const char* name) {
+#ifndef NDEBUG
+		VkDebugUtilsObjectNameInfoEXT nameInfo = {
+			.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT,
+			.objectType = type,
+			.objectHandle = handle,
+			.pObjectName = name
+		};
+		vkSetDebugUtilsObjectNameEXT(device, &nameInfo);
+#endif
+	}
+
 }

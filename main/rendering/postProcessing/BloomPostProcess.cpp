@@ -29,7 +29,7 @@ BloomPostProcess::BloomPostProcess(Renderer* renderer) : PostProcessingEffect(re
 
 TextureBuffer* BloomPostProcess::apply(WriteToFramebufferPair framebuffers, std::uint32_t imageIndex, VkDescriptorSetPair readImages) {
 	// Need to ping-pong between 2 framebuffers for horizontal and vertical blur passes
-
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Bloom Pass");
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("bloom", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	// Framebuffers to ping-pong
@@ -79,6 +79,7 @@ TextureBuffer* BloomPostProcess::apply(WriteToFramebufferPair framebuffers, std:
 	RendererUtils::endRenderPass();
 
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("bloom", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	// Return last written to render target
 	return framebuffers.first->getRenderTarget();

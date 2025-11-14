@@ -39,6 +39,7 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 	if (needsPreSSAO) {
 		std::vector<MeshData>& meshData = this->renderer->getDriver()->getMeshData();
 
+		VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Pre SSAO Pass");
 		this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("pre_ssao", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 		RendererUtils::beginRenderPass(this->preRenderPass, this->preFramebuffer, imageIndex);
@@ -74,9 +75,11 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 		RendererUtils::endRenderPass();
 
 		this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("pre_ssao", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+		VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 	}
 
 	// Regular SSAO pass
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "SSAO Pass");
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("ssao", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	RendererUtils::updateUniformBuffer(this->projectionsUniformBuffer);
@@ -94,8 +97,10 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 	RendererUtils::endRenderPass();
 
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("ssao", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 
 	// SSAO blur using a bilateral (edge-preserving) filter
+	VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "SSAO Blur Pass");
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("ssaoBlur", VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT);
 
 	RendererUtils::updateUniformBuffer(this->cameraPlanesUniformBuffer);
@@ -123,4 +128,5 @@ void SSAOPreProcess::apply(std::uint32_t imageIndex, bool needsPreSSAO) {
 	RendererUtils::endRenderPass();
 
 	this->renderer->getDriver()->getTimestampManager().writeGPUTimestamp("ssaoBlur", VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT);
+	VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
 }

@@ -3,6 +3,8 @@
 #include "objects/VkObjects.hpp"
 #include "VulkanContext.hpp"
 
+#include <array>
+
 struct SamplerInfo {
 	VkFilter magFilter;
 	VkFilter minFilter;
@@ -80,4 +82,14 @@ namespace VkUtils {
 		VkQueryResultFlags resultFlags = VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
 	);
 
+	// Debug Labels
+	void beginQueueLabel(VkQueue queue, const char* name, std::array<float, 4> colour = { 1.0f, 1.0f, 1.0f, 1.0f });
+	void insertQueueLabel(VkQueue queue, const char* name, std::array<float, 4> colour = { 1.0f, 1.0f, 1.0f, 1.0f });
+	void endQueueLabel(VkQueue queue);
+	
+	void beginCmdLabel(VkCommandBuffer cmdBuf, const char* name, std::array<float, 4> colour = { 1.0f, 1.0f, 1.0f, 1.0f });
+	void insertCmdLabel(VkCommandBuffer cmdBuf, const char* name, std::array<float, 4> colour = { 1.0f, 1.0f, 1.0f, 1.0f });
+	void endCmdLabel(VkCommandBuffer cmdBuf);
+
+	void setObjectName(VkDevice device, VkObjectType type, std::uint64_t handle, const char* name);
 }
