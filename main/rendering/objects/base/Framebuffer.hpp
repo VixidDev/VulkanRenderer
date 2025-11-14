@@ -17,6 +17,8 @@ public:
 
 	VkFramebuffer getHandle(std::uint32_t imageIndex);
 	VkExtent2D getRenderExtent();
+
+	std::vector<vk::Framebuffer>& getFramebuffers();
 protected:
 	VulkanWindow* window;
 

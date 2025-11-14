@@ -11,3 +11,7 @@ VkFramebuffer Framebuffer::getHandle(std::uint32_t imageIndex) {
 VkExtent2D Framebuffer::getRenderExtent() {
 	return *this->renderExtent;
 }
+
+std::vector<vk::Framebuffer>& Framebuffer::getFramebuffers() {
+	return this->framebuffers;
+}

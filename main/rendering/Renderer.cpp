@@ -708,6 +708,9 @@ void Renderer::setLights(std::vector<Light>* lights) {
 
 	this->descriptorSets.emplace("lights", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightSSBODescriptorSettings));
 	this->descriptorSets.emplace("lightMatrices", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightMatricesSSBODescriptorSettings));
+
+	// Pretty much most objects will have been created by this point so we can set debug names
+	this->setObjectDebugNames();
 }
 
 bool Renderer::checkSwapchain() {
@@ -2186,4 +2189,262 @@ std::uint32_t Renderer::getSunLightIndex() {
 void Renderer::setRecreateSwapchain(bool value, bool force) {
 	this->recreateSwapchain = value;
 	this->forceRecreate = force;
+}
+
+void Renderer::setObjectDebugNames() {
+#ifndef NDEBUG
+	VkDevice device = this->context.window->getDevice()->getDevice();
+
+	// Render passes
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["forward"]->getRenderPassHandle(), "Forward Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["deferredWriting"]->getRenderPassHandle(), "Deferred Writing Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["deferredShading"]->getRenderPassHandle(), "Deferred Shading Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["shadow"]->getRenderPassHandle(), "Shadow Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["gui"]->getRenderPassHandle(), "GUI Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["sunView"]->getRenderPassHandle(), "Sun View Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["postProcessHDR"]->getRenderPassHandle(), "Post Process HDR Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["postProcessLDR"]->getRenderPassHandle(), "Post Process LDR Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["tonemap"]->getRenderPassHandle(), "Tonemap Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["pre_ssao"]->getRenderPassHandle(), "Pre SSAO Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["ssao"]->getRenderPassHandle(), "SSAO Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["debug"]->getRenderPassHandle(), "Debug Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["skybox"]->getRenderPassHandle(), "Skybox Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["sun"]->getRenderPassHandle(), "Sun Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["VSMshadow"]->getRenderPassHandle(), "VSM Shadow Render Pass");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_RENDER_PASS, (uint64_t)this->renderPasses["VSMblur"]->getRenderPassHandle(), "VSM Blur Render Pass");
+
+	// Descriptor set layouts
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)this->descriptorSetLayouts["uboV"].handle, "Vertex-Only UBO Descriptor Set Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)this->descriptorSetLayouts["uboF"].handle, "Fragment-Only UBO Descriptor Set Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)this->descriptorSetLayouts["uboVF"].handle, "Vertex-Fragment UBO Descriptor Set Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)this->descriptorSetLayouts["ssboF"].handle, "Fragment-Only SSBO Descriptor Set Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)this->descriptorSetLayouts["imageF"].handle, "1 Fragment-Only Image Descriptor Set Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)this->descriptorSetLayouts["image6F"].handle, "6 Fragment-Only Image Descriptor Set Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)this->descriptorSetLayouts["image4F"].handle, "4 Fragment-Only Image Descriptor Set Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, (uint64_t)this->descriptorSetLayouts["image3F"].handle, "3 Fragment-Only Image Descriptor Set Layout");
+
+	// Pipeline layouts
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["shadow"]->getHandle(), "Shadow Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["cubemapShadow"]->getHandle(), "Cubemap Shadow Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["VSMshadow"]->getHandle(), "VSM Shadow Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["forward"]->getHandle(), "Forward Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["deferredWriting"]->getHandle(), "Deferred Writing Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["deferredShading"]->getHandle(), "Deferred Shading Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["bloom"]->getHandle(), "Bloom Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["mosaic"]->getHandle(), "Mosaic Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["composition"]->getHandle(), "Composition Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["tonemap"]->getHandle(), "Tonemap Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["pre_ssao"]->getHandle(), "Pre SSAO Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["ssao"]->getHandle(), "SSAO Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["ssao_blur"]->getHandle(), "SSAO Blur Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["skybox"]->getHandle(), "Skybox Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["sun"]->getHandle(), "Sun Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["sunView"]->getHandle(), "Sun View Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["lineDebug"]->getHandle(), "Line Debug Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["debugViews"]->getHandle(), "Debug Views Pipeline Layout");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, (uint64_t)this->pipelineLayouts["overVisualisation"]->getHandle(), "Overvisualisation Pipeline Layout");
+
+	// Pipelines
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["pointShadows"]->getHandle(), "Point Shadow Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["directionalShadow"]->getHandle(), "Directional Shadow Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["spotShadows"]->getHandle(), "Spot Shadow Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["pointShadowsVSM"]->getHandle(), "VSM Point Shadow Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["directionalShadowVSM"]->getHandle(), "VSM Directional Shadow Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["spotShadowsVSM"]->getHandle(), "VSM Spot Shadow Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["forward"]->getHandle(), "Forward Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["deferredWriting"]->getHandle(), "Deferred Writing Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["deferredShading"]->getHandle(), "Deferred Shading Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["mosaic"]->getHandle(), "Mosaic Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["bloom"]->getHandle(), "Bloom Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["VSMpointBlur"]->getHandle(), "VSM Point Blur Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["VSMdirectionalBlur"]->getHandle(), "VSM Directional Blur Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["VSMspotBlur"]->getHandle(), "VSM Spot Blur Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["composition"]->getHandle(), "Composition Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["tonemap"]->getHandle(), "Tonemap Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["fxaa"]->getHandle(), "FXAA Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["pre_ssao"]->getHandle(), "Pre SSAO Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["ssao"]->getHandle(), "SSAO Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["ssao_blur"]->getHandle(), "SSAO Blur Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["skybox"]->getHandle(), "Skybox Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["sun"]->getHandle(), "Sun Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["sunView"]->getHandle(), "Sun View Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["lineDebug"]->getHandle(), "Line Debug Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["debugViews"]->getHandle(), "Debug Views Pipeline");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_PIPELINE, (uint64_t)this->pipelines["overVisualisation"]->getHandle(), "Over Visualisation Pipeline");
+
+	// Texture buffers
+	// Images
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["HDR"]->getImage().image, "HDR Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["LDR"]->getImage().image, "LDR Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["brightness"]->getImage().image, "Brightness Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["intermediateHDR"]->getImage().image, "Intermediate HDR Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["intermediateHDR2"]->getImage().image, "Intermediate HDR 2 Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["intermediateLDR"]->getImage().image, "Intermediate LDR Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["depth"]->getImage().image, "Depth Buffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["gBuffer1"]->getImage().image, "G-Buffer 1");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["gBuffer2"]->getImage().image, "G-Buffer 2");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["gBuffer3"]->getImage().image, "G-Buffer 3");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["blurOutput"]->getImage().image, "Blur Output Buffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["noise"]->getImage().image, "Noise Texture Buffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["ssao"]->getImage().image, "SSAO Output Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["ssaoHblur"]->getImage().image, "SSAO Horizontal Blur Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["ssaoVblur"]->getImage().image, "SSAO Vertical Blur Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["skybox"]->getImage().image, "Skybox Cubemap Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["sunView"]->getImage().image, "Sun View Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["pointShadows"]->getImage().image, "Point Shadows Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["directionalShadow"]->getImage().image, "Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["spotShadows"]->getImage().image, "Spot Shadows Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["pointShadowsVSM"]->getImage().image, "VSM Point Shadows Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["pointShadowsDepthVSM"]->getImage().image, "VSM Depth Point Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["pointShadowsBlurVSM"]->getImage().image, "VSM Blur Point Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["directionalShadowVSM"]->getImage().image, "VSM Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["directionalShadowDepthVSM"]->getImage().image, "VSM Depth Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["directionalShadowBlurVSM"]->getImage().image, "VSM Blur Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["spotShadowsVSM"]->getImage().image, "VSM Spot Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["spotShadowsDepthVSM"]->getImage().image, "VSM Depth Spot Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["spotShadowsBlurVSM"]->getImage().image, "VSM Blur Spot Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["pointShadowsDebug"]->getImage().image, "Debug Point Shadows Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["directionalShadowDebug"]->getImage().image, "Debug Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE, (uint64_t)this->textureBuffers["spotShadowsDebug"]->getImage().image, "Debug Spot Shadows Texture");
+	// Image Views
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["HDR"]->getImageView().handle, "HDR Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["LDR"]->getImageView().handle, "LDR Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["brightness"]->getImageView().handle, "Brightness Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["intermediateHDR"]->getImageView().handle, "Intermediate HDR Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["intermediateHDR2"]->getImageView().handle, "Intermediate HDR 2 Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["intermediateLDR"]->getImageView().handle, "Intermediate LDR Framebuffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["depth"]->getImageView().handle, "Depth Buffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["gBuffer1"]->getImageView().handle, "G-Buffer 1");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["gBuffer2"]->getImageView().handle, "G-Buffer 2");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["gBuffer3"]->getImageView().handle, "G-Buffer 3");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["blurOutput"]->getImageView().handle, "Blur Output Buffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["noise"]->getImageView().handle, "Noise Texture Buffer");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["ssao"]->getImageView().handle, "SSAO Output Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["ssaoHblur"]->getImageView().handle, "SSAO Horizontal Blur Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["ssaoVblur"]->getImageView().handle, "SSAO Vertical Blur Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["skybox"]->getImageView().handle, "Skybox Cubemap Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["sunView"]->getImageView().handle, "Sun View Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["pointShadows"]->getImageView().handle, "Point Shadows Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["directionalShadow"]->getImageView().handle, "Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["spotShadows"]->getImageView().handle, "Spot Shadows Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["pointShadowsVSM"]->getImageView().handle, "VSM Point Shadows Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["pointShadowsDepthVSM"]->getImageView().handle, "VSM Depth Point Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["pointShadowsBlurVSM"]->getImageView().handle, "VSM Blur Point Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["directionalShadowVSM"]->getImageView().handle, "VSM Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["directionalShadowDepthVSM"]->getImageView().handle, "VSM Depth Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["directionalShadowBlurVSM"]->getImageView().handle, "VSM Blur Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["spotShadowsVSM"]->getImageView().handle, "VSM Spot Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["spotShadowsDepthVSM"]->getImageView().handle, "VSM Depth Spot Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["spotShadowsBlurVSM"]->getImageView().handle, "VSM Blur Spot Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["pointShadowsDebug"]->getImageView().handle, "Debug Point Shadows Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["directionalShadowDebug"]->getImageView().handle, "Debug Directional Shadow Texture");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_IMAGE_VIEW, (uint64_t)this->textureBuffers["spotShadowsDebug"]->getImageView().handle, "Debug Spot Shadows Texture");
+
+	// Framebuffers
+	// Need a helper lambda func to assign internal FBs a name
+	auto assignObjectNameToFB = [this](VkDevice device, std::vector<vk::Framebuffer>& framebuffers, const char* name) {
+		for (std::size_t i = 0; i < framebuffers.size(); i++) {
+			VkUtils::setObjectName(device, VK_OBJECT_TYPE_FRAMEBUFFER, (uint64_t)framebuffers[i].handle, name);
+		}
+	};
+	assignObjectNameToFB(device, this->framebuffers["forward"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["deferredWriting"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["deferredShading"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["sunView"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["gui"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["writeToHDR"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["writeToLDR"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["writeToIntermediateHDR"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["writeToIntermediateHDR2"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["writeToIntermediateLDR"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["writeToBlur"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["pre_ssao"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["ssao"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["ssaoHblur"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["ssaoVblur"]->getFramebuffers(), "Forward Framebuffer");
+	assignObjectNameToFB(device, this->framebuffers["debug"]->getFramebuffers(), "Forward Framebuffer");
+
+	// Uniform buffers
+	// Same as FBs
+	auto assignObjectNameToBuffer = [this](VkDevice device, std::vector<vk::Buffer>& buffers, const char* name) {
+		for (std::size_t i = 0; i < buffers.size(); i++) {
+			VkUtils::setObjectName(device, VK_OBJECT_TYPE_BUFFER, (uint64_t)buffers[i].buffer, name);
+		}
+	};
+	assignObjectNameToBuffer(device, this->uniformBuffers["mvp"]->getBuffers(), "MVP Uniform Buffer");
+	assignObjectNameToBuffer(device, this->uniformBuffers["cameraPlanes"]->getBuffers(), "Camera Planes Uniform Buffer");
+	assignObjectNameToBuffer(device, this->uniformBuffers["projections"]->getBuffers(), "Projections Uniform Buffer");
+	assignObjectNameToBuffer(device, this->uniformBuffers["invMatrices"]->getBuffers(), "Inverse Matrices Uniform Buffer");
+	assignObjectNameToBuffer(device, this->uniformBuffers["ssao"]->getBuffers(), "SSAO Uniform Buffer");
+
+	// SSBOs
+	assignObjectNameToBuffer(device, this->shaderStorageBuffers["lights"]->getBuffers(), "Lights SSBO");
+	assignObjectNameToBuffer(device, this->shaderStorageBuffers["lightMatrices"]->getBuffers(), "Light Matrices SSBO");
+
+	// Sync objects
+	// Command Buffers
+	for (std::size_t i = 0; i < this->cmdBuffers.size(); i++) {
+		std::string cmdBufLabel = std::format("Command Buffer %d", i);
+		VkUtils::setObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)this->cmdBuffers[i], cmdBufLabel.c_str());
+	}
+	// Frame Done Fences
+	for (std::size_t i = 0; i < this->frameDoneFences.size(); i++) {
+		std::string frameDoneFenceLabel = std::format("Frame Done Fence %d", i);
+		VkUtils::setObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)this->cmdBuffers[i], frameDoneFenceLabel.c_str());
+	}
+	// Image Available Semaphores
+	for (std::size_t i = 0; i < this->imageAvailableSemaphores.size(); i++) {
+		std::string imgAvailableSemaphoreLabel = std::format("Image Available Semaphore %d", i);
+		VkUtils::setObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)this->cmdBuffers[i], imgAvailableSemaphoreLabel.c_str());
+	}
+	// Render Finished Semaphore
+	for (std::size_t i = 0; i < this->renderFinishedSemaphores.size(); i++) {
+		std::string renderFinSemaphoreLabel = std::format("Render Finished Semaphore %d", i);
+		VkUtils::setObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)this->cmdBuffers[i], renderFinSemaphoreLabel.c_str());
+	}
+
+	// Samplers
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)this->linearRepeatSampler.handle, "Linear Repeat Sampler");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)this->linearMirroredRepeatSampler.handle, "Linear Mirrrored Repeat Sampler");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)this->linearClampToEdgeSampler.handle, "Linear Clamp To Edge Sampler");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)this->linearClampToBorderSampler.handle, "Linear Clamp To Border Sampler");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)this->nearestRepeatSampler.handle, "Nearest Repeat Sampler");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)this->nearestClampToEdgeSampler.handle, "Nearest Clamp To Edge Sampler");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)this->depthSampler.handle, "Depth Sampler");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_SAMPLER, (uint64_t)this->shadowMapSampler.handle, "Shadow Map Sampler");
+
+	// Descriptor Sets
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["mvp"]->getHandle(), "MVP Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["cameraPlanes"]->getHandle(), "Camera Planes Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["deferredInputs"]->getHandle(), "Deferred Inputs Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["sunView"]->getHandle(), "Sun View Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["HDR"]->getHandle(), "HDR Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["LDR"]->getHandle(), "LDR Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["intermediateHDR"]->getHandle(), "Intermediate HDR Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["intermediateHDR2"]->getHandle(), "Intermediate HDR 2 Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["intermediateLDR"]->getHandle(), "Intermediate LDR Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["brightness"]->getHandle(), "Brightness Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["blurOutput"]->getHandle(), "Blur Output Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["projections"]->getHandle(), "Projections Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["invMatrices"]->getHandle(), "Inverse Matrices Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["ssao"]->getHandle(), "SSAO Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["ssaoTextures"]->getHandle(), "SSAO Textures Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["ssaoHBlurTextures"]->getHandle(), "SSAO Horizontal Blur Textures Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["ssaoVBlurTextures"]->getHandle(), "SSAO Vertical Blur Textures Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["ssaoSampler"]->getHandle(), "SSAO Sampler Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["skybox"]->getHandle(), "Skybox Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["shadows"]->getHandle(), "Shadows Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["VSMshadows"]->getHandle(), "VSM SHadows Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["pointShadowsVSM"]->getHandle(), "VSM Point Shadows Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["directionalShadowVSM"]->getHandle(), "VSM Directional Shadow Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["spotShadowsVSM"]->getHandle(), "VSM Spot Shadows Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["pointShadowsBlurVSM"]->getHandle(), "VSM Blur Point Shadows Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["directionalShadowBlurVSM"]->getHandle(), "VSM Blur Directional Shadow Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["spotShadowsBlurVSM"]->getHandle(), "VSM Blur Spot Shadows Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["pointLightShadowsDebug"]->getHandle(), "Debug Point Shadows Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["directionalLightShadowDebug"]->getHandle(), "Debug Directional Shadow Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["spotLightShadowsDebug"]->getHandle(), "Debug Spot Shadow Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["lights"]->getHandle(), "Lights Descriptor Set");
+	VkUtils::setObjectName(device, VK_OBJECT_TYPE_DESCRIPTOR_SET, (uint64_t)this->descriptorSets["lightMatrices"]->getHandle(), "Light Matrices Descriptor Set");
+#endif
 }

@@ -202,6 +202,8 @@ private:
 	void getSkyboxDimensions(std::array<const char*, 6>& filenames);
 	void fillSkyboxTexture();
 
+	void setObjectDebugNames();
+
 	Driver* driver;
 	VulkanContext context;
 

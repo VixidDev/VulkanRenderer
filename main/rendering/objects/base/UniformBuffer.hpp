@@ -51,6 +51,10 @@ public:
 		return this->buffers[frameIndex].buffer;
 	}
 
+	std::vector<vk::Buffer>& getBuffers() override {
+		return this->buffers;
+	}
+
 private:
 	VulkanContext* context;
 	VkPipelineStageFlags stageFlags;

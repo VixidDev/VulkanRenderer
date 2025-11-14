@@ -107,6 +107,10 @@ public:
 		return this->gpuBuffers.at(frameIndex).buffer;
 	}
 
+	std::vector<vk::Buffer>& getBuffers() {
+		return this->gpuBuffers;
+	}
+
 private:
 	VulkanContext* context;
 	std::vector<T>* ssboData;
