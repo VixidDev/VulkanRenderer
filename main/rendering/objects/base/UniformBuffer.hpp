@@ -14,7 +14,7 @@ public:
 		: context(context), stageFlags(stageFlags) 
 	{
 		for (int i = 0; i < Swapchain::MAX_FRAMES_IN_FLIGHT; i++) {
-			this->buffers.emplace_back(vk::createBuffer(
+			this->buffers.emplace_back(vk::Buffer::createBuffer(
 				*this->context->allocator,
 				sizeof(T),
 				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -30,17 +30,17 @@ public:
 	void update(std::uint32_t frameIndex, VkCommandBuffer cmdBuff) override {
 		VkUtils::bufferBarrier(
 			cmdBuff,
-			this->buffers[frameIndex].buffer,
+			this->buffers[frameIndex].get(),
 			/* srcAccessMask */ VK_ACCESS_UNIFORM_READ_BIT,
 			/* dstAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT,
 			/* srcStageMask */ this->stageFlags,
 			/* dstStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT);
 
-		vkCmdUpdateBuffer(cmdBuff, this->buffers[frameIndex].buffer, 0, sizeof(T), this->uniformData);
+		vkCmdUpdateBuffer(cmdBuff, this->buffers[frameIndex].get(), 0, sizeof(T), this->uniformData);
 
 		VkUtils::bufferBarrier(
 			cmdBuff,
-			this->buffers[frameIndex].buffer,
+			this->buffers[frameIndex].get(),
 			/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT,
 			/* dstAccessMask */ VK_ACCESS_UNIFORM_READ_BIT,
 			/* srcStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -48,7 +48,7 @@ public:
 	}
 
 	VkBuffer getHandle(std::uint32_t frameIndex) const override {
-		return this->buffers[frameIndex].buffer;
+		return this->buffers[frameIndex].get();
 	}
 
 	std::vector<vk::Buffer>& getBuffers() override {

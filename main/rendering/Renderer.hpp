@@ -9,6 +9,8 @@
 #include "lights/Light.hpp"
 #include "../baked/BakedModel.hpp"
 #include "../camera/Camera.hpp"
+#include "../models/OBJLoader.hpp"
+#include "../models/MeshData.hpp"
 #include "../vulkan/VulkanContext.hpp"
 #include "objects/base/interfaces/IShaderStorageBuffer.hpp"
 #include "objects/base/interfaces/IUniformBuffer.hpp"
@@ -184,6 +186,7 @@ public:
 	// here but its the simplest
 	std::vector<VkDescriptorSet> alphaMaskDescriptors;
 private:
+	void loadObjShapes();
 	void createDummyTexture();
 
 	void renderForward();
@@ -275,6 +278,7 @@ private:
 	bool mosaicEnabled = false;
 
 	// Internal
+	MeshData sphereModel;
 	std::pair<vk::Image, vk::ImageView> dummyTexture;
 
 	stbi_uc* skyboxImageData[6];

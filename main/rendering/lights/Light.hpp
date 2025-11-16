@@ -10,7 +10,16 @@ enum LightType {
 
 class Light {
 public:
-	Light(LightType type, glm::vec3 pos, glm::vec3 direction, glm::vec3 colour, int intensity, float innerAngle, float outerAngle, bool shadowCasting);
+	Light(
+		LightType type, 
+		glm::vec3 pos, 
+		glm::vec3 direction,
+		glm::vec3 colour, 
+		int intensity, 
+		float innerAngle, 
+		float outerAngle, 
+		bool shadowCasting
+	);
 
 	void markDirty();
 	void markClean();

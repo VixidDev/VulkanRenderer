@@ -1,41 +1,36 @@
 #include "VkBuffer.hpp"
 
-#include <utility>
-
-#include <cassert>
-
 #include "Error.hpp"
 #include "toString.hpp"
 
 namespace vk {
 
-	Buffer::Buffer() noexcept = default;
-
 	Buffer::~Buffer() {
-		if (VK_NULL_HANDLE != buffer) {
+		if (mBuffer != VK_NULL_HANDLE) {
 			assert(VK_NULL_HANDLE != mAllocator);
-			assert(VK_NULL_HANDLE != allocation);
-			vmaDestroyBuffer(mAllocator, buffer, allocation);
+			assert(VK_NULL_HANDLE != mAllocation);
+			vmaDestroyBuffer(mAllocator, mBuffer, mAllocation);
 		}
 	}
 
 	Buffer::Buffer(VmaAllocator allocator, VkBuffer buffer, VmaAllocation allocation) noexcept
-		: buffer(buffer)
-		, allocation(allocation)
+		: mBuffer(buffer)
+		, mAllocation(allocation)
 		, mAllocator(allocator) {}
 
 	Buffer::Buffer(Buffer&& aOther) noexcept
-		: buffer(std::exchange(aOther.buffer, VK_NULL_HANDLE))
-		, allocation(std::exchange(aOther.allocation, VK_NULL_HANDLE))
+		: mBuffer(std::exchange(aOther.mBuffer, VK_NULL_HANDLE))
+		, mAllocation(std::exchange(aOther.mAllocation, VK_NULL_HANDLE))
 		, mAllocator(std::exchange(aOther.mAllocator, VK_NULL_HANDLE)) {}
+
 	Buffer& Buffer::operator=(Buffer&& aOther) noexcept {
-		std::swap(buffer, aOther.buffer);
-		std::swap(allocation, aOther.allocation);
+		std::swap(mBuffer, aOther.mBuffer);
+		std::swap(mAllocation, aOther.mAllocation);
 		std::swap(mAllocator, aOther.mAllocator);
 		return *this;
 	}
 
-	Buffer createBuffer(
+	Buffer Buffer::createBuffer(
 		const VulkanAllocator& allocator,
 		VkDeviceSize size,
 		VkBufferUsageFlags bufferUsage,
@@ -54,7 +49,7 @@ namespace vk {
 		VkBuffer buffer = VK_NULL_HANDLE;
 		VmaAllocation allocation = VK_NULL_HANDLE;
 
-		if (const auto res = vmaCreateBuffer(allocator.allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr); VK_SUCCESS != res)
+		if (const VkResult res = vmaCreateBuffer(allocator.allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr); VK_SUCCESS != res)
 			throw Utils::Error("Unable to allocate buffer\n vmaCreateBuffer() returned %s", Utils::toString(res).c_str());
 
 		return Buffer(allocator.allocator, buffer, allocation);

@@ -18,6 +18,7 @@ public:
 	// Move only
 	VulkanAllocator(VulkanAllocator const&) = delete;
 	VulkanAllocator& operator= (VulkanAllocator const&) = delete;
+
 	VulkanAllocator(VulkanAllocator&&) noexcept;
 	VulkanAllocator& operator = (VulkanAllocator&&) noexcept;
 

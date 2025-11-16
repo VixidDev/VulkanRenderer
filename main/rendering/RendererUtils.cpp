@@ -90,8 +90,8 @@ namespace RendererUtils {
 		std::uint32_t descSetCount, 
 		const VkDescriptorSet* pDescriptorSets, 
 		std::uint32_t dynamicOffsetCount, /* = 0 */
-		const std::uint32_t* pDynamicOffsets /* = nullptr */)
-	{
+		const std::uint32_t* pDynamicOffsets /* = nullptr */
+	) {
 		checkCommandBuffer();
 
 		vkCmdBindDescriptorSets(
@@ -111,8 +111,8 @@ namespace RendererUtils {
 		VkShaderStageFlags stageFlags, 
 		std::uint32_t offset, 
 		std::uint32_t size, 
-		const void* pValues) 
-	{
+		const void* pValues
+	) {
 		checkCommandBuffer();
 
 		vkCmdPushConstants(boundCommandBuffer, pipelineLayout, stageFlags, offset, size, pValues);
@@ -134,12 +134,12 @@ namespace RendererUtils {
 			perMeshCallback(meshData);
 
 		VkBuffer vBuffers[4] = {
-			meshData.posBuffer.buffer,
-			meshData.texCoordBuffer.buffer,
-			meshData.normalsBuffer.buffer,
-			meshData.tbnFrameBuffer.buffer
+			meshData.posBuffer.get(),
+			meshData.texCoordBuffer.get(),
+			meshData.normalsBuffer.get(),
+			meshData.tbnFrameBuffer.get()
 		};
-		VkBuffer iBuffer = meshData.indicesBuffer.buffer;
+		VkBuffer iBuffer = meshData.indicesBuffer.get();
 		VkDeviceSize vOffsets[4]{};
 		VkDeviceSize iOffset{};
 
@@ -154,9 +154,9 @@ namespace RendererUtils {
 			perMeshCallback(meshData);
 
 		std::vector<VkBuffer> vBuffers(useTexCoords ? 2 : 1, VK_NULL_HANDLE);
-		vBuffers[0] = meshData.posBuffer.buffer;
-		if (useTexCoords) vBuffers[1] = meshData.texCoordBuffer.buffer;
-		VkBuffer iBuffer = meshData.indicesBuffer.buffer;
+		vBuffers[0] = meshData.posBuffer.get();
+		if (useTexCoords) vBuffers[1] = meshData.texCoordBuffer.get();
+		VkBuffer iBuffer = meshData.indicesBuffer.get();
 		VkDeviceSize vOffset[2]{};
 		VkDeviceSize iOffset{};
 
@@ -168,10 +168,10 @@ namespace RendererUtils {
 
 	void drawLineMesh(LineMeshData& lineMeshData) {
 		VkBuffer vBuffers[2] = {
-			lineMeshData.posBuffer.buffer,
-			lineMeshData.colBuffer.buffer,
+			lineMeshData.posBuffer.get(),
+			lineMeshData.colBuffer.get(),
 		};
-		VkBuffer iBuffer = lineMeshData.indicesBuffer.buffer;
+		VkBuffer iBuffer = lineMeshData.indicesBuffer.get();
 		VkDeviceSize vOffsets[2]{};
 		VkDeviceSize iOffset{};
 
@@ -195,8 +195,8 @@ namespace RendererUtils {
 		VkImageLayout dstImageLayout, 
 		std::uint32_t regionCount, 
 		const VkImageBlit* pRegions, 
-		VkFilter filter) 
-	{
+		VkFilter filter
+	) {
 		checkCommandBuffer();
 
 		vkCmdBlitImage(boundCommandBuffer, srcImage, srcImageLayout, dstImage, dstImageLayout, regionCount, pRegions, filter);
@@ -207,8 +207,8 @@ namespace RendererUtils {
 		VkImageLayout srcImageLayout, 
 		VkImage swapchainImage, 
 		VkExtent2D renderExtent,
-		VkFilter filter) 
-	{
+		VkFilter filter
+	) {
 		checkCommandBuffer();
 
 		// Transition srcImage to TRANSFER_SRC_OPTIMAL
@@ -271,8 +271,8 @@ namespace RendererUtils {
 		VkDeviceSize size, 
 		VkDeviceSize offset,
 		std::uint32_t srcQueueFamilyIndex, 
-		std::uint32_t dstQueueFamilyIndex) 
-	{
+		std::uint32_t dstQueueFamilyIndex
+	) {
 		checkCommandBuffer();
 
 		VkUtils::bufferBarrier(boundCommandBuffer, buffer, srcAccessMask, dstAccessMask, srcStageMask, dstStageMask, size, offset, srcQueueFamilyIndex, dstQueueFamilyIndex);
@@ -288,8 +288,8 @@ namespace RendererUtils {
 		VkPipelineStageFlags dstStageMask, 
 		VkImageSubresourceRange range, 
 		std::uint32_t srcQueueFamilyIndex, 
-		std::uint32_t dstQueueFamilyIndex) 
-	{
+		std::uint32_t dstQueueFamilyIndex
+	) {
 		checkCommandBuffer();
 
 		VkUtils::imageBarrier(boundCommandBuffer, image, srcAccessMask, dstAccessMask, srcLayout, dstLayout, srcStageMask, dstStageMask, range, srcQueueFamilyIndex, dstQueueFamilyIndex);

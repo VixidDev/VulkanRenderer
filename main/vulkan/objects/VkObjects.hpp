@@ -3,7 +3,6 @@
 #include <volk/volk.h>
 
 #include <utility>
-
 #include <cassert>
 
 // Provide a small wrapper around Vulkan handles that destroys these when

@@ -32,13 +32,15 @@ namespace RendererUtils {
 		std::uint32_t descSetCount,
 		const VkDescriptorSet* pDescriptorSets, 
 		std::uint32_t dynamicOffsetCount = 0, 
-		const std::uint32_t* pDynamicOffsets = nullptr);
+		const std::uint32_t* pDynamicOffsets = nullptr
+	);
 	void bindPushConstant(
 		VkPipelineLayout pipelineLayout,
 		VkShaderStageFlags stageFlags,
 		std::uint32_t offset,
 		std::uint32_t size,
-		const void* pValues);
+		const void* pValues
+	);
 	// Gets the VkDescriptorSet handle for the current frame
 	VkDescriptorSet& getDescriptorSetHandle(DescriptorSet* descriptorSet);
 
@@ -57,13 +59,15 @@ namespace RendererUtils {
 		VkImageLayout dstImageLayout,
 		std::uint32_t regionCount,
 		const VkImageBlit* pRegions,
-		VkFilter filter);
+		VkFilter filter
+	);
 	void blitImageToSwapchain(
 		VkImage srcImage,
 		VkImageLayout srcImageLayout,
 		VkImage swapchainImage,
 		VkExtent2D renderExtent,
-		VkFilter filter);
+		VkFilter filter
+	);
 	
 	// Dynamic states
 	void setCullMode(VkCullModeFlags cullMode);
@@ -80,7 +84,8 @@ namespace RendererUtils {
 		VkDeviceSize size = VK_WHOLE_SIZE,
 		VkDeviceSize offset = 0,
 		std::uint32_t srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		std::uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
+		std::uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
+	);
 
 	void imageBarrier(
 		VkImage image,
@@ -92,7 +97,8 @@ namespace RendererUtils {
 		VkPipelineStageFlags dstStageMask,
 		VkImageSubresourceRange range = VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 },
 		std::uint32_t srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-		std::uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED);
+		std::uint32_t dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED
+	);
 
 	// Queries
 	void resetQueryPool(vk::QueryPool& queryPool, std::uint32_t firstQuery, std::uint32_t queryCount);

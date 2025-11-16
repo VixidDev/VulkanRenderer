@@ -1,15 +1,14 @@
 #pragma once
 
+#include "../vulkan/objects/VkBuffer.hpp"
+
 #include <string>
 #include <vector>
-
 #include <cstdint>
 
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
-
-#include "../vulkan/objects/VkBuffer.hpp"
 
 /* Baked file format:
  *
@@ -89,27 +88,6 @@ struct BakedModel {
 	std::vector<BakedTextureInfo> textures;
 	std::vector<BakedMaterialInfo> materials;
 	std::vector<BakedMeshData> meshes;
-};
-
-struct MeshData {
-	vk::Buffer posBuffer;
-	vk::Buffer texCoordBuffer;
-	vk::Buffer normalsBuffer;
-	vk::Buffer tbnFrameBuffer;
-	vk::Buffer indicesBuffer;
-	std::size_t indicesCount;
-	std::uint32_t materialId;
-	bool hasAlphaMask;
-};
-
-struct LineMeshData {
-	vk::Buffer posBuffer;
-	vk::Buffer colBuffer;
-	vk::Buffer indicesBuffer;
-	vk::Buffer posBufferStaging;
-	vk::Buffer colBufferStaging;
-	vk::Buffer indicesBufferStaging;
-	std::size_t indicesCount;
 };
 
 BakedModel loadBakedModel(const char* modelPath);

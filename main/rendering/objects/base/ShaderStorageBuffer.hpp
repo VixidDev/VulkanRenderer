@@ -39,7 +39,7 @@ public:
 		// the last frame hasn't finished with it yet
 		for (int i = 0; i < Swapchain::MAX_FRAMES_IN_FLIGHT; i++) {
 			// GPU-sided buffer
-			this->gpuBuffers.emplace_back(vk::createBuffer(
+			this->gpuBuffers.emplace_back(vk::Buffer::createBuffer(
 				*this->context->allocator,
 				this->bufferSize,
 				VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -47,7 +47,7 @@ public:
 				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE));
 
 			// Staging buffer
-			this->stagingBuffers.emplace_back(vk::createBuffer(
+			this->stagingBuffers.emplace_back(vk::Buffer::createBuffer(
 				*this->context->allocator,
 				this->bufferSize,
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -63,22 +63,22 @@ public:
 
 		// Map ptr to GPU and copy to it
 		void* ptr;
-		if (const auto res = vmaMapMemory(this->context->allocator->allocator, this->stagingBuffers[frameIndex].allocation, &ptr); VK_SUCCESS != res)
+		if (const auto res = vmaMapMemory(this->context->allocator->allocator, this->stagingBuffers[frameIndex].getAllocation(), &ptr); VK_SUCCESS != res)
 			throw Utils::Error("Mapping memory for writing to Lights SSBO\nvmaMapMemory() returned: %s\n", Utils::toString(res).c_str());
 
 		std::memcpy(ptr, this->ssboData->data(), this->bufferSize);
-		vmaUnmapMemory(this->context->allocator->allocator, this->stagingBuffers[frameIndex].allocation);
+		vmaUnmapMemory(this->context->allocator->allocator, this->stagingBuffers[frameIndex].getAllocation());
 
 		auto copyCommand = [this](std::uint32_t frameIndex, VkCommandBuffer cmdBuff) {
 			VkBufferCopy copyRegion = {
 				.size = this->bufferSize
 			};
 
-			vkCmdCopyBuffer(cmdBuff, this->stagingBuffers[frameIndex].buffer, this->gpuBuffers[frameIndex].buffer, 1, &copyRegion);
+			vkCmdCopyBuffer(cmdBuff, this->stagingBuffers[frameIndex].get(), this->gpuBuffers[frameIndex].get(), 1, &copyRegion);
 
 			VkUtils::bufferBarrier(
 				cmdBuff,
-				this->gpuBuffers[frameIndex].buffer,
+				this->gpuBuffers[frameIndex].get(),
 				/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT,
 				/* dstAccessMask */ VK_ACCESS_SHADER_READ_BIT,
 				/* srcStageMask */ VK_PIPELINE_STAGE_TRANSFER_BIT,
@@ -104,7 +104,7 @@ public:
 	}
 
 	VkBuffer getHandle(std::uint32_t frameIndex) const override {
-		return this->gpuBuffers.at(frameIndex).buffer;
+		return this->gpuBuffers.at(frameIndex).get();
 	}
 
 	std::vector<vk::Buffer>& getBuffers() {

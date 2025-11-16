@@ -34,7 +34,7 @@ NoiseTextureBuffer::NoiseTextureBuffer(VulkanContext* context) : TextureBuffer(c
 	std::size_t bufferSize = noise.size() * sizeof(glm::vec2);
 
 	// Create staging buffer
-	vk::Buffer staging = vk::createBuffer(
+	vk::Buffer staging = vk::Buffer::createBuffer(
 		allocator,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -42,10 +42,10 @@ NoiseTextureBuffer::NoiseTextureBuffer(VulkanContext* context) : TextureBuffer(c
 
 	// Map staging buffer memory
 	void* ptr = nullptr;
-	if (const VkResult res = vmaMapMemory(allocator.allocator, staging.allocation, &ptr); VK_SUCCESS != res)
+	if (const VkResult res = vmaMapMemory(allocator.allocator, staging.getAllocation(), &ptr); VK_SUCCESS != res)
 		throw Utils::Error("Unable to map memory\nvmaMapMemory() returned %s\n", Utils::toString(res).c_str());
 	std::memcpy(ptr, noise.data(), bufferSize);
-	vmaUnmapMemory(allocator.allocator, staging.allocation);
+	vmaUnmapMemory(allocator.allocator, staging.getAllocation());
 
 	// Create vk::Image
 	vk::Image image = vk::createImage(allocator, 4, 4, this->format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, false);
@@ -70,7 +70,7 @@ NoiseTextureBuffer::NoiseTextureBuffer(VulkanContext* context) : TextureBuffer(c
 	copy.imageOffset = VkOffset3D{ 0, 0, 0 };
 	copy.imageExtent = VkExtent3D{ 4, 4, 1 };
 
-	vkCmdCopyBufferToImage(cbuff, staging.buffer, image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+	vkCmdCopyBufferToImage(cbuff, staging.get(), image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
 	// Transition to SHADER_READ_ONLY_OPTIMAL
 	VkUtils::imageBarrier(cbuff, image.image,

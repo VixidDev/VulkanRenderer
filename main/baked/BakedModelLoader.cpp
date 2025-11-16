@@ -174,35 +174,35 @@ namespace BakedModelLoader {
 
 		for (std::size_t i = 0; i < bakedModel.meshes.size(); i++) {
 			// GPU sided buffers
-			vk::Buffer vertexPosGPU = vk::createBuffer(
+			vk::Buffer vertexPosGPU = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].positions.size() * sizeof(glm::vec3),
 				VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 				0,
 				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
-			vk::Buffer vertexTexGPU = vk::createBuffer(
+			vk::Buffer vertexTexGPU = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].texcoords.size() * sizeof(glm::vec2),
 				VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 				0,
 				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
-			vk::Buffer vertexNormsGPU = vk::createBuffer(
+			vk::Buffer vertexNormsGPU = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].normals.size() * sizeof(glm::vec3),
 				VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 				0,
 				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
-			vk::Buffer vertexTBNGPU = vk::createBuffer(
+			vk::Buffer vertexTBNGPU = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].tangentsComp.size() * sizeof(std::uint32_t),
 				VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 				0,
 				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
-			vk::Buffer vertexIndexGPU = vk::createBuffer(
+			vk::Buffer vertexIndexGPU = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].indices.size() * sizeof(std::uint32_t),
 				VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -210,31 +210,31 @@ namespace BakedModelLoader {
 				VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
 			// Staging buffers
-			vk::Buffer posStaging = vk::createBuffer(
+			vk::Buffer posStaging = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].positions.size() * sizeof(glm::vec3),
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 		
-			vk::Buffer texStaging = vk::createBuffer(
+			vk::Buffer texStaging = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].texcoords.size() * sizeof(glm::vec2),
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
-			vk::Buffer normsStaging = vk::createBuffer(
+			vk::Buffer normsStaging = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].normals.size() * sizeof(glm::vec3),
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
-			vk::Buffer tbnStaging = vk::createBuffer(
+			vk::Buffer tbnStaging = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].tangentsComp.size() * sizeof(std::uint32_t),
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
-			vk::Buffer indexStaging = vk::createBuffer(
+			vk::Buffer indexStaging = vk::Buffer::createBuffer(
 				allocator,
 				bakedModel.meshes[i].indices.size() * sizeof(std::uint32_t),
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,

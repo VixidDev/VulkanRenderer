@@ -56,18 +56,18 @@ namespace vk {
 		const std::uint32_t baseHeight = std::uint32_t(imageData.height);
 		const std::uint32_t sizeInBytes = baseWidth * baseHeight * 4;
 
-		vk::Buffer staging = createBuffer(
+		vk::Buffer staging = Buffer::createBuffer(
 			allocator,
 			sizeInBytes,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
 		void* sptr = nullptr;
-		if (const auto res = vmaMapMemory(allocator.allocator, staging.allocation, &sptr); VK_SUCCESS != res)
+		if (const auto res = vmaMapMemory(allocator.allocator, staging.getAllocation(), &sptr); VK_SUCCESS != res)
 			throw Utils::Error("Unable to map memory\n vmaMapMemory() returned %s", Utils::toString(res).c_str());
 
 		std::memcpy(sptr, imageData.data, sizeInBytes);
-		vmaUnmapMemory(allocator.allocator, staging.allocation);
+		vmaUnmapMemory(allocator.allocator, staging.getAllocation());
 
 		stbi_image_free(imageData.data);
 
@@ -93,7 +93,7 @@ namespace vk {
 		copy.imageOffset = VkOffset3D{ 0, 0, 0 };
 		copy.imageExtent = VkExtent3D{ baseWidth, baseHeight, 1 };
 
-		vkCmdCopyBufferToImage(cbuff, staging.buffer, ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+		vkCmdCopyBufferToImage(cbuff, staging.get(), ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
 		VkUtils::imageBarrier(cbuff, ret.image,
 			/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT, /* dstAccessMask */ VK_ACCESS_TRANSFER_READ_BIT,
@@ -176,18 +176,18 @@ namespace vk {
 
 		constexpr std::uint8_t data[4] = { 0, 0, 0, 0 };
 
-		vk::Buffer staging = createBuffer(
+		vk::Buffer staging = Buffer::createBuffer(
 			allocator,
 			4,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
 		void* sptr = nullptr;
-		if (const auto res = vmaMapMemory(allocator.allocator, staging.allocation, &sptr); VK_SUCCESS != res)
+		if (const auto res = vmaMapMemory(allocator.allocator, staging.getAllocation(), &sptr); VK_SUCCESS != res)
 			throw Utils::Error("Unable to map memory\n vmaMapMemory() returned %s", Utils::toString(res).c_str());
 
 		std::memcpy(sptr, data, 4);
-		vmaUnmapMemory(allocator.allocator, staging.allocation);
+		vmaUnmapMemory(allocator.allocator, staging.getAllocation());
 
 		Image ret = createImage(allocator, 1, 1, format,
 			VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, false);
@@ -209,7 +209,7 @@ namespace vk {
 		copy.imageOffset = VkOffset3D{ 0, 0, 0 };
 		copy.imageExtent = VkExtent3D{ 1, 1, 1 };
 
-		vkCmdCopyBufferToImage(cbuff, staging.buffer, ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+		vkCmdCopyBufferToImage(cbuff, staging.get(), ret.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
 		VkUtils::imageBarrier(cbuff, ret.image,
 			/* srcAccessMask */ VK_ACCESS_TRANSFER_WRITE_BIT, /* dstAccessMask */ VK_ACCESS_SHADER_READ_BIT,

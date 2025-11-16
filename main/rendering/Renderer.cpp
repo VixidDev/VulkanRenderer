@@ -390,6 +390,9 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 
 	// Fill skybox texture (data already gathered from getSkyboxDimensions())
 	this->fillSkyboxTexture();
+
+	// Load debug .obj shapes
+	this->loadObjShapes();
 }
 
 Renderer::~Renderer() {
@@ -400,6 +403,15 @@ Renderer::~Renderer() {
 	if (!this->handledImGUIShutdown) {
 		vkDeviceWaitIdle(this->context.window->getDevice()->getDevice());
 		RendererUtils::destroyImGUI();
+	}
+}
+
+void Renderer::loadObjShapes() {
+	OBJModel sphereModel{};
+	if (!OBJLoader::loadFromFile("assets/main/unit_sphere.obj", sphereModel)) {
+		std::fprintf(stderr, "Renderer: Failed to load 'unit_sphere.obj' obj model!\n");
+	} else {
+
 	}
 }
 
@@ -421,14 +433,14 @@ void Renderer::fillSkyboxTexture() {
 	std::size_t imageSize = this->skyboxDimensions.width * this->skyboxDimensions.height * 4;
 	std::size_t bufferSize = imageSize * 6;
 
-	vk::Buffer stagingBuffer = vk::createBuffer(
+	vk::Buffer stagingBuffer = vk::Buffer::createBuffer(
 		*this->context.allocator,
 		bufferSize,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
 	std::uint8_t* ptr = nullptr;
-	if (const auto res = vmaMapMemory(this->context.allocator->allocator, stagingBuffer.allocation, (void**)&ptr); VK_SUCCESS != res)
+	if (const auto res = vmaMapMemory(this->context.allocator->allocator, stagingBuffer.getAllocation(), (void**)&ptr); VK_SUCCESS != res)
 		throw Utils::Error("Error when mapping memory for writing\nvmaMapMemory() returned %s\n", Utils::toString(res).c_str());
 
 	for (int i = 0; i < 6; i++) {
@@ -436,7 +448,7 @@ void Renderer::fillSkyboxTexture() {
 		std::memcpy(ptr + (imageSize * i), skyboxImageData[i], imageSize);
 	}
 
-	vmaUnmapMemory(this->context.allocator->allocator, stagingBuffer.allocation);
+	vmaUnmapMemory(this->context.allocator->allocator, stagingBuffer.getAllocation());
 
 	// Get skybox VkImage handle
 	VkImage image = this->getTextureBuffer("skybox")->getImage().image;
@@ -461,7 +473,7 @@ void Renderer::fillSkyboxTexture() {
 	copy.imageOffset = VkOffset3D{ 0, 0, 0 };
 	copy.imageExtent = VkExtent3D{ this->skyboxDimensions.width, this->skyboxDimensions.height, 1 };
 
-	vkCmdCopyBufferToImage(cmdBuff, stagingBuffer.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
+	vkCmdCopyBufferToImage(cmdBuff, stagingBuffer.get(), image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
 	// Transition to SHADER_READ_ONLY_OPTIMAL
 	VkUtils::imageBarrier(cmdBuff, image,
@@ -854,21 +866,21 @@ void Renderer::update(float timeDelta) {
 
 	// GPU buffers
 	if (!this->lineMeshDataInit) {
-		vk::Buffer posLineGPU = vk::createBuffer(
+		vk::Buffer posLineGPU = vk::Buffer::createBuffer(
 			*this->context.allocator,
 			8 * sizeof(glm::vec4),
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			0,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
-		vk::Buffer colLineGPU = vk::createBuffer(
+		vk::Buffer colLineGPU = vk::Buffer::createBuffer(
 			*this->context.allocator,
 			8 * sizeof(glm::vec3),
 			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
 			0,
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
-		vk::Buffer indexLineGPU = vk::createBuffer(
+		vk::Buffer indexLineGPU = vk::Buffer::createBuffer(
 			*this->context.allocator,
 			24 * sizeof(std::uint32_t),
 			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -876,19 +888,19 @@ void Renderer::update(float timeDelta) {
 			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
 
 		// Staging buffers
-		vk::Buffer posStaging = vk::createBuffer(
+		vk::Buffer posStaging = vk::Buffer::createBuffer(
 			*this->context.allocator,
 			8 * sizeof(glm::vec4),
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
-		vk::Buffer colStaging = vk::createBuffer(
+		vk::Buffer colStaging = vk::Buffer::createBuffer(
 			*this->context.allocator,
 			8 * sizeof(glm::vec3),
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
 
-		vk::Buffer indexStaging = vk::createBuffer(
+		vk::Buffer indexStaging = vk::Buffer::createBuffer(
 			*this->context.allocator,
 			24 * sizeof(std::uint32_t),
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
@@ -2368,7 +2380,7 @@ void Renderer::setObjectDebugNames() {
 	// Same as FBs
 	auto assignObjectNameToBuffer = [this](VkDevice device, std::vector<vk::Buffer>& buffers, const char* name) {
 		for (std::size_t i = 0; i < buffers.size(); i++) {
-			VkUtils::setObjectName(device, VK_OBJECT_TYPE_BUFFER, (uint64_t)buffers[i].buffer, name);
+			VkUtils::setObjectName(device, VK_OBJECT_TYPE_BUFFER, (uint64_t)buffers[i].get(), name);
 		}
 	};
 	assignObjectNameToBuffer(device, this->uniformBuffers["mvp"]->getBuffers(), "MVP Uniform Buffer");
