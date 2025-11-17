@@ -9,7 +9,7 @@
 #include "lights/Light.hpp"
 #include "../baked/BakedModel.hpp"
 #include "../camera/Camera.hpp"
-#include "../models/OBJLoader.hpp"
+#include "../models/ModelLoader.hpp"
 #include "../models/MeshData.hpp"
 #include "../vulkan/VulkanContext.hpp"
 #include "objects/base/interfaces/IShaderStorageBuffer.hpp"
@@ -142,6 +142,9 @@ public:
 	LightMatrices& getSunMatrices();
 	std::uint32_t getSunLightIndex();
 
+	// Debug shapes
+	MeshData& getDebugSphere() { return this->sphereModel; }
+
 	int numLights = 2;
 	std::uint32_t numPointLights = 0;
 	std::uint32_t numDirectionalLights = 0;
@@ -181,6 +184,8 @@ public:
 	// Different to the 'intensity' of the light of the sun, 
 	// this is to do with rendering the actual sun in the sky
 	float sunIntensity = 1.0f;
+
+	bool anyDebugVisualisation = false;
 
 	// Not the best implementation by just sticking this in
 	// here but its the simplest

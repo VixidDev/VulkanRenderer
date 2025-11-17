@@ -224,7 +224,7 @@ void VulkanDevice::createLogicalDevice() {
 	};
 	VkPhysicalDeviceFeatures2 enabledFeatures = {
 		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-		.pNext = &robustness2Features
+		.pNext = &enabledRobustFeatures
 	};
 	if (deviceFeatures.features.samplerAnisotropy) {
 		enabledFeatures.features.samplerAnisotropy = VK_TRUE;

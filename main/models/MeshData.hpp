@@ -2,6 +2,21 @@
 
 #include "../vulkan/objects/VkBuffer.hpp"
 
+#include <string>
+#include <vector>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
+#include <glm/vec4.hpp>
+
+struct RawMeshData {
+	std::string name;
+	std::vector<glm::vec3> positions;
+	std::vector<glm::vec2> texcoords;
+	std::vector<glm::vec3> normals;
+	std::vector<uint32_t> TBNs;
+	std::vector<uint32_t> indices;
+};
+
 struct MeshData {
 	vk::Buffer posBuffer{};
 	vk::Buffer texCoordBuffer{};

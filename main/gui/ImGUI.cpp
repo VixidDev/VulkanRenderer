@@ -177,6 +177,9 @@ void GUI::draw() {
 
 			if (renderer.getRenderingType())
 				ImGui::EndDisabled();
+
+			ImGui::Checkbox("Light Volumes", &renderer.anyDebugVisualisation);
+
 			if (renderer.getDebugView())
 				ImGui::EndDisabled();
 #endif

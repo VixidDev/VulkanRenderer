@@ -18,6 +18,8 @@
 #include "../vulkan/VkUtils.hpp"
 #include "RendererUtils.hpp"
 
+#include "debug/DebugVisualisations.hpp"
+
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -73,6 +75,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->renderPasses.emplace("sun", std::make_unique<SunPass>(window));
 	this->renderPasses.emplace("VSMshadow", std::make_unique<VarianceShadowPass>(window));
 	this->renderPasses.emplace("VSMblur", std::make_unique<VarianceShadowBlurPass>(window));
+	this->renderPasses.emplace("debugShapes", std::make_unique<DebugShapesPass>(window));
 
 	// Descriptor Set Layouts
 	std::vector<DescriptorSetting> uniformBufferV = { { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT } };
@@ -164,6 +167,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->pipelines.emplace("lineDebug", std::make_unique<LineDebugPipeline>(window, this->getPipelineLayout("lineDebug"), this->getRenderPass("sunView")));
 	this->pipelines.emplace("debugViews", std::make_unique<DebugViewsPipeline>(window, this->getPipelineLayout("debugViews"), this->getRenderPass("debug")));
 	this->pipelines.emplace("overVisualisation", std::make_unique<OverVisualisationPipeline>(window, this->getPipelineLayout("overVisualisation"), this->getRenderPass("debug")));
+	this->pipelines.emplace("debugShapes", std::make_unique<DebugShapesPipeline>(window, this->getPipelineLayout("lineDebug"), this->getRenderPass("debugShapes")));
 
 	// Texture Buffers
 	// HDR - output buffer after geometry and lighting (HDR rendering)
@@ -221,6 +225,7 @@ Renderer::Renderer(Driver* driver) : driver(driver) {
 	this->framebuffers.emplace("ssaoHblur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssaoHblur"), this->getRenderPass("ssao")));
 	this->framebuffers.emplace("ssaoVblur", std::make_unique<WriteToTargetFramebuffer>(window, this->getTextureBuffer("ssaoVblur"), this->getRenderPass("ssao")));
 	this->framebuffers.emplace("debug", std::make_unique<DebugFramebuffer>(window, &this->textureBuffers, this->getRenderPass("debug")));
+	this->framebuffers.emplace("debugShapes", std::make_unique<DebugFramebuffer>(window, &this->textureBuffers, this->getRenderPass("debugShapes")));
 
 	// Uniform Buffers
 	VkPipelineStageFlags VFstageFlags = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
@@ -407,11 +412,8 @@ Renderer::~Renderer() {
 }
 
 void Renderer::loadObjShapes() {
-	OBJModel sphereModel{};
-	if (!OBJLoader::loadFromFile("assets/main/unit_sphere.obj", sphereModel)) {
+	if (!ModelLoader::loadObjFromFile(this->context, "assets/main/unit_sphere.obj", this->sphereModel)) {
 		std::fprintf(stderr, "Renderer: Failed to load 'unit_sphere.obj' obj model!\n");
-	} else {
-
 	}
 }
 
@@ -1030,6 +1032,14 @@ void Renderer::render() {
 		VkUtils::beginCmdLabel(RendererUtils::getCommandBuffer(), "Forward Pass");
 		this->renderForward();
 		VkUtils::endCmdLabel(RendererUtils::getCommandBuffer());
+	}
+
+	// Render any debug shapes / visualisations on top of the scene after
+	// forward or deferred pass
+	if (this->anyDebugVisualisation) {
+		if (true) {
+			Debug::renderDebugLightVolumes(this, this->imageIndex);
+		}
 	}
 
 	// Post processing effects

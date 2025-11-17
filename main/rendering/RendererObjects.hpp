@@ -16,6 +16,7 @@
 #include "objects/impl/renderPasses/SunPass.hpp"
 #include "objects/impl/renderPasses/VarianceShadowPass.hpp"
 #include "objects/impl/renderPasses/VarianceShadowBlurPass.hpp"
+#include "objects/impl/renderPasses/DebugShapesPass.hpp"
 
 #include "objects/impl/pipelineLayouts/ForwardPipelineLayout.hpp"
 #include "objects/impl/pipelineLayouts/DeferredWritingPipelineLayout.hpp"
@@ -57,6 +58,7 @@
 #include "objects/impl/pipelines/SkyboxPipeline.hpp"
 #include "objects/impl/pipelines/SunPipeline.hpp"
 #include "objects/impl/pipelines/VarianceShadowPipeline.hpp"
+#include "objects/impl/pipelines/DebugShapesPipeline.hpp"
 
 #include "objects/base/ArrayTextureBuffer.hpp"
 #include "objects/impl/textureBuffers/DepthTextureBuffer.hpp"
