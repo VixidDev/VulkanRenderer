@@ -12,10 +12,10 @@ namespace vk {
 		~Buffer();
 
 		Buffer(Buffer const&) = delete;
-		Buffer& operator= (Buffer const&) = delete;
+		Buffer& operator=(Buffer const&) = delete;
 
 		Buffer(Buffer&&) noexcept;
-		Buffer& operator = (Buffer&&) noexcept;
+		Buffer& operator=(Buffer&&) noexcept;
 
 		static Buffer createBuffer(
 			const VulkanAllocator& allocator,

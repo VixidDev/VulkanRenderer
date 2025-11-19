@@ -6,6 +6,9 @@
 #include "../../../../vulkan/Swapchain.hpp"
 #include "../../../PipelineCreation.hpp"
 
+#include "glm/vec3.hpp"
+#include "glm/vec4.hpp"
+
 DebugShapesPipeline::DebugShapesPipeline(VulkanWindow* window, PipelineLayout* pipelineLayout, RenderPass* renderPass
 ) : Pipeline(window) {
 	this->pipelineLayout = pipelineLayout;
@@ -17,7 +20,7 @@ DebugShapesPipeline::DebugShapesPipeline(VulkanWindow* window, PipelineLayout* p
 }
 
 void DebugShapesPipeline::recreate() {
-	vk::ShaderModule vert = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/basic.vert.spv");
+	vk::ShaderModule vert = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/debugShape.vert.spv");
 	vk::ShaderModule frag = loadShaderModule(*this->window->getDevice(), "assets/main/shaders/debugShape.frag.spv");
 
 	VkPipelineShaderStageCreateInfo stages[2]{};
@@ -31,45 +34,47 @@ void DebugShapesPipeline::recreate() {
 	stages[1].module = frag.handle;
 	stages[1].pName = "main";
 
-	VkVertexInputBindingDescription vertexInputs[4]{};
-	// Positions
+	struct InstanceData {
+		glm::vec3 translation;
+		float scale;
+		glm::vec4 colour;
+	};
+
+	VkVertexInputBindingDescription vertexInputs[2]{};
+	// Vertex positions
 	vertexInputs[0].binding = 0;
 	vertexInputs[0].stride = sizeof(float) * 3;
 	vertexInputs[0].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	// UV
+	// Instance data
 	vertexInputs[1].binding = 1;
-	vertexInputs[1].stride = sizeof(float) * 2;
-	vertexInputs[1].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	// Fallback normals
-	vertexInputs[2].binding = 2;
-	vertexInputs[2].stride = sizeof(float) * 3;
-	vertexInputs[2].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	// TBN frame
-	vertexInputs[3].binding = 3;
-	vertexInputs[3].stride = sizeof(std::uint32_t);
-	vertexInputs[3].inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	vertexInputs[1].stride = sizeof(InstanceData);
+	vertexInputs[1].inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
 
 	VkVertexInputAttributeDescription vertexAttributes[4]{};
+	// Vertex positions
 	vertexAttributes[0].binding = 0;
 	vertexAttributes[0].location = 0;
 	vertexAttributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 	vertexAttributes[0].offset = 0;
+	// Instance translation
 	vertexAttributes[1].binding = 1;
 	vertexAttributes[1].location = 1;
-	vertexAttributes[1].format = VK_FORMAT_R32G32_SFLOAT;
-	vertexAttributes[1].offset = 0;
-	vertexAttributes[2].binding = 2;
+	vertexAttributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	vertexAttributes[1].offset = offsetof(InstanceData, translation);
+	// Instance scale
+	vertexAttributes[2].binding = 1;
 	vertexAttributes[2].location = 2;
-	vertexAttributes[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-	vertexAttributes[2].offset = 0;
-	vertexAttributes[3].binding = 3;
+	vertexAttributes[2].format = VK_FORMAT_R32_SFLOAT;
+	vertexAttributes[2].offset = offsetof(InstanceData, scale);
+	// Instance colour
+	vertexAttributes[3].binding = 1;
 	vertexAttributes[3].location = 3;
-	vertexAttributes[3].format = VK_FORMAT_A2R10G10B10_UNORM_PACK32;
-	vertexAttributes[3].offset = 0;
+	vertexAttributes[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+	vertexAttributes[3].offset = offsetof(InstanceData, colour);
 
 	VkPipelineVertexInputStateCreateInfo inputInfo{};
 	inputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-	inputInfo.vertexBindingDescriptionCount = 4;
+	inputInfo.vertexBindingDescriptionCount = 2;
 	inputInfo.pVertexBindingDescriptions = vertexInputs;
 	inputInfo.vertexAttributeDescriptionCount = 4;
 	inputInfo.pVertexAttributeDescriptions = vertexAttributes;
@@ -103,7 +108,7 @@ void DebugShapesPipeline::recreate() {
 	rasterInfo.depthBiasEnable = VK_FALSE;
 	rasterInfo.rasterizerDiscardEnable = VK_FALSE;
 	rasterInfo.polygonMode = VK_POLYGON_MODE_FILL;
-	rasterInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterInfo.cullMode = VK_CULL_MODE_NONE;
 	rasterInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	rasterInfo.depthBiasEnable = VK_FALSE;
 	rasterInfo.lineWidth = 1.0f;

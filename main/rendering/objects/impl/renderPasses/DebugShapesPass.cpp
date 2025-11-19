@@ -22,9 +22,9 @@ void DebugShapesPass::recreate() {
 	// Depth buffer
 	attachments[1].format = VK_FORMAT_D32_SFLOAT;
 	attachments[1].samples = VK_SAMPLE_COUNT_1_BIT;
-	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	attachments[1].loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
 	attachments[1].storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	attachments[1].initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	attachments[1].initialLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	attachments[1].finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentReference subpassAttachments[1]{};
@@ -74,12 +74,7 @@ void DebugShapesPass::recreate() {
 
 	this->renderPass = vk::RenderPass(this->window->getDevice()->getDevice(), rpass);
 
-	// Since clear values are determined by the attachments of the render pass
-	// we create the clear values here
 	VkClearValue colourClearValue{};
-	// Clear values are set to (0, 0, 0, 1) since on AMD hardware it is considered
-	// a 'fast clear' which are meant to be ~100x faster than regular clears
-	// https://gpuopen.com/learn/rdna-performance-guide/
 	colourClearValue.color = { {0.0f, 0.0f, 0.0f, 1.0f} };
 	VkClearValue depthClearValue{};
 	depthClearValue.depthStencil.depth = 1.0f;

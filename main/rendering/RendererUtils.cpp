@@ -166,6 +166,21 @@ namespace RendererUtils {
 		vkCmdDrawIndexed(boundCommandBuffer, static_cast<std::uint32_t>(meshData.indicesCount), 1, 0, 0, 0);
 	}
 
+	void drawDebugMeshInstanced(MeshData& meshData, uint32_t instanceCount, vk::Buffer& instanceBuffer) {
+		VkBuffer vBuffers[2] = {
+			meshData.posBuffer.get(),
+			instanceBuffer.get()
+		};
+		VkBuffer iBuffer = meshData.indicesBuffer.get();
+		VkDeviceSize vOffset[2]{};
+		VkDeviceSize iOffset{};
+
+		vkCmdBindVertexBuffers(boundCommandBuffer, 0, 2, vBuffers, vOffset);
+		vkCmdBindIndexBuffer(boundCommandBuffer, iBuffer, iOffset, VK_INDEX_TYPE_UINT32);
+
+		vkCmdDrawIndexed(boundCommandBuffer, uint32_t(meshData.indicesCount), instanceCount, 0, 0, 0);
+	}
+
 	void drawLineMesh(LineMeshData& lineMeshData) {
 		VkBuffer vBuffers[2] = {
 			lineMeshData.posBuffer.get(),

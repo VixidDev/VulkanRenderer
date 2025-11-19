@@ -1919,7 +1919,7 @@ void Renderer::renderVSMShadowMaps() {
 			spotLightIndex++;
 			break;
 		}
-		}		
+		}
 
 		light.markClean();
 	}
@@ -1983,6 +1983,7 @@ void Renderer::submitRender() {
 
 void Renderer::finishRendering() {
 	vkDeviceWaitIdle(this->context.window->getDevice()->getDevice());
+	Debug::destroyBuffers();
 	RendererUtils::destroyImGUI();
 	this->handledImGUIShutdown = true;
 }
@@ -2406,22 +2407,22 @@ void Renderer::setObjectDebugNames() {
 	// Sync objects
 	// Command Buffers
 	for (std::size_t i = 0; i < this->cmdBuffers.size(); i++) {
-		std::string cmdBufLabel = std::format("Command Buffer %d", i);
+		std::string cmdBufLabel = std::format("Command Buffer {}", i);
 		VkUtils::setObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)this->cmdBuffers[i], cmdBufLabel.c_str());
 	}
 	// Frame Done Fences
 	for (std::size_t i = 0; i < this->frameDoneFences.size(); i++) {
-		std::string frameDoneFenceLabel = std::format("Frame Done Fence %d", i);
+		std::string frameDoneFenceLabel = std::format("Frame Done Fence {}", i);
 		VkUtils::setObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)this->cmdBuffers[i], frameDoneFenceLabel.c_str());
 	}
 	// Image Available Semaphores
 	for (std::size_t i = 0; i < this->imageAvailableSemaphores.size(); i++) {
-		std::string imgAvailableSemaphoreLabel = std::format("Image Available Semaphore %d", i);
+		std::string imgAvailableSemaphoreLabel = std::format("Image Available Semaphore {}", i);
 		VkUtils::setObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)this->cmdBuffers[i], imgAvailableSemaphoreLabel.c_str());
 	}
 	// Render Finished Semaphore
 	for (std::size_t i = 0; i < this->renderFinishedSemaphores.size(); i++) {
-		std::string renderFinSemaphoreLabel = std::format("Render Finished Semaphore %d", i);
+		std::string renderFinSemaphoreLabel = std::format("Render Finished Semaphore {}", i);
 		VkUtils::setObjectName(device, VK_OBJECT_TYPE_COMMAND_BUFFER, (uint64_t)this->cmdBuffers[i], renderFinSemaphoreLabel.c_str());
 	}
 

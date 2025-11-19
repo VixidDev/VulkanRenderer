@@ -10,6 +10,10 @@ namespace vk {
 			assert(VK_NULL_HANDLE != mAllocator);
 			assert(VK_NULL_HANDLE != mAllocation);
 			vmaDestroyBuffer(mAllocator, mBuffer, mAllocation);
+			// Prevents crashing from double destructions.
+			// Ideally we never double destroy but in the 
+			// case it happens, at least we don't crash.
+			mBuffer = VK_NULL_HANDLE;
 		}
 	}
 
