@@ -56,10 +56,7 @@ workspace "VulkanRenderer"
 	filter "*"
 
 -- Third party dependencies
-include "third_party" 
-
--- GLSLC helpers
---dofile("third_party/glslc.lua")
+include "third_party"
 
 -- Projects
 

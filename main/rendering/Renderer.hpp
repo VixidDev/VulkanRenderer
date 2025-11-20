@@ -145,7 +145,7 @@ public:
 	// Debug shapes
 	MeshData& getDebugSphere() { return this->sphereModel; }
 
-	int numLights = 2;
+	int numLights = 0;
 	std::uint32_t numPointLights = 0;
 	std::uint32_t numDirectionalLights = 0;
 	std::uint32_t numSpotLights = 0;

@@ -610,58 +610,60 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		Light& light = lights->at(i);
 
 		glsl::Light lightStruct = {
-			.positionAndLightType = { light.getPosition(), light.getLightType() },
+			.positionAndLightType = { light.getPosition(), light.isEnabled() ? light.getLightType() : -1 },
 			.directionAndMapIndex = { light.getDirection(), 0 },
 			.colourAndIntensity = { light.getColour(), light.getIntensity() },
 			.extra = { std::cos(glm::radians(light.getInnerAngle())), std::cos(glm::radians(light.getOuterAngle())), 0, (int)light.isShadowCasting() }
 		};
 
 		switch (light.getLightType()) {
-		case LightType::POINT:
-		{
-			lightStruct.directionAndMapIndex.w = (float)pointLightIndex;
-			pointLightIndex++;
-			break;
-		}
-		case LightType::DIRECTIONAL:
-		{
-			this->sunMatrices.projection = Cache<glm::mat4>([this]() {
-				return glm::ortho(-this->sunOrthoBounds, this->sunOrthoBounds, this->sunOrthoBounds, -this->sunOrthoBounds, this->sunShadowNear, this->sunShadowFar);
-			});
-			this->sunMatrices.view = Cache<glm::mat4>([this, &light]() {
-				return glm::lookAt(glm::vec3(0.0f, 0.0f, -50.0f) + (-light.getDirection() * this->sunDistance), glm::vec3(0.0f, 0.0f, -50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-			});
+			case LightType::POINT:
+			{
+				lightStruct.directionAndMapIndex.w = (float)pointLightIndex;
+				pointLightIndex++;
+				break;
+			}
+			case LightType::DIRECTIONAL:
+			{
+				this->sunMatrices.projection = Cache<glm::mat4>([this]() {
+					return glm::ortho(-this->sunOrthoBounds, this->sunOrthoBounds, this->sunOrthoBounds, -this->sunOrthoBounds, this->sunShadowNear, this->sunShadowFar);
+				});
+				this->sunMatrices.view = Cache<glm::mat4>([this, &light]() {
+					return glm::lookAt(glm::vec3(0.0f, 0.0f, -50.0f) + (-light.getDirection() * this->sunDistance), glm::vec3(0.0f, 0.0f, -50.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+				});
 
-			this->sunLightIndex = i;
-			this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection.get() * this->sunMatrices.view.get());
+				this->sunLightIndex = i;
+				this->ssbos.lightMatrices.emplace_back(this->sunMatrices.projection.get() * this->sunMatrices.view.get());
 
-			lightStruct.extra.z = (float)matrixDependentIndex;
+				lightStruct.extra.z = (float)matrixDependentIndex;
 
-			matrixDependentIndex++;
-			break;
-		}
-		case LightType::SPOT:
-		{
-			lightStruct.directionAndMapIndex.w = (float)spotLightIndex;
+				matrixDependentIndex++;
+				break;
+			}
+			case LightType::SPOT:
+			{
+				lightStruct.directionAndMapIndex.w = (float)spotLightIndex;
 
-			glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 256.0f);
-			projection[1][1] *= -1.0;
-			glm::mat4 view = glm::lookAt(light.getPosition(), light.getPosition() + light.getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
+				glm::mat4 projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.01f, 256.0f);
+				projection[1][1] *= -1.0;
+				glm::mat4 view = glm::lookAt(light.getPosition(), light.getPosition() + light.getDirection(), glm::vec3(0.0f, 1.0f, 0.0f));
 
-			this->ssbos.lightMatrices.emplace_back(projection * view);
-			this->ssbos.lightMatrices.emplace_back(view);
+				this->ssbos.lightMatrices.emplace_back(projection * view);
+				this->ssbos.lightMatrices.emplace_back(view);
 
-			lightStruct.extra.z = (float)matrixDependentIndex;
+				lightStruct.extra.z = (float)matrixDependentIndex;
 
-			spotLightIndex++;
-			matrixDependentIndex++;
-			matrixDependentIndex++;
-			break;
-		}
+				spotLightIndex++;
+				matrixDependentIndex++;
+				matrixDependentIndex++;
+				break;
+			}
 		}
 
 		this->ssbos.lights.emplace_back(lightStruct);
 	}
+
+	this->numLights = lights->size();
 
 	// Create SSBOs
 	this->shaderStorageBuffers.emplace("lights", std::make_unique<ShaderStorageBuffer<glsl::Light>>(&this->context, &this->ssbos.lights));
@@ -827,13 +829,18 @@ void Renderer::update(float timeDelta) {
 	int directionalLightIndex = 0;
 
 	for (std::size_t i = 0; i < this->lights->size(); i++) {
-		Light light = lights->at(i);
+		Light& light = lights->at(i);
 
-		glsl::Light lightStruct = this->ssbos.lights.at(i);
+		glsl::Light& lightStruct = this->ssbos.lights.at(i);
 
 		switch (light.getLightType()) {
 		case LightType::POINT:
 		{
+			if (this->camera->lightInterectsFrustum(light)) {
+				lightStruct.positionAndLightType.w = LightType::POINT;
+			} else {
+				lightStruct.positionAndLightType.w = -1;
+			}
 			break;
 		}
 		case LightType::DIRECTIONAL:
@@ -1175,7 +1182,6 @@ void Renderer::renderForward() {
 	RendererUtils::bindGraphicPipeline(this->getPipeline("forward")->getHandle());
 
 	glsl::LightsAndEmissive lightsAndEmissive = {
-		.numLights = this->numLights,
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias,
@@ -1390,7 +1396,6 @@ void Renderer::renderDeferred() {
 	RendererUtils::bindGraphicPipeline(this->getPipeline("deferredShading")->getHandle());
 
 	glsl::LightsAndEmissive lightsAndEmissive = {
-		.numLights = this->numLights,
 		.emissiveStrength = this->emissiveStrength,
 		.brightnessThreshold = this->brightnessThreshold,
 		.shadowBias = this->shadowBias,

@@ -145,3 +145,12 @@ Zstandard ("zstd") compression library. Originally developed by Facebook/Meta,
 it targets fast (lossless) compression with high compression ratios. This only
 includes the decompressor module.
 
+## magic_enum
+
+- Where: https://github.com/Neargye/magic_enum
+- What: Static reflection for enums for >C++17
+- License: MIT
+
+Single header file library for static reflection for enums, used to work with
+enum types (to string, from string, iteration, etc.) without the need of macros 
+or boilerplate.

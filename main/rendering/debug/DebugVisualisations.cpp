@@ -25,7 +25,7 @@ namespace Debug {
 
 				InstanceData data = {
 					.translation = lights[i].getPosition(),
-					.scale = std::sqrt(lights[i].getIntensity() / 0.025f),
+					.scale = lights[i].getRadius(),
 					.colour = glm::vec4(0.24f, 0.78f, 0.48f, 0.2f)
 				};
 				instanceData.emplace_back(data);

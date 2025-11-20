@@ -9,6 +9,8 @@ includedirs("glm/include");
 includedirs("rapidobj/include");
 includedirs("tgen/include");
 includedirs("zstd/include");
+includedirs("tiny_obj_loader/include");
+includedirs("magic_enum/include");
 
 defines("GLM_FORCE_RADIANS=1")
 defines("GLM_FORCE_SIZE_T_LENGTH=1")

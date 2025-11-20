@@ -40,7 +40,6 @@ layout(set = 6, binding = 4) uniform sampler2D uNormalMap;
 layout(set = 6, binding = 5) uniform sampler2D uEmissive;
 
 layout(push_constant) uniform PushConstants {
-	int lightCount;
 	float emissiveStrength;
 	float brightnessThreshold;
 	float shadowBias;
@@ -157,6 +156,9 @@ void main() {
 	// Iterate over all lights
 	for (int i = 0; i < NUM_LIGHTS; i++) {
 		ShaderLight light = lights[i];
+
+		// if lightType == -1 then the light is disabled
+		if (light.positionAndLightType.w == -1) continue;
 
 		vec3 lightPos = light.positionAndLightType.xyz;
 		float distToLight = length(lightPos - v2fPosition);

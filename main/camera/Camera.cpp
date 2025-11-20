@@ -6,6 +6,7 @@
 #include "../Driver.hpp"
 #include "../input/Mouse.hpp"
 #include "../vulkan/Swapchain.hpp"
+#include "Utils.hpp"
 
 #include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
@@ -142,46 +143,6 @@ void Camera::markViewDirty() {
 	this->invView.markDirty();
 }
 
-float& Camera::getFov() {
-	return this->fov;
-}
-
-float& Camera::getNearPlane() {
-	return this->nearPlane;
-}
-
-float& Camera::getFarPlane() {
-	return this->farPlane;
-}
-
-glm::vec3 Camera::getPosition() {
-	return this->position;
-}
-
-glm::vec3 Camera::getFrontDir() {
-	return this->frontDir;
-}
-
-glm::mat4 Camera::getProjection() {
-	return this->projection.get();
-}
-
-glm::mat4 Camera::getInvProjection() {
-	return this->invProjection.get();
-}
-
-glm::mat4 Camera::getView() {
-	return this->view.get();
-}
-
-glm::mat4 Camera::getInvView() {
-	return this->invView.get();
-}
-
-float& Camera::getSensitivity() {
-	return this->sensitivity;
-}
-
 std::array<glm::vec4, 8> Camera::getFrustumCorners() {
 	assert(this->projection.get() != glm::mat4{} && "Camera projection matrix must be initialised before getting frustum corners!");
 	assert(this->view.get() != glm::mat4{} && "Camera view matrix must be initialised before getting frustum corners!");
@@ -206,12 +167,59 @@ std::array<glm::vec4, 8> Camera::getFrustumCorners() {
 	return frustumCorners;
 }
 
-float Camera::getYaw() {
-	return this->yaw;
+std::array<FrustumPlane, 6> Camera::getFrustumPlanes() {
+	std::array<FrustumPlane, 6> planes{};
+
+	glm::mat4 viewProj = this->projection.get() * this->view.get();
+
+	glm::vec4 row0 = Utils::row(viewProj, 0);
+	glm::vec4 row1 = Utils::row(viewProj, 1);
+	glm::vec4 row2 = Utils::row(viewProj, 2);
+	glm::vec4 row3 = Utils::row(viewProj, 3);
+
+	// Left plane
+	glm::vec4 plane = row3 + row0;
+	planes[0] = FrustumPlane{ glm::vec3(plane), plane.w };
+
+	// Right plane
+	plane = row3 - row0;
+	planes[1] = FrustumPlane{ glm::vec3(plane), plane.w };
+	
+	// Bottom plane
+	plane = row3 + row1;
+	planes[2] = FrustumPlane{ glm::vec3(plane), plane.w };
+	
+	// Top plane
+	plane = row3 - row1;
+	planes[3] = FrustumPlane{ glm::vec3(plane), plane.w };
+	
+	// Near plane
+	plane = row3 + row2;
+	planes[4] = FrustumPlane{ glm::vec3(plane), plane.w };
+
+	// Far plane
+	plane = row3 - row2;
+	planes[5] = FrustumPlane{ glm::vec3(plane), plane.w };
+
+	// Normalise
+	for (int i = 0; i < 6; i++) {
+		float len = glm::length(planes[i].normal);
+		planes[i].normal /= len;
+		planes[i].d /= len;
+	}
+
+	return planes;
 }
 
-float Camera::getPitch() {
-	return this->pitch;
+bool Camera::lightInterectsFrustum(Light& light) {
+	std::array<FrustumPlane, 6> planes = this->getFrustumPlanes();
+
+	for (int i = 0; i < 6; i++) {
+		float dist = glm::dot(planes[i].normal, light.getPosition()) + planes[i].d;
+		if (dist < -light.getRadius()) return false;
+	}
+
+	return true;
 }
 
 constexpr glm::vec3 animatedPoints[17] = {

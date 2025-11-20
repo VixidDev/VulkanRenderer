@@ -1,7 +1,7 @@
 #define PI 3.14159265359
 
 struct ShaderLight {
-	vec4 positionAndLightType;    // xyz: light position, w: light type
+	vec4 positionAndLightType;    // xyz: light position, w: light type (if -1 is represents light is disabled)
 	vec4 directionAndMapIndex;    // xyz: light direction, w: shadow map index
 	vec4 colourAndIntensity;      // xyz: light colour, w: light intensity
 	vec4 extra; // x: spot light inner cone angle, y: spot light outer cone angle, z: light space matrix index, w: is shadow casting

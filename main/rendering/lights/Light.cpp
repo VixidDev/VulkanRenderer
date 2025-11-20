@@ -1,5 +1,9 @@
 #include "Light.hpp"
 
+#include "magic_enum.hpp"
+
+#include <format>
+
 Light::Light(
 	LightType type, 
 	glm::vec3 pos, 
@@ -19,48 +23,20 @@ Light::Light(
 	outerAngle(outerAngle), 
 	shadowCasting(shadowCasting) {}
 
-void Light::markDirty() {
-	this->dirty = true;
+float Light::getRadius() const {
+	return std::sqrt(this->intensity / 0.025f);
 }
 
-void Light::markClean() {
-	this->dirty = false;
+std::string Light::toString() const {
+	return "Light[type=" + std::string(magic_enum::enum_name(type)) + ", " +
+		"pos=" + std::format("x:{} y:{} z:{}, ", position[0], position[1], position[2]) +
+		"direction=" + std::format("x:{} y:{} z:{}, ", direction[0], direction[1], direction[2]) +
+		"colour=" + std::format("{} {} {} {}, ", colour[0], colour[1], colour[2], colour[3]) +
+		"itensity=" + std::format("{}, ", intensity) +
+		"innerAngle=" + std::format("{}, ", innerAngle) +
+		"outerAngle=" + std::format("{}, ", outerAngle) +
+		"shadowCasting=" + std::format("{}, ", shadowCasting) +
+		"radius=" + std::format("{}, ", getRadius()) +
+		"dirty=" + std::format("{}, ", dirty) +
+		"enabled=" + std::format("{}", enabled) + "]";
 }
-
-LightType Light::getLightType() {
-	return this->type;
-}
-
-glm::vec3 Light::getPosition() {
-	return this->position;
-}
-
-glm::vec3 Light::getDirection() {
-	return this->direction;
-}
-
-glm::vec3 Light::getColour() {
-	return this->colour;
-}
-
-int Light::getIntensity() {
-	return this->intensity;
-}
-
-float Light::getInnerAngle() {
-	return this->innerAngle;
-}
-
-float Light::getOuterAngle() {
-	return this->outerAngle;
-}
-
-bool Light::isShadowCasting() {
-	return this->shadowCasting;
-}
-
-bool Light::isDirty() {
-	return this->dirty;
-}
-
-void Light::toString() {}

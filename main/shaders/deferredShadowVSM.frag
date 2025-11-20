@@ -41,7 +41,6 @@ layout(set = 7, binding = 0) readonly buffer LightSpaceMatrices {
 };
 
 layout(push_constant) uniform PushConstants {
-	int lightCount;
 	float emissiveStrength;
 	float brightnessThreshold;
 	float shadowBias;
@@ -174,40 +173,41 @@ void main() {
 	vec3 Lo = vec3(0.0);
     // Iterate over all lights
     for (int i = 0; i < NUM_LIGHTS; i++) {
+		ShaderLight light = lights[i];
 
-		vec3 lightPos = lights[i].positionAndLightType.xyz;
+		vec3 lightPos = light.positionAndLightType.xyz;
 		float distToLight = length(lightPos - pos);
 		vec3 lightDir = normalize(lightPos - pos);
         
 		float attenuation = 1.0;
-		if (lights[i].positionAndLightType.w == 1) {
+		if (light.positionAndLightType.w == 1) {
 			// Directional lights have an attenuation of 1 so keep as is.
 			// Light dir should be parallel for every fragment for directional lights
-			lightDir = -lights[i].directionAndMapIndex.xyz;
+			lightDir = -light.directionAndMapIndex.xyz;
 		} else {
 			// Keep point and spot lights with squared attenuation
 			attenuation = 1 / (distToLight * distToLight);
 		}
 
-		vec3 lightColour = lights[i].colourAndIntensity.rgb;
-		float intensity  = lights[i].colourAndIntensity.w;
+		vec3 lightColour = light.colourAndIntensity.rgb;
+		float intensity  = light.colourAndIntensity.w;
 		vec3 radiance    = lightColour * intensity * attenuation;
 
 		float shadow = 1.0;
 		// If light is a shadow caster, calculate shadow
-		if (lights[i].extra.w == 1) {
-			shadow = calculateShadow(lights[i], pos);
+		if (light.extra.w == 1) {
+			shadow = calculateShadow(light, pos);
 		}
 
 		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, nDotV, metalness, roughness, 
 									 a, a2, F0, albedo, radiance, shadow);
 
 		// Get smooth edge for spot lights
-		if (lights[i].positionAndLightType.w == 2) {
-			vec3 lightToFrag = normalize(pos - lights[i].positionAndLightType.xyz);
-			float theta = dot(lightToFrag, lights[i].directionAndMapIndex.xyz);
-			float innerConeAngle = lights[i].extra.x;
-			float outerConeAngle = lights[i].extra.y;
+		if (light.positionAndLightType.w == 2) {
+			vec3 lightToFrag = normalize(pos - light.positionAndLightType.xyz);
+			float theta = dot(lightToFrag, light.directionAndMapIndex.xyz);
+			float innerConeAngle = light.extra.x;
+			float outerConeAngle = light.extra.y;
 			float intensity = (theta - outerConeAngle) / (innerConeAngle - outerConeAngle);
 			brdf = smoothstep(0.0, 1.0, intensity) * brdf;
 		}

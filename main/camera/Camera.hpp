@@ -4,9 +4,15 @@
 #include <glm/glm.hpp>
 
 #include "Cache.hpp"
+#include "../rendering/lights/Light.hpp"
 
 class Swapchain;
 struct GLFWwindow;
+
+struct FrustumPlane {
+	glm::vec3 normal;
+	float d;
+};
 
 class Camera {
 public:
@@ -27,23 +33,25 @@ public:
 	void markProjectionDirty();
 	void markViewDirty();
 
-	float& getFov();
-	float& getNearPlane();
-	float& getFarPlane();
-	glm::vec3 getPosition();
-	glm::vec3 getFrontDir();
+	float& getFov() { return this->fov; }
+	float& getNearPlane() { return this->nearPlane; }
+	float& getFarPlane() { return this->nearPlane; }
+	float& getSensitivity() { return this->sensitivity; }
 
-	glm::mat4 getProjection();
-	glm::mat4 getInvProjection();
-	glm::mat4 getView();
-	glm::mat4 getInvView();
+	glm::vec3 getPosition() const { return this->position; }
+	glm::vec3 getFrontDir() const { return this->frontDir; }
+	float getYaw() const { return this->yaw; }
+	float getPitch() const { return this->pitch; }
 
-	float& getSensitivity();
+	glm::mat4 getProjection() { return this->projection.get(); }
+	glm::mat4 getInvProjection() { return this->invProjection.get(); }
+	glm::mat4 getView() { return this->view.get(); }
+	glm::mat4 getInvView() { return this->invView.get(); }
 
 	std::array<glm::vec4, 8> getFrustumCorners();
+	std::array<FrustumPlane, 6> getFrustumPlanes();
 
-	float getYaw();
-	float getPitch();
+	bool lightInterectsFrustum(Light& light);
 private:
 	void playAnimation(float timeDelta);
 

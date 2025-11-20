@@ -27,7 +27,6 @@ layout(set = 3, binding = 4) uniform sampler2D uNormalMap;
 layout(set = 3, binding = 5) uniform sampler2D uEmissive;
 
 layout(push_constant) uniform PushConstants {
-	int lightCount;
 	float emissiveStrength;
 	float brightnessThreshold;
 	float shadowBias;
@@ -38,6 +37,8 @@ layout(push_constant) uniform PushConstants {
 
 layout(location = 0) out vec4 oColour;
 layout(location = 1) out vec4 oBrightness;
+
+layout(constant_id = 0) const int NUM_LIGHTS = 0;
 
 void main() {
 	// Discard fragments that fail alpha test
@@ -68,24 +69,25 @@ void main() {
 
 	vec3 Lo = vec3(0.0);
 	// Iterate over all lights
-	for (int i = 0; i < pConsts.lightCount; i++) {
+	for (int i = 0; i < NUM_LIGHTS; i++) {
+		ShaderLight light = lights[i];
 
-		vec3 lightPos = lights[i].positionAndLightType.xyz;
+		vec3 lightPos = light.positionAndLightType.xyz;
 		float distToLight = length(lightPos - v2fPosition);
 		vec3 lightDir = normalize(lightPos - v2fPosition);
 
 		float attenuation = 1.0;
-		if (lights[i].positionAndLightType.w == 1) {
+		if (light.positionAndLightType.w == 1) {
 			// Directional lights have an attenuation of 1 so keep as is.
 			// Light dir should be parallel for every fragment for directional lights
-			lightDir = -lights[i].directionAndMapIndex.xyz;
+			lightDir = -light.directionAndMapIndex.xyz;
 		} else {
 			// Keep point and spot lights with squared attenuation
 			attenuation = 1 / (distToLight * distToLight);
 		}
 
-		vec3 lightColour = lights[i].colourAndIntensity.rgb;
-		float intensity  = lights[i].colourAndIntensity.w;
+		vec3 lightColour = light.colourAndIntensity.rgb;
+		float intensity  = light.colourAndIntensity.w;
 		vec3 radiance    = lightColour * intensity * attenuation;
 
 		vec3 brdf = CookTorranceBRDF(lightDir, viewDir, normal, nDotV, metalness, roughness, 
