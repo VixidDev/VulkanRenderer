@@ -35,7 +35,7 @@ public:
 
 	float& getFov() { return this->fov; }
 	float& getNearPlane() { return this->nearPlane; }
-	float& getFarPlane() { return this->nearPlane; }
+	float& getFarPlane() { return this->farPlane; }
 	float& getSensitivity() { return this->sensitivity; }
 
 	glm::vec3 getPosition() const { return this->position; }

@@ -34,6 +34,8 @@ public:
 	float getOuterAngle() const { return this->outerAngle; }
 	bool isShadowCasting() const { return this->shadowCasting; }
 
+	// Gets radius of light volume assuming inverse-square falloff
+	// (This will then obviously be incorrect for directional lights)
 	float getRadius() const;
 	bool isEnabled() const { return this->enabled;  }
 	bool isDirty() const { return this->dirty; }

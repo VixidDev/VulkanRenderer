@@ -21,6 +21,7 @@ Camera::Camera(Swapchain* swapchain, float fov, float nearPlane, float farPlane,
 		const float aspectRatio = width / height;
 
 		glm::mat4 mat = glm::perspective(glm::radians(this->fov), aspectRatio, this->nearPlane, this->farPlane);
+		// Flip Y-axis because of Vulkan
 		mat[1][1] *= -1.0f;
 		return mat;
 	});
