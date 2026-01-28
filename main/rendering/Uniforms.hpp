@@ -32,7 +32,7 @@ namespace glsl {
 	};
 
 	struct Light {
-		glm::vec4 positionAndLightType{};    // xyz: position,  w: light type
+		glm::vec4 positionAndLightType{};    // xyz: position,  w: light type (-1 represents disabled light)
 		glm::vec4 directionAndMapIndex{};    // xyz: direction, w: shadow map index
 		glm::vec4 colourAndIntensity{};      // xyz: colour,	w: intensity
 		glm::vec4 extra{}; // xy: spot light angles, z: light space matrix index, w: is shadow casting

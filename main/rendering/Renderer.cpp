@@ -663,7 +663,7 @@ void Renderer::setLights(std::vector<Light>* lights) {
 		this->ssbos.lights.emplace_back(lightStruct);
 	}
 
-	this->numLights = lights->size();
+	this->numLights = static_cast<int>(lights->size());
 
 	// Create SSBOs
 	this->shaderStorageBuffers.emplace("lights", std::make_unique<ShaderStorageBuffer<glsl::Light>>(&this->context, &this->ssbos.lights));
@@ -856,104 +856,6 @@ void Renderer::update(float timeDelta) {
 			break;
 		}
 		}
-	}
-
-	// TODO: Move all this somewhere else, and only calculate it if the debug
-	// option for frustum bounds is actually enabled.
-	// Update debug frustum lines
-
-	if (!this->renderCameraFrustumBounds) return;
-
-	std::array<glm::vec4, 8> frustumCornersArr = this->camera->getFrustumCorners();
-	std::vector<glm::vec4> frustumCorners(frustumCornersArr.begin(), frustumCornersArr.end());
-	std::vector<glm::vec3> lineColours(8, glm::vec3(1.0f));
-	std::vector<std::uint32_t> lineIndices = {
-		0, 1, 1, 2, 2, 3, 3, 0,
-		0, 4, 1, 5, 2, 6, 3, 7,
-		4, 5, 5, 6, 6, 7, 7, 4
-	};
-
-	// GPU buffers
-	if (!this->lineMeshDataInit) {
-		vk::Buffer posLineGPU = vk::Buffer::createBuffer(
-			*this->context.allocator,
-			8 * sizeof(glm::vec4),
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			0,
-			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
-
-		vk::Buffer colLineGPU = vk::Buffer::createBuffer(
-			*this->context.allocator,
-			8 * sizeof(glm::vec3),
-			VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			0,
-			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
-
-		vk::Buffer indexLineGPU = vk::Buffer::createBuffer(
-			*this->context.allocator,
-			24 * sizeof(std::uint32_t),
-			VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-			0,
-			VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE);
-
-		// Staging buffers
-		vk::Buffer posStaging = vk::Buffer::createBuffer(
-			*this->context.allocator,
-			8 * sizeof(glm::vec4),
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-		vk::Buffer colStaging = vk::Buffer::createBuffer(
-			*this->context.allocator,
-			8 * sizeof(glm::vec3),
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-		vk::Buffer indexStaging = vk::Buffer::createBuffer(
-			*this->context.allocator,
-			24 * sizeof(std::uint32_t),
-			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT);
-
-		BakedModelLoader::mapToGPU(*this->context.allocator, posLineGPU, posStaging, frustumCorners);
-		BakedModelLoader::mapToGPU(*this->context.allocator, colLineGPU, colStaging, lineColours);
-		BakedModelLoader::mapToGPU(*this->context.allocator, indexLineGPU, indexStaging, lineIndices);
-
-		VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(*this->context.window, this->context.window->getDevice()->getCmdPool());
-
-		VkUtils::beginCommandBuffer(uploadCmd);
-
-		BakedModelLoader::copyToGPU(uploadCmd, posLineGPU, posStaging, frustumCorners);
-		BakedModelLoader::copyToGPU(uploadCmd, colLineGPU, colStaging, lineColours);
-		BakedModelLoader::copyToGPU(uploadCmd, indexLineGPU, indexStaging, lineIndices);
-
-		VkUtils::endAndSubmitCommandBuffer(*this->context.window, uploadCmd);
-
-		this->lineMeshData = LineMeshData{
-			std::move(posLineGPU),
-			std::move(colLineGPU),
-			std::move(indexLineGPU),
-			std::move(posStaging),
-			std::move(colStaging),
-			std::move(indexStaging),
-			lineIndices.size()
-		};
-
-		this->lineMeshDataInit = true;
-	} else {
-		BakedModelLoader::mapToGPU(*this->context.allocator, this->lineMeshData.posBuffer, this->lineMeshData.posBufferStaging, frustumCorners);
-		BakedModelLoader::mapToGPU(*this->context.allocator, this->lineMeshData.colBuffer, this->lineMeshData.colBufferStaging, lineColours);
-		BakedModelLoader::mapToGPU(*this->context.allocator, this->lineMeshData.indicesBuffer, this->lineMeshData.indicesBufferStaging, lineIndices);
-
-		VkCommandBuffer uploadCmd = VkUtils::createCommandBuffer(*this->context.window, this->context.window->getDevice()->getCmdPool());
-
-		VkUtils::beginCommandBuffer(uploadCmd);
-
-		BakedModelLoader::copyToGPU(uploadCmd, this->lineMeshData.posBuffer, this->lineMeshData.posBufferStaging, frustumCorners);
-		BakedModelLoader::copyToGPU(uploadCmd, this->lineMeshData.colBuffer, this->lineMeshData.colBufferStaging, lineColours);
-		BakedModelLoader::copyToGPU(uploadCmd, this->lineMeshData.indicesBuffer, this->lineMeshData.indicesBufferStaging, lineIndices);
-
-		VkUtils::endAndSubmitCommandBuffer(*this->context.window, uploadCmd);
 	}
 }
 
@@ -1287,17 +1189,6 @@ void Renderer::renderForward() {
 		if (!meshData[i].hasAlphaMask) continue;
 
 		RendererUtils::drawMesh(meshData[i], perMeshCallback);
-	}
-
-	// Render frustum bounding box
-	if (this->renderCameraFrustumBounds) {
-		RendererUtils::bindGraphicPipeline(this->getPipeline("lineDebug")->getHandle());
-
-		RendererUtils::bindGraphicDescriptorSets(
-			this->getPipelineLayout("lineDebug")->getHandle(), 0, 1,
-			&RendererUtils::getDescriptorSetHandle(this->getDescriptorSet("mvp")));
-
-		RendererUtils::drawLineMesh(this->lineMeshData);
 	}
 
 	RendererUtils::endRenderPass();

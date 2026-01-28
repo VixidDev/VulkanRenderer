@@ -517,7 +517,6 @@ void GUI::draw() {
 	if (renderer.showSunView) {
 		ImGui::Begin("Sun View Texture");
 
-		ImGui::Checkbox("Show Camera Frustum Bounds", &renderer.renderCameraFrustumBounds);
 		ImGui::InputInt2("Sun View Texture Size", this->sunViewSize);
 
 		ImGui::Image((ImTextureID)renderer.getDescriptorSet("sunView")->getHandle(), ImVec2(static_cast<float>(this->sunViewSize[0]), static_cast<float>(this->sunViewSize[1])));

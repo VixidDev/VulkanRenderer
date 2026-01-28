@@ -173,8 +173,6 @@ public:
 	float sunShadowNear = 0.1f;
 	float sunShadowFar = 256.0f;
 	float sunDistance = 100.0f;
-
-	bool renderCameraFrustumBounds = false;
 	
 	bool ssaoEnabled = false;
 	float ssaoExp = 2.0f;
