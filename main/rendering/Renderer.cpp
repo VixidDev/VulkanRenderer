@@ -725,6 +725,13 @@ void Renderer::setLights(std::vector<Light>* lights) {
 	this->descriptorSets.emplace("lights", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightSSBODescriptorSettings));
 	this->descriptorSets.emplace("lightMatrices", std::make_unique<BufferDescriptorSet>(window, &this->descriptorSetLayouts.at("ssboF").handle, lightMatricesSSBODescriptorSettings));
 
+	// Pipelines would have already been initialised before this,
+	// some of which depend on the number of lights which were unknown
+	// until now. So we recreate pipelines so specialization constants
+	// are correct for those pipelines.
+	this->recreateSizeDependents(); // Recreates pipelines
+	this->recreateSwapViewDependents(); // Have to be recreated after pipelines
+
 	// Pretty much most objects will have been created by this point so we can set debug names
 	this->setObjectDebugNames();
 }
