@@ -23,6 +23,11 @@ public:
 	Driver();
 	~Driver() = default;
 
+	Driver(const Driver&) = delete;
+	Driver& operator=(const Driver&) = delete;
+	Driver(Driver&&) = delete;
+	Driver* operator=(Driver&&) = delete;
+
 	int init();
 
 	int loadScene();
@@ -30,15 +35,14 @@ public:
 
 	void run();
 
-	Renderer& getRenderer();
-	TimestampManager& getTimestampManager();
+	Renderer& getRenderer() { return this->renderer; }
+	TimestampManager& getTimestampManager() { return this->timestampManager; }
+	const float getTimeDelta() const { return this->timeDelta; }
 
-	const float getTimeDelta() const;
-
-	std::vector<std::pair<vk::Image, vk::ImageView>>& getSceneTextures();
-	std::vector<VkDescriptorSet>& getMaterialDescriptors();
-	std::vector<Light>& getLights();
-	std::vector<MeshData>& getMeshData();
+	std::vector<std::pair<vk::Image, vk::ImageView>>& getSceneTextures() { return this->sceneTextures; }
+	std::vector<VkDescriptorSet>& getMaterialDescriptors() { return this->materialDescriptors; }
+	std::vector<Light>& getLights() { return this->lights; }
+	std::vector<MeshData>& getMeshData() { return this->meshData; }
 private:
 	Renderer renderer;
 	TimestampManager timestampManager;

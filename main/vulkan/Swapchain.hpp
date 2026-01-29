@@ -33,18 +33,18 @@ public:
 
 	SwapChanges recreate(bool firstTime = false);
 
-	VkSwapchainKHR& getHandle();
+	VkSwapchainKHR& getHandle() { return this->swapchain; }
+	VkFormat getFormat() { return this->selectedFormat.format; }
 
-	VkFormat getFormat();
-	int& getPresentMode();
-	const std::vector<std::string>& getPresentModeStrings() const;
+	int& getPresentMode() { return this->presentMode; }
+	const std::vector<std::string>& getPresentModeStrings() const { return this->presentModeStrings; }
 
-	std::uint32_t getMinImageCount();
-	VkExtent2D& getExtent();
-	VkExtent2D& getHalfExtent();
+	std::uint32_t getMinImageCount() { return this->minImageCount; }
+	VkExtent2D& getExtent() { return this->swapchainExtent; }
+	VkExtent2D& getHalfExtent() { return this->halfSwapchainExtent; }
 
-	const std::vector<VkImageView>& getViews() const;
-	VkImage getImage(std::uint32_t imageIndex);
+	const std::vector<VkImageView>& getViews() const { return this->swapchainViews; }
+	VkImage getImage(std::uint32_t imageIndex) { return this->swapchainImages[imageIndex]; }
 
 	static const int MAX_FRAMES_IN_FLIGHT = 3;
 private:

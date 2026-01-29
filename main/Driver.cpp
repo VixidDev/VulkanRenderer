@@ -126,31 +126,3 @@ void Driver::run() {
 
 	this->renderer.finishRendering();
 }
-
-Renderer& Driver::getRenderer() {
-	return this->renderer;
-}
-
-TimestampManager& Driver::getTimestampManager() {
-	return this->timestampManager;
-}
-
-const float Driver::getTimeDelta() const {
-	return this->timeDelta;
-}
-
-std::vector<std::pair<vk::Image, vk::ImageView>>& Driver::getSceneTextures() {
-	return this->sceneTextures;
-}
-
-std::vector<VkDescriptorSet>& Driver::getMaterialDescriptors() {
-	return this->materialDescriptors;
-}
-
-std::vector<Light>& Driver::getLights() {
-	return this->lights;
-}
-
-std::vector<MeshData>& Driver::getMeshData() {
-	return this->meshData;
-}

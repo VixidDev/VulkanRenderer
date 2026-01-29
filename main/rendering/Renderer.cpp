@@ -952,9 +952,17 @@ void Renderer::render() {
 	// Render any debug shapes / visualisations on top of the scene after
 	// forward or deferred pass
 	if (this->anyDebugVisualisation) {
-		if (true) {
-			Debug::renderDebugLightVolumes(this, this->imageIndex);
+		// If rendering type is deferred, we need to transition the depth
+		// buffer from READ_ONLY_OPTIMAL (because it was used as a descriptor)
+		// to ATTACHMENT_OPTIMAL, which is what debug passes expect.
+		if (this->renderingType) {
+			RendererUtils::imageBarrier(this->getTextureBuffer("depth")->getImage().image,
+				VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+				VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT,
+				VkImageSubresourceRange{ VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 });
 		}
+		Debug::renderDebugLightVolumes(this, this->imageIndex);
 	}
 
 	// Post processing effects
@@ -1923,18 +1931,6 @@ void Renderer::recreateSwapViewDependents() {
 		framebuffer.second->recreate();
 }
 
-Driver* Renderer::getDriver() {
-	return this->driver;
-}
-
-VulkanContext& Renderer::getContext() {
-	return this->context;
-}
-
-Camera* Renderer::getCamera() {
-	return this->camera.get();
-}
-
 RenderPass* Renderer::getRenderPass(const std::string& renderPass) {
 	RenderPass* ret = nullptr;
 
@@ -2041,74 +2037,6 @@ DescriptorSet* Renderer::getDescriptorSet(const std::string& descriptorSet) {
 	}
 
 	return ret;
-}
-
-SSAOPreProcess* Renderer::getSSAOPreProcess() {
-	return this->ssaoEffect.get();
-}
-
-std::vector<std::pair<std::string, _PostProcessingEffect>>& Renderer::getPostProcessingEffects() {
-	return this->postProcessingEffects;
-}
-
-vk::Sampler& Renderer::getDefaultSampler() {
-	return this->linearRepeatSampler;
-}
-
-std::uint32_t Renderer::getFrameIndex() {
-	return this->frameIndex;
-}
-
-std::uint32_t Renderer::getImageIndex() {
-	return this->imageIndex;
-}
-
-Uniforms& Renderer::getUniforms() {
-	return this->uniforms;
-}
-
-SSBOs& Renderer::getSSBOs() {
-	return this->ssbos;
-}
-
-int& Renderer::getRenderingType() {
-	return this->renderingType;
-}
-
-bool& Renderer::getShadowsEnabled() {
-	return this->shadowsEnabled;
-}
-
-float& Renderer::getDepthBiasConstant() {
-	return this->depthBiasConstant;
-}
-
-float& Renderer::getDepthBiasSlopeFactor() {
-	return this->depthBiasSlopeFactor;
-}
-
-bool& Renderer::getDebugView() {
-	return this->debugView;
-}
-
-int& Renderer::getDebugState() {
-	return this->debugState;
-}
-
-bool& Renderer::getMosaicEnabled() {
-	return this->mosaicEnabled;
-}
-
-std::pair<vk::Image, vk::ImageView>& Renderer::getDummyTexture() {
-	return this->dummyTexture;
-}
-
-LightMatrices& Renderer::getSunMatrices() {
-	return this->sunMatrices;
-}
-
-std::uint32_t Renderer::getSunLightIndex() {
-	return std::uint32_t(this->sunLightIndex);
 }
 
 void Renderer::setRecreateSwapchain(bool value, bool force) {

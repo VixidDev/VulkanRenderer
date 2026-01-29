@@ -102,10 +102,7 @@ public:
 	void recreateSwapViewDependents();
 	void setRecreateSwapchain(bool value, bool force = false);
 
-	Driver* getDriver();
-	VulkanContext& getContext();
-	Camera* getCamera();
-
+	// Checked getters
 	RenderPass* getRenderPass(const std::string& renderPass);
 	VkDescriptorSetLayout getDescriptorSetLayout(const std::string& descriptorSetLayout);
 	PipelineLayout* getPipelineLayout(const std::string& pipelineLayout);
@@ -116,31 +113,35 @@ public:
 	IShaderStorageBuffer* getShaderStorageBuffer(const std::string& shaderStorageBuffer);
 	DescriptorSet* getDescriptorSet(const std::string& descriptorSet);
 
-	SSAOPreProcess* getSSAOPreProcess();
+	// Getters
+	Driver* getDriver() { return this->driver; }
+	VulkanContext& getContext() { return this->context; }
+	Camera* getCamera() { return this->camera.get(); }
 
-	std::vector<std::pair<std::string, _PostProcessingEffect>>& getPostProcessingEffects();
-
-	vk::Sampler& getDefaultSampler();
-
-	std::uint32_t getFrameIndex();
-	std::uint32_t getImageIndex();
-
-	Uniforms& getUniforms();
-	SSBOs& getSSBOs();
-
-	int& getRenderingType();
-	bool& getShadowsEnabled();
-	float& getDepthBiasConstant();
-	float& getDepthBiasSlopeFactor();
-	bool& getDebugView();
-	int& getDebugState();
+	SSAOPreProcess* getSSAOPreProcess() { return this->ssaoEffect.get(); }
 
 	// Post processing effects
-	bool& getMosaicEnabled();
+	bool& getMosaicEnabled() { return this->mosaicEnabled; }
+	std::vector<std::pair<std::string, _PostProcessingEffect>>& getPostProcessingEffects() { return this->postProcessingEffects; }
 
-	std::pair<vk::Image, vk::ImageView>& getDummyTexture();
-	LightMatrices& getSunMatrices();
-	std::uint32_t getSunLightIndex();
+	vk::Sampler& getDefaultSampler() { return this->linearRepeatSampler; }
+
+	std::uint32_t getFrameIndex() const { return this->frameIndex; }
+	std::uint32_t getImageIndex() const { return this->imageIndex; }
+
+	Uniforms& getUniforms() { return this->uniforms; }
+	SSBOs& getSSBOs() { return this->ssbos; }
+
+	int& getRenderingType() { return this->renderingType; }
+	bool& getShadowsEnabled() { return this->shadowsEnabled; }
+	float& getDepthBiasConstant() { return this->depthBiasConstant; }
+	float& getDepthBiasSlopeFactor() { return this->depthBiasSlopeFactor; }
+	bool& getDebugView() { return this->debugView; }
+	int& getDebugState() { return this->debugState; }
+
+	std::pair<vk::Image, vk::ImageView>& getDummyTexture() { return this->dummyTexture; }
+	LightMatrices& getSunMatrices() { return this->sunMatrices; }
+	std::uint32_t getSunLightIndex() const { return uint32_t(this->sunLightIndex); }
 
 	// Debug shapes
 	MeshData& getDebugSphere() { return this->sphereModel; }

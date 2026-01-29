@@ -117,11 +117,3 @@ std::optional<std::uint64_t> TimestampManager::getCPUTimestamp(int index) {
 
 	return res;
 }
-
-TimestampReferences& TimestampManager::getGPUTimestampReferences() {
-	return this->gpuTimestampReferences;
-}
-
-TimestampReferences& TimestampManager::getCPUTimestampReferences() {
-	return this->lastFrameCpuTimestampReferences;
-}

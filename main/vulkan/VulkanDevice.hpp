@@ -21,23 +21,23 @@ public:
 	VulkanDevice(VulkanDevice&&) noexcept;
 	VulkanDevice& operator= (VulkanDevice&&) noexcept;
 
-	VkPhysicalDevice getPhysicalDevice();
-	VkDevice getDevice() const;
+	VkPhysicalDevice getPhysicalDevice() { return this->physicalDevice; }
+	VkDevice getDevice() const { return this->device; }
 
-	const VkPhysicalDeviceProperties& getDeviceProperties() const;
-	const VkPhysicalDeviceFeatures2& getDeviceFeatures() const;
+	const VkPhysicalDeviceProperties& getDeviceProperties() const { return this->deviceProperties; }
+	const VkPhysicalDeviceFeatures2& getDeviceFeatures() const { return this->deviceFeatures; }
 
-	const std::vector<std::uint32_t>& getQueueFamilyIndices() const;
-	std::uint32_t getGraphicsFamilyIndex();
-	VkQueue getGraphicsQueue();
-	std::uint32_t getPresentFamilyIndex();
-	VkQueue getPresentQueue();
+	const std::vector<std::uint32_t>& getQueueFamilyIndices() const { return this->queueFamilyIndices; }
+	std::uint32_t getGraphicsFamilyIndex() { return this->graphicsFamilyIndex; }
+	VkQueue getGraphicsQueue() { return this->graphicsQueue; }
+	std::uint32_t getPresentFamilyIndex() { return this->presentFamilyIndex; }
+	VkQueue getPresentQueue() { return this->presentQueue; }
 
-	VkCommandPool getCmdPool();
-	VkDescriptorPool getDescPool();
+	VkCommandPool getCmdPool() { return this->cmdPool; }
+	VkDescriptorPool getDescPool() { return this->descPool; }
 
 	// Get sample count flag with a selected index
-	VkSampleCountFlagBits getSampleCount(std::size_t index);
+	VkSampleCountFlagBits getSampleCount(std::size_t index) { return this->possibleSampleCounts[index]; }
 
 	std::size_t maxSampleCountIndex = 0;
 	std::vector<VkSampleCountFlagBits> possibleSampleCounts = { VK_SAMPLE_COUNT_1_BIT, VK_SAMPLE_COUNT_2_BIT, VK_SAMPLE_COUNT_4_BIT, VK_SAMPLE_COUNT_8_BIT, VK_SAMPLE_COUNT_16_BIT, VK_SAMPLE_COUNT_32_BIT, VK_SAMPLE_COUNT_64_BIT };

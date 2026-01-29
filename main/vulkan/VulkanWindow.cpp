@@ -236,26 +236,6 @@ void VulkanWindow::createSurface() {
 		throw Utils::Error("Unable to create VkSurfaceKHR\nglfwCreateWindowSurface() returned %s", Utils::toString(res).c_str());
 }
 
-VkInstance VulkanWindow::getInstance() {
-	return this->instance;
-}
-
-GLFWwindow* VulkanWindow::getGLFWwindow() {
-	return this->glfwWindow;
-}
-
-VkSurfaceKHR VulkanWindow::getSurface() {
-	return this->surface;
-}
-
-VulkanDevice* VulkanWindow::getDevice() const {
-	return this->device.get();
-}
-
-Swapchain* VulkanWindow::getSwapchain() const {
-	return this->swapchain.get();
-}
-
 VkResult submitAndPresent(
 	VulkanWindow& window, 
 	std::vector<VkCommandBuffer>& cmdBuffers, 

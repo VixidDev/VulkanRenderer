@@ -21,12 +21,12 @@ public:
 	VulkanWindow(VulkanWindow&&) noexcept;
 	VulkanWindow& operator= (VulkanWindow&&) noexcept;
 
-	VkInstance getInstance();
-	GLFWwindow* getGLFWwindow();
-	VkSurfaceKHR getSurface();
+	VkInstance getInstance() { return this->instance; }
+	GLFWwindow* getGLFWwindow() { return this->glfwWindow; }
+	VkSurfaceKHR getSurface() { return this->surface; }
 
-	VulkanDevice* getDevice() const;
-	Swapchain* getSwapchain() const;
+	VulkanDevice* getDevice() const { return this->device.get(); }
+	Swapchain* getSwapchain() const { return this->swapchain.get(); }
 private:
 	void enableLayers(std::vector<std::string>& requestedLayers);
 	void enableExtensions(std::vector<std::string>& requestedExtensions);

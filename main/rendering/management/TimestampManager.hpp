@@ -36,8 +36,8 @@ public:
 	std::optional<std::uint64_t> getGPUTimestamp(int index);
 	std::optional<std::uint64_t> getCPUTimestamp(int index);
 
-	TimestampReferences& getGPUTimestampReferences();
-	TimestampReferences& getCPUTimestampReferences();
+	TimestampReferences& getGPUTimestampReferences() { return this->gpuTimestampReferences; }
+	TimestampReferences& getCPUTimestampReferences() { return this->lastFrameCpuTimestampReferences; }
 
 	bool recordGPUTimestamps = true;
 	bool recordCPUTimestamps = true;

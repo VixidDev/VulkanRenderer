@@ -126,42 +126,6 @@ SwapChanges Swapchain::recreate(bool firstTime) {
 	return ret;
 }
 
-VkSwapchainKHR& Swapchain::getHandle() {
-	return this->swapchain;
-}
-
-VkFormat Swapchain::getFormat() {
-	return this->selectedFormat.format;
-}
-
-int& Swapchain::getPresentMode() {
-	return this->presentMode;
-}
-
-const std::vector<std::string>& Swapchain::getPresentModeStrings() const {
-	return this->presentModeStrings;
-}
-
-std::uint32_t Swapchain::getMinImageCount() {
-	return this->minImageCount;
-}
-
-VkExtent2D& Swapchain::getExtent() {
-	return this->swapchainExtent;
-}
-
-VkExtent2D& Swapchain::getHalfExtent() {
-	return this->halfSwapchainExtent;
-}
-
-const std::vector<VkImageView>& Swapchain::getViews() const {
-	return this->swapchainViews;
-}
-
-VkImage Swapchain::getImage(std::uint32_t imageIndex) {
-	return this->swapchainImages[imageIndex];
-}
-
 std::vector<VkSurfaceFormatKHR> Swapchain::getSurfaceFormats() {
 	VkPhysicalDevice physicalDevice = this->window->getDevice()->getPhysicalDevice();
 	VkSurfaceKHR surface = this->window->getSurface();
