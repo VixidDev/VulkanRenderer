@@ -17,7 +17,9 @@ namespace Debug {
 
 	void renderDebugLightVolumes(Renderer* renderer, uint32_t imageIndex);
 
-	vk::Buffer& getLightVolumesDebugBuffer(Renderer* renderer, std::vector<InstanceData>& instanceData);
+	vk::Buffer& getLightVolumesDebugBuffer(Renderer* renderer, std::vector<InstanceData>& instanceData, bool forceUpdate);
+
+	bool shouldUpdateBuffer(std::vector<InstanceData>& instanceData);
 
 	void destroyBuffers();
 

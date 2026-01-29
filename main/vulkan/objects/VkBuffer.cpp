@@ -53,8 +53,10 @@ namespace vk {
 		VkBuffer buffer = VK_NULL_HANDLE;
 		VmaAllocation allocation = VK_NULL_HANDLE;
 
-		if (const VkResult res = vmaCreateBuffer(allocator.allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr); VK_SUCCESS != res)
+		if (const VkResult res = vmaCreateBuffer(allocator.allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr); VK_SUCCESS != res) {
+			std::fprintf(stderr, "Unable to allocate buffer\n vmaCreateBuffer() returned %s", Utils::toString(res).c_str());
 			throw Utils::Error("Unable to allocate buffer\n vmaCreateBuffer() returned %s", Utils::toString(res).c_str());
+		}
 
 		return Buffer(allocator.allocator, buffer, allocation);
 	}

@@ -827,6 +827,7 @@ void Renderer::update(float timeDelta) {
 
 	// Update any light data
 	int directionalLightIndex = 0;
+	this->activeLights = 0;
 
 	for (std::size_t i = 0; i < this->lights->size(); i++) {
 		Light& light = lights->at(i);
@@ -837,8 +838,11 @@ void Renderer::update(float timeDelta) {
 		case LightType::POINT:
 		{
 			if (this->camera->lightInterectsFrustum(light)) {
+				light.setEnabled(true);
 				lightStruct.positionAndLightType.w = LightType::POINT;
+				this->activeLights++;
 			} else {
+				light.setEnabled(false);
 				lightStruct.positionAndLightType.w = -1;
 			}
 			break;
@@ -849,10 +853,12 @@ void Renderer::update(float timeDelta) {
 			this->ssbos.lightMatrices.at(directionalLightIndex) = this->sunMatrices.projection.get() * this->sunMatrices.view.get();
 
 			directionalLightIndex++;
+			this->activeLights++;
 			break;
 		}
 		case LightType::SPOT:
 		{
+			this->activeLights++;
 			break;
 		}
 		}

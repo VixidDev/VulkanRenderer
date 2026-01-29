@@ -158,6 +158,7 @@ void GUI::draw() {
 
 			ImGui::EndTabItem();
 		}
+
 		if (ImGui::BeginTabItem("Lights")) {
 #ifndef NDEBUG
 			if (renderer.getDebugView())
@@ -197,6 +198,7 @@ void GUI::draw() {
 				dynamic_cast<ForwardPipeline*>(renderer.getPipeline("forward"))->recreate();
 				dynamic_cast<DeferredShadingPipeline*>(renderer.getPipeline("deferredShading"))->recreate();
 			}
+			ImGui::Text("Active Lights: %d", renderer.activeLights);
 
 			ImGui::Separator();
 

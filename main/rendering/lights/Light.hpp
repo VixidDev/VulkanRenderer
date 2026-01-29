@@ -22,6 +22,7 @@ public:
 		bool shadowCasting
 	);
 
+	void setEnabled(bool value) { this->enabled = value; }
 	void markDirty() { this->dirty = true; }
 	void markClean() { this->dirty = false; }
 
@@ -37,7 +38,7 @@ public:
 	// Gets radius of light volume assuming inverse-square falloff
 	// (This will then obviously be incorrect for directional lights)
 	float getRadius() const;
-	bool isEnabled() const { return this->enabled;  }
+	bool isEnabled() const { return this->enabled; }
 	bool isDirty() const { return this->dirty; }
 
 	std::string toString() const;

@@ -146,6 +146,7 @@ public:
 	MeshData& getDebugSphere() { return this->sphereModel; }
 
 	int numLights = 0;
+	int activeLights = 0;
 	std::uint32_t numPointLights = 0;
 	std::uint32_t numDirectionalLights = 0;
 	std::uint32_t numSpotLights = 0;
