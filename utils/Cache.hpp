@@ -26,7 +26,7 @@ public:
 	}
 
 	bool isDirty() const {
-		return this->isDirty;
+		return this->dirty;
 	}
 
 private:
