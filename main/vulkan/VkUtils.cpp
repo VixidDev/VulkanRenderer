@@ -356,4 +356,18 @@ namespace VkUtils {
 #endif
 	}
 
+	ImageLayout getFinalLayoutFromFormat(ImageFormat format) {
+		switch (format) {
+			case RGBA16:
+			case RGBA8:
+			case B10GR11_PACK32:
+			case R8:
+			case RG32:
+			case RG16_SNORM:
+				return ImageLayout::COLOR;
+			case D32:
+				return ImageLayout::DEPTH_STENCIL;
+		}
+	}
+
 }

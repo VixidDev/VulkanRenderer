@@ -24,3 +24,17 @@ vk::Image& TextureBuffer::getImage() {
 vk::ImageView& TextureBuffer::getImageView() {
 	return this->imageView;
 }
+
+TextureBuffer::Builder* TextureBuffer::Builder::withDescription(TextureDesc textureDesc) {
+	this->textureDesc = textureDesc;
+	return this;
+}
+
+TextureBuffer::Builder* TextureBuffer::Builder::withExtent(VkExtent2D* extent) {
+	this->extent = extent;
+	return this;
+}
+
+TextureBuffer TextureBuffer::Builder::build() {
+
+}

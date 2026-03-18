@@ -2,6 +2,7 @@
 
 #include "objects/VkObjects.hpp"
 #include "VulkanContext.hpp"
+#include "../rendering/objects/base/structure/Textures.hpp"
 
 #include <array>
 
@@ -92,4 +93,7 @@ namespace VkUtils {
 	void endCmdLabel(VkCommandBuffer cmdBuf);
 
 	void setObjectName(VkDevice device, VkObjectType type, std::uint64_t handle, const char* name);
+
+	// Misc
+	ImageLayout getFinalLayoutFromFormat(ImageFormat format);
 }
