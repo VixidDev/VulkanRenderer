@@ -22,6 +22,7 @@ enum ImageUsage {
 	TRANSFER_SRC = VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 	TRANSFER_DST = VK_IMAGE_USAGE_TRANSFER_DST_BIT
 };
+typedef std::uint32_t ImageUsageFlags;
 
 enum ImageAspect {
 	COLOR = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -42,8 +43,21 @@ enum ImageLayout {
 	PRESENT = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 };
 
+enum TextureUse { 
+	NONE,
+	ATTACHMENT_LOAD, // Indicates the texture will be loaded as an attachment for a future pass
+	TEXTURE_SAMPLE   // Indicates the texture will be sampled in a shader in a future pass
+};
+typedef std::uint32_t TextureUseFlags;
+
+enum ExtentRatio {
+	SWAPCHAIN,
+	HALF_SWAPCHAIN,
+	QUARTER_SWAPCHAIN
+};
+
 struct TextureDesc {
 	ImageFormat format;
-	ImageUsage usage;
+	ImageUsageFlags usage;
 	ImageAspect aspect = ImageAspect::COLOR;
 };

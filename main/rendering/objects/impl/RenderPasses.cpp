@@ -9,6 +9,11 @@ namespace RenderPasses {
 	static std::unordered_map<Pass, RenderPass> renderPasses;
 
 	void initialise() {
+		registerPass(Pass::SHADOW, RenderPass::Builder::get()
+			->withDepthAttachment(Texture::SHADOW_SPOT, AttachmentLoadOp::CLEAR, AttachmentStoreOp::STORE, ImageLayout::DEPTH_STENCIL_READ_ONLY)
+			->build()
+		);
+
 		// Forward Pass
 		// Writes to main color, brightness color, depth buffer
 		// Reads from main color, shadow maps (depth buffers), and SSAO texture (color texture)
@@ -20,14 +25,12 @@ namespace RenderPasses {
 		// reading/writing to them
 		registerPass(Pass::FORWARD, RenderPass::Builder::get()
 			// Main output image
-			//->withColourAttachment({Textures::HDR, AttachmentLoadOp::LOAD, AttachmentStoreOp::STORE, ImageLayout::COLOR})
-			->withColourAttachment(Texture::MAIN_HDR, AttachmentLoadOp::LOAD, AttachmentStoreOp::STORE, ImageLayout::COLOR)
+			->withColourAttachment(Texture::MAIN_HDR, AttachmentLoadOp::LOAD, AttachmentStoreOp::STORE, ImageLayout::COLOR, ImageLayout::COLOR)
 			// Brightness image
-			//->withColourAttachment({Textures::HDR, AttachmentLoadOp::CLEAR, AttachmentStoreOp::STORE, ImageLayout::COLOR})
-			->withColourAttachment(Texture::BRIGHTNESS, AttachmentLoadOp::CLEAR, AttachmentStoreOp::STORE, ImageLayout::UNDEFINED)
+			->withColourAttachment(Texture::BRIGHTNESS, AttachmentLoadOp::CLEAR, AttachmentStoreOp::STORE, ImageLayout::COLOR)
 			// Depth buffer
-			//->withDepthAttachment({Textures::DEPTH, AttachmentLoadOp::CLEAR, AttachmentStoreOp::DONT_CARE})
-			->withDepthAttachment(Texture::DEPTH, AttachmentLoadOp::CLEAR, AttachmentStoreOp::DONT_CARE, ImageLayout::UNDEFINED)
+			->withDepthAttachment(Texture::DEPTH, AttachmentLoadOp::CLEAR, AttachmentStoreOp::DONT_CARE, ImageLayout::DEPTH)
+			->usesDescriptorInShader(ImageType::COLOR) // Uses SSAO texture in shader
 			->build()
 		);
 	}

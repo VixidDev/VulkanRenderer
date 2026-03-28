@@ -1,40 +1,72 @@
 #include "RenderPass.hpp"
 
 #include "error.hpp"
+#include "toString.hpp"
 #include "../../../vulkan/VkUtils.hpp"
 
-RenderPass::RenderPass(VulkanWindow* window) : window(window) {}
+RenderPass::RenderPass(
+	const std::vector<VkAttachmentDescription> attachmentDescriptions,
+	const std::vector<VkAttachmentReference> attachmentReferences,
+	VkSubpassDescription subpassDescription,
+	const std::array<VkSubpassDependency, 2> subpassDependencies
+) : attachmentDescriptions(attachmentDescriptions),
+	attachmentReferences(attachmentReferences),
+	subpassDescription(subpassDescription),
+	subpassDependencies(subpassDependencies) {}
+
+VkRenderPass RenderPass::get(std::shared_ptr<VulkanDevice> device) {
+	if (this->renderPass.has_value()) return this->renderPass.value().handle;
+
+	return this->compile(device);
+}
 
 void RenderPass::recreate() {}
 
 vk::RenderPass& RenderPass::getRenderPass() {
-	return this->renderPass;
+	return this->renderPass.value();
 }
 
-VkRenderPass RenderPass::getRenderPassHandle() {
-	return this->renderPass.handle;
+VkRenderPass RenderPass::compile(std::shared_ptr<VulkanDevice> device) {
+	// Share the pointer if not already
+	if (!this->device) this->device = device;
+
+	VkRenderPassCreateInfo passInfo = {
+		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+		.attachmentCount = this->attachmentDescriptions.size(),
+		.pAttachments = this->attachmentDescriptions.data(),
+		.subpassCount = 1,
+		.pSubpasses = &this->subpassDescription,
+		.dependencyCount = 2,
+		.pDependencies = this->subpassDependencies.data()
+	};
+
+	VkRenderPass renderPass = VK_NULL_HANDLE;
+	if (const VkResult res = vkCreateRenderPass(this->device->getDevice(), &passInfo, nullptr, &renderPass); VK_SUCCESS != res) {
+		throw Utils::Error("Unable to create render pass\nvkCreateRenderPass() returned '%s'\n", Utils::toString(res).c_str());
+	}
+
+	this->renderPass = vk::RenderPass(this->device->getDevice(), renderPass);
 }
 
-std::vector<VkClearValue>& RenderPass::getClearValues() {
-	return this->clearValues;
-}
-
+/*
+ * Render Pass Builder
+ */
 RenderPass::Builder* RenderPass::Builder::withColourAttachment(
-	Texture colourAttachment, AttachmentLoadOp loadOp, AttachmentStoreOp storeOp, ImageLayout layout
+	Texture colourAttachment, AttachmentLoadOp loadOp, AttachmentStoreOp storeOp, ImageLayout finalLayout, ImageLayout initialLayout
 ) {
-	AttachmentDesc desc = { colourAttachment, loadOp, storeOp, layout };
+	AttachmentDesc desc = { colourAttachment, loadOp, storeOp, initialLayout, finalLayout };
 
 	this->attachments.emplace_back(desc);
 	return this;
 }
 
 RenderPass::Builder* RenderPass::Builder::withDepthAttachment(
-	Texture depthAttachment, AttachmentLoadOp loadOp, AttachmentStoreOp storeOp, ImageLayout layout
+	Texture depthAttachment, AttachmentLoadOp loadOp, AttachmentStoreOp storeOp, ImageLayout finalLayout, ImageLayout initialLayout
 ) {
 	if (this->depthTextureIndex.has_value())
 		throw Utils::Error("Render passes can only have 1 depth buffer bound!\n");
 	
-	AttachmentDesc desc = { depthAttachment, loadOp, storeOp, layout };
+	AttachmentDesc desc = { depthAttachment, loadOp, storeOp, initialLayout, finalLayout };
 
 	this->attachments.emplace_back(desc);
 	this->depthTextureIndex = this->attachments.size() - 1;
@@ -59,8 +91,8 @@ RenderPass RenderPass::Builder::build() {
 		attachmentDesc.format = (VkFormat)texture.getFormat();
 		attachmentDesc.loadOp = (VkAttachmentLoadOp)desc.loadOp;
 		attachmentDesc.storeOp = (VkAttachmentStoreOp)desc.storeOp;
-		attachmentDesc.initialLayout = (VkImageLayout)desc.initialLayout.value_or(VK_IMAGE_LAYOUT_UNDEFINED);
-		attachmentDesc.finalLayout = (VkImageLayout)desc.finalLayout.value_or(VkUtils::getFinalLayoutFromFormat(texture.getFormat()));
+		attachmentDesc.initialLayout = (VkImageLayout)desc.initialLayout;
+		attachmentDesc.finalLayout = (VkImageLayout)desc.finalLayout;
 
 		attachments.emplace_back(attachmentDesc);
 	}
@@ -75,7 +107,7 @@ RenderPass RenderPass::Builder::build() {
 
 		VkAttachmentReference reference{};
 		reference.attachment = i;
-		reference.layout = (VkImageLayout)desc.finalLayout.value_or(VkUtils::getFinalLayoutFromFormat(texture.getFormat()));
+		reference.layout = (VkImageLayout)desc.finalLayout;
 
 		references.emplace_back(reference);
 	}
@@ -86,26 +118,29 @@ RenderPass RenderPass::Builder::build() {
 	subpass.pColorAttachments = references.data();
 	subpass.pDepthStencilAttachment = this->depthTextureIndex ? &references.at(this->depthTextureIndex.value()) : nullptr;
 
-	// Determine stage and access masks
+	// Determine stage and access masks for subpass dependencies
 
-	// If an attachment has a clear load op, that is considered a write operation and needs to be barrier'd
-	// i.e. if a depth attachment is written to in a previous pass, then cleared and written to in the 
-	// current subpass, the srcStageMask needs LATE_FRAGMENT_TESTS since store ops occur there for depth attachments,
-	// then dstStageMask needs EARLY_FRAGMENT_TESTS since load ops occur there
-
+	// Initial subpass dependency masks
 	PipelineStageFlags srcStageMask0 = PipelineStage::NONE;
 	PipelineStageFlags dstStageMask0 = PipelineStage::NONE;
 	AccessFlags srcAccessMask0 = AccessBit::NONE;
 	AccessFlags dstAccessMask0 = AccessBit::NONE;
 
+	// Subsequent subpass dependency masks
+	PipelineStageFlags srcStageMask1 = PipelineStage::NONE;
+	PipelineStageFlags dstStageMask1 = PipelineStage::NONE;
+	AccessFlags srcAccessMask1 = AccessBit::NONE;
+	AccessFlags dstAccessMask1 = AccessBit::NONE;
+
 	for (size_t i = 0; i < this->attachments.size(); i++) {
 		AttachmentDesc& desc = this->attachments.at(i);
 		TextureBuffer& texture = Textures::get(desc.texture);
+		ImageFormat format = texture.getFormat();
 
 		// If we have attachments with a loadOp of CLEAR, we want to synchronise
 		// on depth/color write, since CLEARs are considered write ops
 		if (desc.loadOp == AttachmentLoadOp::CLEAR) {
-			if (Textures::isOfDepthFormat(texture.getFormat())) {
+			if (Textures::isOfDepthFormat(format)) {
 				dstStageMask0 |= PipelineStage::EARLY_FRAGMENT;
 				dstAccessMask0 |= AccessBit::DEPTH_STENCIL_WRITE;
 			} else {
@@ -117,7 +152,7 @@ RenderPass RenderPass::Builder::build() {
 		// If we have attachments with a loadOp of LOAD, we want to synchronise 
 		// on depth/color load for that attachment type
 		if (desc.loadOp == AttachmentLoadOp::LOAD) {
-			if (Textures::isOfDepthFormat(texture.getFormat())) {
+			if (Textures::isOfDepthFormat(format)) {
 				srcStageMask0 |= PipelineStage::LATE_FRAGMENT;
 				srcAccessMask0 |= AccessBit::DEPTH_STENCIL_WRITE;
 				dstStageMask0 |= PipelineStage::EARLY_FRAGMENT;
@@ -132,25 +167,50 @@ RenderPass RenderPass::Builder::build() {
 
 		// If we transition to a differing layout, we need to synchronise the transition
 		if (desc.initialLayout != desc.finalLayout) {
-			if (desc.finalLayout.has_value() && Textures::isOfDepthLayout(desc.finalLayout.value())) {
+			if (Textures::isOfDepthLayout(desc.finalLayout)) {
 				srcStageMask0 |= PipelineStage::EARLY_FRAGMENT | PipelineStage::LATE_FRAGMENT;
 				srcAccessMask0 |= AccessBit::DEPTH_STENCIL_WRITE;
-			} else if (desc.finalLayout.has_value() && Textures::isOfColorLayout(desc.finalLayout.value())) {
+			} else if (Textures::isOfColorLayout(desc.finalLayout)) {
 				srcStageMask0 |= PipelineStage::COLOR_OUTPUT;
 				srcAccessMask0 |= AccessBit::COLOR_WRITE;
 			}
 		}
 
 		// We need to synchronise on any work done this render pass
-		if (Textures::isOfDepthFormat(texture.getFormat())) {
+		if (Textures::isOfDepthFormat(format)) {
 			dstStageMask0 |= PipelineStage::EARLY_FRAGMENT;
 			// It would be more correct to make the DEPTH_STENCIL dstAccessMasks present depending on the 
 			// pipeline depth write/test flags, but it would be more compilcated since multiple pipelines 
 			// can use the same render pass, and I don't want to make the same pass with just differing access masks
 			dstAccessMask0 |= AccessBit::DEPTH_STENCIL_WRITE | AccessBit::DEPTH_STENCIL_READ;
+
+			srcStageMask1 |= PipelineStage::LATE_FRAGMENT;
+			srcAccessMask1 |= AccessBit::DEPTH_STENCIL_WRITE;
 		} else {
 			dstStageMask0 |= PipelineStage::COLOR_OUTPUT;
 			dstAccessMask0 |= AccessBit::COLOR_WRITE;
+
+			srcStageMask1 |= PipelineStage::COLOR_OUTPUT;
+			srcAccessMask1 |= AccessBit::COLOR_WRITE;
+		}
+
+		// If the attachment has a future use, i.e. is loaded as an attachment in a later pass
+		// or is sampled in a shader, we need to synchronise on that too
+		if (TextureUseFlags futureUse = texture.getFutureUse()) {
+			if (futureUse & TextureUse::ATTACHMENT_LOAD) {
+				if (Textures::isOfDepthFormat(format)) {
+					dstStageMask1 |= PipelineStage::EARLY_FRAGMENT;
+					dstAccessMask1 |= AccessBit::DEPTH_STENCIL_READ;
+				} else {
+					dstStageMask1 |= PipelineStage::COLOR_OUTPUT;
+					dstAccessMask1 |= AccessBit::COLOR_READ;
+				}
+			}
+
+			if (futureUse & TextureUse::TEXTURE_SAMPLE) {
+				dstStageMask1 |= PipelineStage::FRAGMENT_SHADER;
+				dstAccessMask1 |= AccessBit::SHADER_READ;
+			}
 		}
  	}
 
@@ -168,19 +228,20 @@ RenderPass RenderPass::Builder::build() {
 		dstAccessMask0 |= AccessBit::SHADER_READ;
 	}
 
-	VkSubpassDependency dependencies[2]{};
-	// The previous subpass...
+	std::array<VkSubpassDependency, 2> dependencies{};
 	dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-	// ...must finish the following stages...
 	dependencies[0].srcStageMask = srcStageMask0;
-	// ...with the following access...
 	dependencies[0].srcAccessMask = srcAccessMask0;
-	// ...before allowing this subpass..
 	dependencies[0].dstSubpass = 0;
-	// ...with the following stages...
 	dependencies[0].dstStageMask = dstStageMask0;
-	// ...and the following access to take place.
 	dependencies[0].dstAccessMask = dstAccessMask0;
 
+	dependencies[1].srcSubpass = 0;
+	dependencies[1].srcStageMask = srcStageMask1;
+	dependencies[1].srcAccessMask = srcAccessMask1;
+	dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[1].dstStageMask = dstStageMask1;
+	dependencies[1].dstAccessMask = dstAccessMask1;
 
+	return RenderPass(attachments, references, subpass, dependencies);
 }

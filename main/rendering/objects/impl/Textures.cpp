@@ -11,12 +11,45 @@ namespace Textures {
 	void initialise() {
 		registerTexture(Texture::MAIN_HDR, TextureBuffer::Builder::get()
 			->withDescription(TextureDescs::HDR)
+			// Loaded as attachment in main pass
+			// Sampled in tonemap
+			->hasFutureUse(TextureUse::ATTACHMENT_LOAD | TextureUse::TEXTURE_SAMPLE)
+			->withExtent(ExtentRatio::SWAPCHAIN)
+			->build()
+		);
+		registerTexture(Texture::MAIN_SDR, TextureBuffer::Builder::get()
+			->withDescription(TextureDescs::SDR)
+			// Sampled by FXAA/Mosaic/Any post process after tonemapping
+			->hasFutureUse(TextureUse::TEXTURE_SAMPLE)
+			->withExtent(ExtentRatio::SWAPCHAIN)
+			->build()
+		);
+		registerTexture(Texture::DEPTH, TextureBuffer::Builder::get()
+			->withDescription(TextureDescs::DEPTH)
+			// Sampled by SSAO step
+			->hasFutureUse(TextureUse::TEXTURE_SAMPLE)
+			->withExtent(ExtentRatio::SWAPCHAIN)
+			->build()
+		);
+		registerTexture(Texture::BRIGHTNESS, TextureBuffer::Builder::get()
+			->withDescription(TextureDescs::HDR)
+			// Sampled by bloom step
+			->hasFutureUse(TextureUse::TEXTURE_SAMPLE)
+			->withExtent(ExtentRatio::SWAPCHAIN)
+			->build()
+		);
+
+		registerTexture(Texture::SHADOW_SPOT, TextureBuffer::Builder::get()
+			->withDescription(TextureDescs::DEPTH)
+			// Sampled by main render pass
+			->hasFutureUse(TextureUse::TEXTURE_SAMPLE)
+			->withExtent(ExtentRatio::SWAPCHAIN)
 			->build()
 		);
 	}
 
 	void registerTexture(Texture key, TextureBuffer textureBuffer) {
-
+		textureBuffers[key] = std::move(textureBuffer);
 	}
 
 	TextureBuffer& get(Texture texture) {

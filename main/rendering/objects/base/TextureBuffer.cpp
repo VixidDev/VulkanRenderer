@@ -30,8 +30,13 @@ TextureBuffer::Builder* TextureBuffer::Builder::withDescription(TextureDesc text
 	return this;
 }
 
-TextureBuffer::Builder* TextureBuffer::Builder::withExtent(VkExtent2D* extent) {
+TextureBuffer::Builder* TextureBuffer::Builder::withExtent(ExtentRatio extent) {
 	this->extent = extent;
+	return this;
+}
+
+TextureBuffer::Builder* TextureBuffer::Builder::hasFutureUse(TextureUseFlags futureUse) {
+	this->futureUse = futureUse;
 	return this;
 }
 

@@ -20,6 +20,6 @@ struct AttachmentDesc {
 	Texture texture;
 	AttachmentLoadOp loadOp;
 	AttachmentStoreOp storeOp;
-	std::optional<ImageLayout> finalLayout = std::nullopt;
-	std::optional<ImageLayout> initialLayout = std::nullopt;
+	ImageLayout initialLayout;
+	ImageLayout finalLayout;
 };

@@ -6,25 +6,36 @@
 
 #include "structure/Textures.hpp"
 
+#include <optional>
+
 struct VulkanContext;
 
 class TextureBuffer {
 public:
-	TextureBuffer() = default;
-	TextureBuffer(VulkanContext* context);
-
 	~TextureBuffer() = default;
+
+	// Delete copy constructors
+	TextureBuffer(const TextureBuffer& other) = delete;
+	TextureBuffer& operator=(const TextureBuffer& other) = delete;
+
+	// Define move constructors
+	TextureBuffer(TextureBuffer&& other) noexcept;
+	TextureBuffer& operator=(TextureBuffer&& other) noexcept;
 
 	void recreate();
 
 	void addListener(ITextureBufferListener* listener);
 	void removeListener(ITextureBufferListener* listener);
 
-	ImageFormat getFormat();
+	ImageFormat getFormat() const { return format; }
+	TextureUseFlags getFutureUse() const { return futureUse; }
 
 	vk::Image& getImage();
 	vk::ImageView& getImageView();
 protected:
+	TextureBuffer() = default;
+	TextureBuffer(VulkanContext* context);
+
 	VulkanContext* context;
 
 	std::vector<ITextureBufferListener*> listeners;
@@ -32,7 +43,9 @@ protected:
 	vk::Image image;
 	vk::ImageView imageView;
 
-	VkFormat format = VK_FORMAT_UNDEFINED;
+	VkFormat _format = VK_FORMAT_UNDEFINED;
+	ImageFormat format;
+	TextureUseFlags futureUse = TextureUse::NONE;
 
 	VkExtent2D* renderExtent = nullptr;
 public:
@@ -41,13 +54,15 @@ public:
 		static Builder* get() { return new Builder(); }
 
 		Builder* withDescription(TextureDesc textureDesc);
-		Builder* withExtent(VkExtent2D* extent);
+		Builder* withExtent(ExtentRatio extent);
+		Builder* hasFutureUse(TextureUseFlags futureUse);
 
 		TextureBuffer build();
 	private:
 		Builder();
 
 		TextureDesc textureDesc;
-		VkExtent2D* extent = nullptr;
+		ExtentRatio extent = ExtentRatio::SWAPCHAIN;
+		TextureUseFlags futureUse = TextureUse::NONE;
 	};
 };

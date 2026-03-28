@@ -7,38 +7,38 @@ namespace TextureDescs {
 
 	static TextureDesc HDR = {
 		.format = ImageFormat::RGBA16,
-		.usage = (ImageUsage)(ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC)
+		.usage = ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC
 	};
 
 	static TextureDesc SDR = {
 		.format = ImageFormat::RGBA8,
-		.usage = (ImageUsage)(ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC)
+		.usage = ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC
 	};
 
 	static TextureDesc DEPTH = {
 		.format = ImageFormat::D32,
-		.usage = (ImageUsage)(ImageUsage::DEPTH_STENCIL | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED),
+		.usage = ImageUsage::DEPTH_STENCIL | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED,
 		.aspect = ImageAspect::DEPTH
 	};
 
 	static TextureDesc B10GR11_PACK32 = {
 		.format = ImageFormat::B10GR11_PACK32,
-		.usage = (ImageUsage)(ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC)
+		.usage = ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC
 	};
 
 	static TextureDesc R8 = {
 		.format = ImageFormat::R8,
-		.usage = (ImageUsage)(ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC)
+		.usage = ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC
 	};
 
 	static TextureDesc NOISE = {
 		.format = ImageFormat::RG16_SNORM,
-		.usage = (ImageUsage)(ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC)
+		.usage = ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST | ImageUsage::TRANSFER_SRC
 	};
 
 	static TextureDesc RG32 = {
 		.format = ImageFormat::RG32,
-		.usage = (ImageUsage)(ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC),
+		.usage = ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC
 	};
 
 }
@@ -84,4 +84,5 @@ namespace Textures {
 	bool isOfColorFormat(ImageFormat format);
 	bool isOfDepthLayout(ImageLayout layout);
 	bool isOfColorLayout(ImageLayout layout);
+
 }

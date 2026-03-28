@@ -1,15 +1,15 @@
 #pragma once
 
-#include <vector>
-#include <optional>
-#include <memory>
-
-#include "../../../vulkan/objects/VkObjects.hpp"
 #include "structure/Attachments.hpp"
 #include "structure/Pipelines.hpp"
 #include "../impl/Textures.hpp"
+#include "../vulkan/VulkanDevice.hpp"
 
-class VulkanWindow;
+#include <vector>
+#include <memory>
+#include <array>
+
+class VulkanDevice;
 
 class RenderPass {
 public:
@@ -23,27 +23,49 @@ public:
 	RenderPass(RenderPass&& other) noexcept;
 	RenderPass& operator=(RenderPass&& other) noexcept;
 
+	VkRenderPass get(std::shared_ptr<VulkanDevice> device);
+
 	void recreate();
 
 	vk::RenderPass& getRenderPass();
-	VkRenderPass getRenderPassHandle();
-	std::vector<VkClearValue>& getClearValues();
-protected:
+private:
 	RenderPass() = default;
-	RenderPass(VulkanWindow* window);
+	RenderPass(
+		const std::vector<VkAttachmentDescription> attachmentDescriptions,
+		const std::vector<VkAttachmentReference> attachmentReferences,
+		VkSubpassDescription subpassDescription,
+		const std::array<VkSubpassDependency, 2> subpassDependencies
+	);
 
-	VulkanWindow* window;
+	VkRenderPass compile(std::shared_ptr<VulkanDevice> device);
 
-	vk::RenderPass renderPass;
-	std::vector<VkClearValue> clearValues;
+	std::vector<VkAttachmentDescription> attachmentDescriptions;
+	std::vector<VkAttachmentReference> attachmentReferences;
+	VkSubpassDescription subpassDescription;
+	std::array<VkSubpassDependency, 2> subpassDependencies;
 
+	std::shared_ptr<VulkanDevice> device;
+
+	std::optional<vk::RenderPass> renderPass = std::nullopt;
 public:
 	class Builder {
 	public:
 		static Builder* get() { return new Builder(); }
 
-		Builder* withColourAttachment(Texture colourAttachment, AttachmentLoadOp loadOp, AttachmentStoreOp storeOp, ImageLayout layout);
-		Builder* withDepthAttachment(Texture depthAttachment, AttachmentLoadOp loadOp, AttachmentStoreOp storeOp, ImageLayout layout);
+		Builder* withColourAttachment(
+			Texture colourAttachment, 
+			AttachmentLoadOp loadOp, 
+			AttachmentStoreOp storeOp, 
+			ImageLayout layout, 
+			ImageLayout initialLayout = ImageLayout::UNDEFINED
+		);
+		Builder* withDepthAttachment(
+			Texture depthAttachment, 
+			AttachmentLoadOp loadOp, 
+			AttachmentStoreOp storeOp, 
+			ImageLayout layout, 
+			ImageLayout initialLayout = ImageLayout::UNDEFINED
+		);
 		Builder* usesDescriptorInShader(ImageType imageType);
 
 		RenderPass build();
@@ -51,7 +73,7 @@ public:
 		Builder();
 
 		std::vector<AttachmentDesc> attachments;
-		std::optional<uint32_t> depthTextureIndex;
+		std::optional<uint32_t> depthTextureIndex = std::nullopt;
 		std::optional<ImageType> descriptorType = std::nullopt;
 	};
 };
