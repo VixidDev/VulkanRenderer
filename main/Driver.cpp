@@ -4,7 +4,7 @@
 
 #include "input/Callbacks.hpp"
 #include "baked/BakedModelLoader.hpp"
-#include "rendering/lights/LightsParser.hpp"
+#include "rendering/lights/Lights.hpp"
 
 Driver::Driver() : renderer(this) {};
 
@@ -59,7 +59,7 @@ int Driver::loadScene() {
 	this->materialDescriptors = BakedModelLoader::createMaterialDescriptors(*this, this->bakedModel);
 
 	const std::string lightsFile = "assets-src/main/lights.vl";
-	if (!LightsParser::parseLights(lightsFile, this->lights)) {
+	if (!Lights::parse(lightsFile)) {
 		std::fprintf(stderr, "Failed to parse lights for file '%s'\n", lightsFile.c_str());
 	}
 

@@ -41,6 +41,11 @@ namespace TextureDescs {
 		.usage = ImageUsage::COLOR | ImageUsage::INPUT_ATTACHMENT | ImageUsage::SAMPLED | ImageUsage::TRANSFER_SRC
 	};
 
+	static TextureDesc SKYBOX = {
+		.format = ImageFormat::RGBA8,
+		.usage = ImageUsage::COLOR | ImageUsage::SAMPLED | ImageUsage::TRANSFER_DST
+	};
+
 }
 
 enum Texture {
@@ -60,16 +65,18 @@ enum Texture {
 	SSAO_VBLUR,
 	SKYBOX,
 
+	SWAPCHAIN,
+
 	// Shadow textures
 	SHADOW_POINT,
-	SHADOW_DIRECTIONAL,
-	SHADOW_SPOT,
 	SHADOW_POINT_VSM,
 	SHADOW_POINT_VSM_DEPTH,
 	SHADOW_POINT_VSM_BLUR,
-	SHADOW_DIRECTION_VSM,
-	SHADOW_DIRECTION_VSM_DEPTH,
-	SHADOW_DIRECTION_VSM_BLUR,
+	SHADOW_DIRECTIONAL,
+	SHADOW_DIRECTIONAL_VSM,
+	SHADOW_DIRECTIONAL_VSM_DEPTH,
+	SHADOW_DIRECTIONAL_VSM_BLUR,
+	SHADOW_SPOT,
 	SHADOW_SPOT_VSM,
 	SHADOW_SPOT_VSM_DEPTH,
 	SHADOW_SPOT_VSM_BLUR
@@ -78,6 +85,7 @@ enum Texture {
 namespace Textures {
 
 	void initialise();
+	void initialiseDeferredTextures();
 	void registerTexture(Texture key, TextureBuffer textureBuffer);
 	TextureBuffer& get(Texture texture);
 	bool isOfDepthFormat(ImageFormat format);

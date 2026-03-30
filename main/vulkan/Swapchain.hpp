@@ -3,6 +3,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <functional>
 
 #include <volk/volk.h>
 
@@ -26,6 +27,7 @@ public:
 	Swapchain(VulkanWindow* window);
 	~Swapchain();
 
+	// Delete all other constructors
 	Swapchain(const Swapchain&) = delete;
 	Swapchain& operator=(const Swapchain&) = delete;
 	Swapchain(Swapchain&&) = delete;
@@ -42,6 +44,7 @@ public:
 	std::uint32_t getMinImageCount() { return this->minImageCount; }
 	VkExtent2D& getExtent() { return this->swapchainExtent; }
 	VkExtent2D& getHalfExtent() { return this->halfSwapchainExtent; }
+	VkExtent2D& getQuarterExtent() { return this->quarterSwapchainExtent; }
 
 	const std::vector<VkImageView>& getViews() const { return this->swapchainViews; }
 	VkImage getImage(std::uint32_t imageIndex) { return this->swapchainImages[imageIndex]; }
@@ -67,6 +70,7 @@ private:
 	std::uint32_t minImageCount = 0;
 	VkExtent2D swapchainExtent;
 	VkExtent2D halfSwapchainExtent;
+	VkExtent2D quarterSwapchainExtent;
 
 	std::vector<VkImage> swapchainImages;
 	std::vector<VkImageView> swapchainViews;

@@ -52,7 +52,7 @@ VkRenderPass RenderPass::compile(std::shared_ptr<VulkanDevice> device) {
  * Render Pass Builder
  */
 RenderPass::Builder* RenderPass::Builder::withColourAttachment(
-	Texture colourAttachment, AttachmentLoadOp loadOp, AttachmentStoreOp storeOp, ImageLayout finalLayout, ImageLayout initialLayout
+	Texture colourAttachment, LoadOp loadOp, StoreOp storeOp, ImageLayout finalLayout, ImageLayout initialLayout
 ) {
 	AttachmentDesc desc = { colourAttachment, loadOp, storeOp, initialLayout, finalLayout };
 
@@ -61,7 +61,7 @@ RenderPass::Builder* RenderPass::Builder::withColourAttachment(
 }
 
 RenderPass::Builder* RenderPass::Builder::withDepthAttachment(
-	Texture depthAttachment, AttachmentLoadOp loadOp, AttachmentStoreOp storeOp, ImageLayout finalLayout, ImageLayout initialLayout
+	Texture depthAttachment, LoadOp loadOp, StoreOp storeOp, ImageLayout finalLayout, ImageLayout initialLayout
 ) {
 	if (this->depthTextureIndex.has_value())
 		throw Utils::Error("Render passes can only have 1 depth buffer bound!\n");
@@ -73,7 +73,7 @@ RenderPass::Builder* RenderPass::Builder::withDepthAttachment(
 	return this;
 }
 
-RenderPass::Builder* RenderPass::Builder::usesDescriptorInShader(ImageType imageType) {
+RenderPass::Builder* RenderPass::Builder::usesDescriptorInShader(ImageTypeFlags imageType) {
 	this->descriptorType = imageType;
 	return this;
 }
@@ -103,7 +103,6 @@ RenderPass RenderPass::Builder::build() {
 
 	for (size_t i = 0; i < this->attachments.size(); i++) {
 		AttachmentDesc& desc = this->attachments.at(i);
-		TextureBuffer& texture = Textures::get(desc.texture);
 
 		VkAttachmentReference reference{};
 		reference.attachment = i;
@@ -139,7 +138,7 @@ RenderPass RenderPass::Builder::build() {
 
 		// If we have attachments with a loadOp of CLEAR, we want to synchronise
 		// on depth/color write, since CLEARs are considered write ops
-		if (desc.loadOp == AttachmentLoadOp::CLEAR) {
+		if (desc.loadOp == LoadOp::CLEAR) {
 			if (Textures::isOfDepthFormat(format)) {
 				dstStageMask0 |= PipelineStage::EARLY_FRAGMENT;
 				dstAccessMask0 |= AccessBit::DEPTH_STENCIL_WRITE;
@@ -151,7 +150,7 @@ RenderPass RenderPass::Builder::build() {
 
 		// If we have attachments with a loadOp of LOAD, we want to synchronise 
 		// on depth/color load for that attachment type
-		if (desc.loadOp == AttachmentLoadOp::LOAD) {
+		if (desc.loadOp == LoadOp::LOAD) {
 			if (Textures::isOfDepthFormat(format)) {
 				srcStageMask0 |= PipelineStage::LATE_FRAGMENT;
 				srcAccessMask0 |= AccessBit::DEPTH_STENCIL_WRITE;
@@ -217,10 +216,10 @@ RenderPass RenderPass::Builder::build() {
 	// If image samplers are used during this render pass,
 	// add respective barriers before reading them depending on type
 	if (this->descriptorType.has_value()) {
-		if (this->descriptorType == ImageType::COLOR) {
+		if (this->descriptorType.value() & ImageType::COLOR) {
 			srcStageMask0 |= PipelineStage::COLOR_OUTPUT;
 			srcAccessMask0 |= AccessBit::COLOR_WRITE;
-		} else if (this->descriptorType == ImageType::DEPTH) {
+		if (this->descriptorType.value() & ImageType::DEPTH) {
 			srcStageMask0 |= PipelineStage::LATE_FRAGMENT;
 			srcAccessMask0 |= AccessBit::DEPTH_STENCIL_WRITE;
 		}

@@ -2,7 +2,11 @@
 
 #include "../../../../vulkan/objects/VkObjects.hpp"
 
-enum ImageType { COLOR, DEPTH };
+enum ImageType { 
+	COLOR = 0x1, 
+	DEPTH = 0x2
+};
+typedef std::uint32_t ImageTypeFlags;
 
 enum ImageFormat {
 	RGBA16 = VK_FORMAT_R16G16B16A16_SFLOAT,
@@ -43,6 +47,28 @@ enum ImageLayout {
 	PRESENT = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
 };
 
+enum ImageCreate {
+	NONE = 0x0,
+	CUBE_COMPATIBLE = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+	ARRAY_2D_COMPATIBLE = VK_IMAGE_CREATE_2D_ARRAY_COMPATIBLE_BIT
+};
+typedef std::uint32_t ImageCreateFlags;
+
+enum ImageSamples {
+	ONE = VK_SAMPLE_COUNT_1_BIT,
+	TWO = VK_SAMPLE_COUNT_2_BIT,
+	FOUR = VK_SAMPLE_COUNT_4_BIT,
+	EIGHT = VK_SAMPLE_COUNT_8_BIT,
+	SIXTEEN = VK_SAMPLE_COUNT_16_BIT
+};
+
+enum ImageViewType {
+	TYPE_2D = VK_IMAGE_VIEW_TYPE_2D,
+	TYPE_CUBE = VK_IMAGE_VIEW_TYPE_CUBE,
+	TYPE_2D_ARRAY = VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+	TYPE_CUBE_ARRAY = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY
+};
+
 enum TextureUse { 
 	NONE,
 	ATTACHMENT_LOAD, // Indicates the texture will be loaded as an attachment for a future pass
@@ -51,6 +77,7 @@ enum TextureUse {
 typedef std::uint32_t TextureUseFlags;
 
 enum ExtentRatio {
+	CUSTOM,
 	SWAPCHAIN,
 	HALF_SWAPCHAIN,
 	QUARTER_SWAPCHAIN

@@ -54,19 +54,19 @@ public:
 
 		Builder* withColourAttachment(
 			Texture colourAttachment, 
-			AttachmentLoadOp loadOp, 
-			AttachmentStoreOp storeOp, 
-			ImageLayout layout, 
+			LoadOp loadOp, 
+			StoreOp storeOp, 
+			ImageLayout finalLayout, 
 			ImageLayout initialLayout = ImageLayout::UNDEFINED
 		);
 		Builder* withDepthAttachment(
 			Texture depthAttachment, 
-			AttachmentLoadOp loadOp, 
-			AttachmentStoreOp storeOp, 
-			ImageLayout layout, 
+			LoadOp loadOp, 
+			StoreOp storeOp, 
+			ImageLayout finalLayout, 
 			ImageLayout initialLayout = ImageLayout::UNDEFINED
 		);
-		Builder* usesDescriptorInShader(ImageType imageType);
+		Builder* usesDescriptorInShader(ImageTypeFlags imageType);
 
 		RenderPass build();
 	private:
@@ -74,7 +74,7 @@ public:
 
 		std::vector<AttachmentDesc> attachments;
 		std::optional<uint32_t> depthTextureIndex = std::nullopt;
-		std::optional<ImageType> descriptorType = std::nullopt;
+		std::optional<ImageTypeFlags> descriptorType = std::nullopt;
 	};
 };
 

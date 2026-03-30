@@ -7,6 +7,7 @@
 #include "structure/Textures.hpp"
 
 #include <optional>
+#include <functional>
 
 struct VulkanContext;
 
@@ -22,6 +23,9 @@ public:
 	TextureBuffer(TextureBuffer&& other) noexcept;
 	TextureBuffer& operator=(TextureBuffer&& other) noexcept;
 
+	VkImage getImage(std::shared_ptr<VulkanContext> context);
+	VkImageView getImageView(std::shared_ptr<VulkanContext> context);
+
 	void recreate();
 
 	void addListener(ITextureBufferListener* listener);
@@ -29,33 +33,50 @@ public:
 
 	ImageFormat getFormat() const { return format; }
 	TextureUseFlags getFutureUse() const { return futureUse; }
-
-	vk::Image& getImage();
-	vk::ImageView& getImageView();
 protected:
 	TextureBuffer() = default;
-	TextureBuffer(VulkanContext* context);
+	TextureBuffer(
+		VkImageCreateInfo imageCreateInfo, 
+		VkImageViewCreateInfo imageViewCreateInfo, 
+		ImageFormat format,
+		ExtentRatio extentRatio,
+		TextureUseFlags futureUse,
+		bool isRenderTarget,
+		bool calcMipmaps);
 
-	VulkanContext* context;
+	void compile(std::shared_ptr<VulkanContext> context);
+
+	VkImageCreateInfo imageCreateInfo;
+	VkImageViewCreateInfo imageViewCreateInfo;
+	ImageFormat format;
+	ExtentRatio extentRatio;
+	TextureUseFlags futureUse;
+	bool isRenderTarget;
+	bool useMipmaps;
+
+	std::shared_ptr<VulkanContext> context;
+
+	std::function<VkExtent2D()> extentFunc = nullptr;
+
+	std::optional<vk::Image> image = std::nullopt;
+	std::optional<vk::ImageView> imageView = std::nullopt;
+	std::vector<vk::ImageView> framebufferViews;
 
 	std::vector<ITextureBufferListener*> listeners;
-
-	vk::Image image;
-	vk::ImageView imageView;
-
-	VkFormat _format = VK_FORMAT_UNDEFINED;
-	ImageFormat format;
-	TextureUseFlags futureUse = TextureUse::NONE;
-
-	VkExtent2D* renderExtent = nullptr;
 public:
 	class Builder {
 	public:
 		static Builder* get() { return new Builder(); }
 
 		Builder* withDescription(TextureDesc textureDesc);
-		Builder* withExtent(ExtentRatio extent);
+		Builder* withFlags(ImageCreateFlags imageCreateFlags);
+		Builder* withExtent(ExtentRatio extentRatio);
+		Builder* withArrayLayers(std::uint32_t arrayLayers);
+		Builder* withSamples(ImageSamples samples);
+		Builder* withViewType(ImageViewType viewType);
 		Builder* hasFutureUse(TextureUseFlags futureUse);
+		Builder* isRenderTarget();
+		Builder* useMipmaps(bool value = false);
 
 		TextureBuffer build();
 	private:
@@ -63,6 +84,12 @@ public:
 
 		TextureDesc textureDesc;
 		ExtentRatio extent = ExtentRatio::SWAPCHAIN;
+		ImageCreateFlags createFlags = ImageCreate::NONE;
+		std::uint32_t arrayLayers = 1;
+		ImageSamples samples = ImageSamples::ONE;
+		ImageViewType imageViewType = ImageViewType::TYPE_2D;
 		TextureUseFlags futureUse = TextureUse::NONE;
+		bool shouldRenderTo = false;
+		bool calcMipmaps = false;
 	};
 };
